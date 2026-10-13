@@ -1,0 +1,41 @@
+Actúa como un diseñador UI/UX y desarrollador Web Senior experto en interfaces modernas (Dark Mode / Premium UI). 
+
+Necesito que diseñes y construyas el frontend (HTML5, CSS3 moderno y JS/Tailwind CSS) para la plataforma "RentTool" (alquiler de herramientas y equipos de construcción).
+
+### 1. ESTILO VISUAL Y DISEÑO (Basado en la imagen de referencia):
+- Fondo principal: Negro casi puro (#0A0A0B o #0F0F12) y gris muy oscuro (#16161A) para tarjetas y contenedores.
+- Color de acento / primario: Amarillo brillante / Dorado (#FFD700 o #E5B800) para botones principales, badges destacados, subrayados de texto importante y efectos hover/glow.
+- Texto: Blanco (#FFFFFF) para títulos principales y gris claro (#A0A0AB) para textos secundarios.
+- Estructura de tarjetas: Bordes redondeados elegantes (`border-radius: 12px` a `16px`), bordes finos sutiles en gris oscuro/transparente (`border: 1px solid rgba(255,255,255,0.08)`), con efecto sutil de resplandor (glow) amarillo en estados active/hover.
+- Layout Hero Section: Un banner principal impactante con título grande (parte del texto resaltado en amarillo), subtítulo, botones de llamada a la acción (CTA) con esquinas redondeadas o redondeado completo (pill style), y una tarjeta flotante o ventana multimedia a la derecha con bordes redondeados y cortes curvados futuristas.
+
+### 2. ESTRUCTURA DE LA PÁGINA / VISTAS PRINCIPALES:
+- Navbar Superior: 
+  - Logo "RentTool" en blanco con acento amarillo.
+  - Enlaces de navegación: Inicio, Catálogo, Servicios/Cómo Funciona, Preguntas Frecuentes, Contacto.
+  - Botones a la derecha: "Iniciar Sesión" (Ghost button) y "Registrarse / Comenzar" (Botón amarillo en forma de píldora con borde o fondo brillante).
+- Hero Section:
+  - Etiqueta superior peq.: "ALQUILER DE HERRAMIENTAS Y EQUIPOS".
+  - Título principal: "Potencia tus obras con el mejor equipamiento." (Resaltar "el mejor equipamiento" en amarillo).
+  - Descripción breve sobre la solución de alquiler rápido, seguro y garantizado para constructores y proveedores.
+  - Botones CTA: "Explorar catálogo →" (Amarillo) y "Ver cómo funciona ▷" (Gris oscuro/transparente).
+  - Tarjeta o vitrina derecha: Vista previa de una herramienta destacada o categoría principal con diseño tipo card oscuro sobre fondo con iluminación amarilla sutil.
+- Sección de Categorías / Servicios Destacados:
+  - Cuadrícula (Grid) de tarjetas oscuras mostrando categorías (e.g. Maquinaria Pesada, Herramientas Eléctricas, Demolición, Medición y Láser).
+  - Iconos minimalistas enmarcados en cuadros con borde amarillo/dorado.
+  - Texto descriptivo y flecha de enlace en amarillo (`→`).
+- Sección del Catálogo de Herramientas (Grid de Productos):
+  - Tarjetas de herramientas con imagen previa, título, categoría, disponibilidad en tiempo real, tarifa por día (ej. $25.000 COP / día) y botón "Solicitar Reserva".
+- Sección de Métricas / Estadísticas (Casos de Éxito / Garantía):
+  - Contadores o métricas con tipografía grande en amarillo (ej. "+5,000 Equipos disponibles", "99% Disponibilidad", "Entregas en 24h").
+
+### 3. INTEGRACIÓN TÉCNICA CON EL BACKEND (Spring Boot / REST API):
+- La interfaz debe consumir la API REST del sistema bajo `/api/v1` usando Fetch API o Axios.
+- Manejo de autenticación por JWT almacenado en `localStorage` o cookies seguras para los roles: CLIENTE, PROVEEDOR, ADMINISTRADOR.
+- Integración de los endpoints principales:
+  - POST `/api/v1/auth/login` y `/api/v1/auth/register` para el flujo de acceso.
+  - GET `/api/v1/tools` con parámetros de paginación, filtros de categoría y disponibilidad por rango de fechas.
+  - POST `/api/v1/reservations` para enviar solicitudes de reserva enviando `toolId`, `quantity`, `startDate`, `endDate` y `deliveryMode`.
+- Respuestas de la interfaz con estados visuales claros: indicadores de carga (spinners/skeletons), estados vacíos, alertas de error uniformes y notificaciones de éxito.
+
+Genera el código ejecutable de la página principal (index.html, styles.css y app.js) aplicando completamente estos criterios de diseño y funcionalidad.

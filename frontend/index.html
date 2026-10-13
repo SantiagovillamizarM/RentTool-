@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0a0a0b" />
+    <meta
+      name="description"
+      content="RentTool: herramientas y equipos para tu próximo proyecto. Consulta el catálogo y gestiona tu inventario."
+    />
+    <title>RentTool — Equipa tu próxima gran obra</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="header">
+      <a class="brand" href="#inicio" aria-label="RentTool inicio"
+        ><span class="brand-mark">R<span>↗</span></span
+        >RentTool<span class="brand-dot">.</span></a
+      ><button
+        class="menu-toggle"
+        aria-label="Abrir menú"
+        aria-expanded="false"
+      >
+        ☰
+      </button>
+      <nav aria-label="Principal">
+        <a class="active" href="#inicio">Inicio</a
+        ><a href="#catalogo">Catálogo</a
+        ><a href="#como-funciona">Cómo funciona</a
+        ><a href="#preguntas">Preguntas frecuentes</a
+        ><a href="#contacto">Contacto</a>
+      </nav>
+      <div class="header-actions" id="account-actions">
+        <button class="text-button" data-auth="login">Iniciar sesión</button
+        ><button class="outline-button" data-auth="register">
+          Comienza ahora <span>↗</span>
+        </button>
+      </div>
+    </header>
+    <main>
+      <section class="hero" id="inicio">
+        <div class="hero-index">
+          <b>01</b><span></span><small>CONSTRUYE SIN LÍMITES</small>
+        </div>
+        <div class="hero-copy">
+          <p class="eyebrow"><span></span> HERRAMIENTAS PARA GRANDES IDEAS</p>
+          <h1>
+            Tu próxima obra.<br />El mejor equipo.<br /><em>Sin comprarlo.</em>
+          </h1>
+          <p class="hero-description">
+            Todo lo que necesitas para construir, transformar y crear. Encuentra
+            herramientas de proveedores en un solo lugar.
+          </p>
+          <div class="hero-actions">
+            <a class="button" href="#catalogo"
+              >Explorar catálogo <span>↗</span></a
+            ><a class="watch-link" href="#como-funciona"
+              ><span class="play">▷</span> Así funciona</a
+            >
+          </div>
+          <div class="hero-foot">
+            <span class="tiny-icon">⌖</span
+            ><span>El equipo correcto, para cada proyecto.</span>
+          </div>
+        </div>
+        <div
+          class="hero-art"
+          role="img"
+          aria-label="Arquitectura contemporánea de concreto con iluminación amarilla"
+        >
+          <div class="art-shade"></div>
+          <div class="art-label">
+            <span>CONSTRUYE TU SIGUIENTE CAPÍTULO</span
+            ><strong>Grandes obras.<br />Mejores herramientas.</strong
+            ><i>EXPLORA. ELIGE. CONSTRUYE. ↗</i>
+          </div>
+          <div class="floating-card">
+            <span class="yellow-line"></span
+            ><small>MENOS INVERSIÓN.<br />MÁS POSIBILIDADES.</small>
+            <p>Tu proyecto avanza.<br />Nosotros te equipamos.</p>
+            <a href="#catalogo">Encuentra tu herramienta ↗</a>
+          </div>
+          <div class="art-bottom">
+            <span>RENTTOOL / EQUIPAMIENTO</span><span>01 — 03</span>
+          </div>
+        </div>
+      </section>
+      <section class="categories section" aria-labelledby="category-title">
+        <div class="section-intro">
+          <p class="eyebrow"><span></span> EL EQUIPO QUE BUSCAS</p>
+          <h2>Cada trabajo.<br /><em>Su herramienta.</em></h2>
+          <p>
+            Desde el primer plano hasta el último detalle. Explora nuestras
+            categorías.
+          </p>
+          <a class="underlined" href="#catalogo"
+            >Ver todo el catálogo <span>↗</span></a
+          >
+        </div>
+        <div class="category-grid" id="category-grid">
+          <p class="muted">Cargando categorías…</p>
+        </div>
+      </section>
+      <section class="catalog section" id="catalogo">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow"><span></span> PREPARADOS PARA TU PROYECTO</p>
+            <h2>Equipo profesional.<br /><em>A tu alcance.</em></h2>
+          </div>
+          <p>
+            Consulta herramientas y tarifas.<br />Elige el equipo para tu
+            siguiente obra.
+          </p>
+        </div>
+        <form class="filters" id="search-form">
+          <label class="search"
+            ><span>⌕</span
+            ><input
+              id="search"
+              placeholder="¿Qué herramienta necesitas?"
+              aria-label="Buscar herramienta" /></label
+          ><select id="category-filter" aria-label="Filtrar categoría">
+            <option value="">Todas las categorías</option></select
+          ><button class="button compact">Buscar <span>→</span></button>
+        </form>
+        <div class="catalog-meta">
+          <span id="result-count">Consultando inventario…</span
+          ><span>TARIFAS EN COP / DÍA</span>
+        </div>
+        <div class="products" id="products" aria-live="polite"></div>
+        <div class="pagination">
+          <button class="outline-button" id="prev">← Anterior</button
+          ><span id="page-label"></span
+          ><button class="outline-button" id="next">Siguiente →</button>
+        </div>
+      </section>
+      <section class="how section" id="como-funciona">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow"><span></span> SIMPLE DESDE EL PRINCIPIO</p>
+            <h2>Menos vueltas.<br /><em>Más manos a la obra.</em></h2>
+          </div>
+          <a class="outline-button" href="#catalogo">Encuentra tu equipo ↗</a>
+        </div>
+        <div class="steps">
+          <article>
+            <span>01 /</span>
+            <h3>Encuentra tu herramienta</h3>
+            <p>
+              Explora categorías, consulta las características y compara las
+              tarifas diarias.
+            </p>
+          </article>
+          <article>
+            <span>02 /</span>
+            <h3>Crea tu cuenta</h3>
+            <p>
+              Regístrate como cliente o publica tu inventario como proveedor.
+            </p>
+          </article>
+          <article>
+            <span>03 /</span>
+            <h3>Prepara tu próximo proyecto</h3>
+            <p>
+              La gestión de reservas y pagos llegará próximamente en RentTool.
+            </p>
+          </article>
+        </div>
+      </section>
+      <section class="workspace section" id="workspace" hidden>
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow"><span></span> TU ESPACIO DE TRABAJO</p>
+            <h2 id="workspace-title">Mi cuenta</h2>
+          </div>
+          <button class="button compact" id="new-tool" hidden>
+            + Publicar herramienta
+          </button>
+        </div>
+        <form id="profile-form" class="profile-form">
+          <label>Tu nombre<input name="name" required maxlength="120" /></label
+          ><button class="outline-button">Guardar perfil</button>
+        </form>
+        <div id="inventory" class="inventory"></div>
+      </section>
+      <section class="faq section" id="preguntas">
+        <div>
+          <p class="eyebrow"><span></span> TODO CLARO ANTES DE EMPEZAR</p>
+          <h2>Buenas preguntas.<br /><em>Respuestas claras.</em></h2>
+        </div>
+        <div>
+          <details>
+            <summary>¿Puedo publicar mis herramientas?<span>+</span></summary>
+            <p>
+              Sí. Crea una cuenta de proveedor para administrar publicaciones,
+              tarifas, imágenes y unidades de tu inventario.
+            </p>
+          </details>
+          <details>
+            <summary>¿Cómo se calcula el precio?<span>+</span></summary>
+            <p>
+              El catálogo muestra la tarifa diaria en pesos colombianos. El
+              cálculo por fechas y cantidad formará parte del módulo de
+              reservas.
+            </p>
+          </details>
+          <details>
+            <summary>¿Ya puedo reservar y pagar?<span>+</span></summary>
+            <p>
+              Actualmente puedes registrarte, consultar el catálogo y
+              administrar herramientas. Reservas y pagos se incorporarán
+              próximamente.
+            </p>
+          </details>
+          <details>
+            <summary>
+              ¿Qué significa “unidades operativas”?<span>+</span>
+            </summary>
+            <p>
+              Son los equipos que el proveedor mantiene en condición de uso. No
+              garantiza disponibilidad para unas fechas: esa validación llegará
+              con reservas.
+            </p>
+          </details>
+        </div>
+      </section>
+      <section class="contact section" id="contacto">
+        <p class="eyebrow"><span></span> TU INVENTARIO PUEDE HACER MÁS</p>
+        <h2>
+          Que tus herramientas<br /><em>también construyan oportunidades.</em>
+        </h2>
+        <p>Únete como proveedor y dale un nuevo espacio a tu equipo.</p>
+        <button class="button" data-auth="register">
+          Quiero ser proveedor <span>↗</span>
+        </button>
+        <p class="contact-note">
+          Contacto comercial: pendiente de configuración.
+        </p>
+      </section>
+    </main>
+    <footer>
+      <a class="brand" href="#inicio"
+        >RentTool<span class="brand-dot">.</span></a
+      >
+      <p>Herramientas para hacer que las cosas pasen.</p>
+      <span>© <span id="year"></span> RentTool · Equipo para tu proyecto</span
+      ><a href="#inicio">Volver arriba ↑</a>
+    </footer>
+    <dialog id="auth-dialog">
+      <button class="close" aria-label="Cerrar">×</button>
+      <p class="eyebrow">BIENVENIDO A RENTTOOL</p>
+      <h2 id="auth-title">Vuelve a construir.</h2>
+      <p id="auth-description" class="muted">Accede a tu espacio de trabajo.</p>
+      <form id="auth-form">
+        <label id="name-field" hidden
+          >Nombre<input
+            name="name"
+            autocomplete="name"
+            maxlength="120" /></label
+        ><label
+          >Correo electrónico<input
+            name="email"
+            type="email"
+            autocomplete="email"
+            required
+            maxlength="190" /></label
+        ><label
+          >Contraseña<input
+            name="password"
+            type="password"
+            autocomplete="current-password"
+            required
+            maxlength="64" /></label
+        ><label id="role-field" hidden
+          >Quiero usar RentTool como<select name="role">
+            <option value="CLIENTE">Cliente — explorar herramientas</option>
+            <option value="PROVEEDOR">
+              Proveedor — publicar mi inventario
+            </option>
+          </select></label
+        >
+        <p id="auth-error" class="form-error" role="alert"></p>
+        <button class="button full" id="auth-submit">Iniciar sesión →</button>
+      </form>
+      <button class="switch-auth text-button" id="switch-auth">
+        ¿Aún no tienes cuenta? Regístrate
+      </button>
+    </dialog>
+    <dialog id="detail-dialog">
+      <button class="close" aria-label="Cerrar">×</button>
+      <div id="detail-content"></div>
+    </dialog>
+    <dialog id="tool-dialog">
+      <button class="close" aria-label="Cerrar">×</button>
+      <p class="eyebrow">GESTIÓN DE INVENTARIO</p>
+      <h2 id="tool-title">Publica tu equipo.</h2>
+      <form id="tool-form">
+        <label>Nombre<input name="name" required maxlength="160" /></label
+        ><label
+          >Categoría<select
+            name="categoryId"
+            id="tool-category"
+            required
+          ></select></label
+        ><label
+          >Descripción<textarea
+            name="description"
+            required
+            maxlength="3000"
+            rows="3"
+          ></textarea></label
+        ><label
+          >Tarifa diaria · COP<input
+            name="dailyRate"
+            type="number"
+            min="0.01"
+            max="999999999999.99"
+            step="0.01"
+            required
+        /></label>
+        <p class="muted">
+          Guarda la publicación para administrar imágenes y unidades.
+        </p>
+        <p class="form-error" id="tool-error" role="alert"></p>
+        <button class="button full">Guardar herramienta →</button>
+      </form>
+    </dialog>
+    <dialog id="manage-dialog">
+      <button class="close" aria-label="Cerrar">×</button>
+      <p class="eyebrow">DETALLES DE INVENTARIO</p>
+      <h2 id="manage-title"></h2>
+      <h3>Unidades físicas</h3>
+      <div id="unit-list"></div>
+      <form id="unit-form" class="inline-form">
+        <input
+          name="code"
+          placeholder="Código único, ej. TAL-001"
+          required
+          maxlength="80"
+          aria-label="Código de unidad"
+        /><select name="status" aria-label="Estado">
+          <option>OPERATIVA</option>
+          <option>MANTENIMIENTO</option></select
+        ><button class="button compact">Añadir</button>
+      </form>
+      <h3>Imágenes</h3>
+      <div id="image-list"></div>
+      <form id="image-form" class="inline-form">
+        <input
+          name="location"
+          type="url"
+          placeholder="https://… (JPG, PNG o WebP)"
+          required
+          maxlength="1000"
+          aria-label="Dirección HTTPS de imagen"
+        /><button class="button compact">Añadir</button>
+      </form>
+      <form id="upload-form" class="inline-form">
+        <input
+          name="file"
+          type="file"
+          accept="image/png,image/jpeg"
+          required
+          aria-label="Subir imagen PNG o JPEG"
+        /><button class="button compact">Subir</button>
+      </form>
+      <p class="muted">
+        PNG o JPEG, máximo 5 MB y 16 megapíxeles. También puedes enlazar una
+        imagen HTTPS.
+      </p>
+      <p id="manage-error" class="form-error" role="alert"></p>
+    </dialog>
+    <div class="toast" id="toast" role="status" hidden></div>
+    <script src="app.js" defer></script>
+  </body>
+</html>

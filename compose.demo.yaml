@@ -1,0 +1,5 @@
+services:
+  app:
+    environment:
+      SPRING_PROFILES_ACTIVE: demo
+      DEMO_PASSWORD: ${DEMO_PASSWORD:?Set DEMO_PASSWORD for demo profile}
