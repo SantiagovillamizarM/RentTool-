@@ -14,7 +14,7 @@ Plataforma de alquiler de herramientas y equipos de construcción. Este incremen
 - Catálogo paginado, búsqueda literal, filtros por categoría y detalle de herramientas.
 - Portada responsiva, panel de inventario, estados vacíos, errores y notificaciones.
 
-Reservas, disponibilidad por fechas, pagos, facturas, entregas, devoluciones y administración global **siguen pendientes** según [la planeación](PLANEACION_PROYECTO.md). El conteo de unidades operativas no implica disponibilidad para un rango de fechas. No se cobran pagos desde esta versión.
+Reservas, disponibilidad por fechas, pagos, facturas, entregas, devoluciones y administración global **siguen pendientes** según [la planeación](docs/PLANEACION_PROYECTO.md). El conteo de unidades operativas no implica disponibilidad para un rango de fechas. No se cobran pagos desde esta versión.
 
 ## Ejecución con Docker
 
@@ -50,12 +50,20 @@ Las pruebas automatizadas usan H2 en modo MySQL exclusivamente para pruebas; no 
 - [Despliegue](docs/DESPLIEGUE.md)
 - [Modelo de datos](docs/MODELO_DATOS.md)
 - [API del MVP](docs/API_MVP1.md)
-- [Contexto y archivos conservados](MEMORIA_PROYECTO.md)
-- [Especificación completa](DESGLOSE_PROYECTO_IA.md)
+- [Planeación por MVP](docs/PLANEACION_PROYECTO.md)
+- [Contexto y archivos conservados](docs/MEMORIA_PROYECTO.md)
+- [Especificación completa](docs/DESGLOSE_PROYECTO_IA.md)
 
 ## Estructura
 
-`renttool-shared`: errores comunes. `renttool-identity`: dominio, casos de uso y adaptadores de identidad. `renttool-inventory`: dominio, casos de uso y adaptadores de inventario. `renttool-bootstrap`: ensamblaje, configuración, migraciones y pruebas. `frontend`: fuentes estáticas incluidas automáticamente en el JAR por Maven.
+Arquitectura hexagonal (puertos y adaptadores) por módulo; detalle en [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md).
+
+Tres módulos Maven, uno por capa, cada uno con un paquete por contexto (`identity`, `inventory`):
+
+- `domain/`: agregados y reglas de negocio en Java puro, sin dependencias.
+- `application/`: casos de uso (`port/in`), puertos de salida (`port/out`) y servicios; solo depende de `domain`.
+- `infrastructure/`: adaptadores web, JPA, JWT y archivos, configuración, migraciones y arranque de Spring Boot. Genera el JAR ejecutable.
+- `frontend/`: fuentes estáticas incluidas automáticamente en el JAR por Maven.
 
 El JWT se conserva en `sessionStorage`, con vencimiento de una hora. Cerrar sesión lo elimina de este navegador; no revoca una copia del token. El backend revisa que la cuenta siga activa en cada petición autenticada. El uso de un header Bearer permite desactivar CSRF sin usar cookies de autenticación. CORS se limita a orígenes configurados. Las imágenes externas no envían referrer desde la interfaz.
 

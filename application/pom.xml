@@ -1,0 +1,23 @@
+<?xml version="1.0" ?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>com.renttool</groupId>
+    <artifactId>renttool</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+  <artifactId>renttool-application</artifactId>
+  <description>Casos de uso y puertos de entrada y salida. Solo depende del dominio.</description>
+  <dependencies>
+    <dependency>
+      <groupId>com.renttool</groupId>
+      <artifactId>renttool-domain</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>

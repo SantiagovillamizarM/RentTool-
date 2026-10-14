@@ -200,33 +200,28 @@ Pagos: `PENDIENTE → APROBADO | FALLIDO`; los reembolsos tienen su propio regis
 
 ## 6. Arquitectura hexagonal, DDD y módulos
 
-Propuesta: monolito modular. No hacen falta microservicios para cumplir el ejercicio.
+Decisión: monolito modular organizado por capas hexagonales. Cada capa es un módulo Maven con su propio `pom.xml`, y dentro de cada capa hay un paquete por contexto (identity, inventory, rental, billing, incidents, reporting). No hacen falta microservicios para cumplir el ejercicio.
 
 ```text
 renttool/
-  pom.xml
-  renttool-shared/          # IDs, Money y contratos mínimos compartidos
-  renttool-identity/        # usuarios, perfiles, autenticación
-  renttool-inventory/       # herramientas, unidades, categorías e imágenes
-  renttool-rental/          # reservas, disponibilidad, entrega y devolución
-  renttool-billing/         # pagos, reembolsos, facturas y costos
-  renttool-incidents/       # daños y resolución
-  renttool-reporting/       # consultas y estadísticas
-  renttool-bootstrap/      # aplicación Spring Boot y ensamblaje
+  pom.xml                  # padre: declara los tres módulos
+  domain/                  # renttool-domain: agregados, valores y reglas (Java puro)
+    com.renttool.domain.<contexto>
+    com.renttool.domain.shared.exception
+  application/             # renttool-application: casos de uso y puertos; depende solo de domain
+    com.renttool.application.<contexto>.port.in      # casos de uso que se ofrecen
+    com.renttool.application.<contexto>.port.out     # repositorios, pasarela, archivos, reloj
+    com.renttool.application.<contexto>.service      # implementación de los casos de uso
+  infrastructure/          # renttool-infrastructure: adaptadores y arranque Spring Boot
+    com.renttool.infrastructure.<contexto>.web           # controllers, DTOs, validación HTTP
+    com.renttool.infrastructure.<contexto>.persistence   # entidades JPA, repositorios y mapeadores
+    com.renttool.infrastructure.<contexto>.external      # pasarela, archivos, PDF cuando aplique
+    com.renttool.infrastructure.config                   # seguridad, CORS, inicializadores
   frontend/                # HTML, CSS, JavaScript
-  database/                # SQL y datos demostrativos
   docs/                    # modelo, compilación, despliegue y API
 ```
 
-Dentro de cada módulo funcional:
-
-```text
-domain/                    # entidades, agregados, valores y reglas
-application/               # casos de uso, comandos y puertos
-infrastructure/web/        # controllers, DTOs, validación HTTP
-infrastructure/persistence/# entidades JPA, repositorios y mapeadores
-infrastructure/external/   # pasarela, archivos, PDF cuando aplique
-```
+- Maven garantiza la dirección de las dependencias: `domain` no tiene dependencias, `application` solo ve `domain` y únicamente `infrastructure` ve Spring, JPA y HTTP.
 
 - El dominio no depende de Spring, JPA ni HTTP. Un controller valida formato, llama al caso de uso y traduce su resultado.
 - Los casos de uso dependen de puertos; los adaptadores implementan esos puertos. La transacción se configura en la frontera de aplicación mediante el ensamblaje/adaptador correspondiente.

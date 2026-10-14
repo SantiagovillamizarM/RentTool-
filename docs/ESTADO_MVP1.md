@@ -2,7 +2,7 @@
 
 Implementado: acceso JWT, perfiles básicos, roles, aprovisionamiento opcional del administrador inicial, inventario con unidades e imágenes, catálogo paginado y frontend responsivo integrado. La interfaz mantiene negro, amarillo, tarjetas oscuras y geometría arquitectónica de la referencia.
 
-Evidencia: `VALIDACION.md`, pruebas de dominio/API, capturas y script de recorrido en navegador. Fuentes originales en `docs/fuentes/`; índice persistente en `../MEMORIA_PROYECTO.md`.
+Evidencia: `VALIDACION.md`, pruebas de dominio/API, capturas y script de recorrido en navegador. Fuentes originales en `docs/fuentes/`; índice persistente en `MEMORIA_PROYECTO.md`.
 
 El esquema de identidad del MVP usa una tabla común de usuarios; perfiles comerciales completos separados siguen pendientes. El documento `MODELO_DATOS.md` representa el esquema actual; el desglose conserva el modelo completo propuesto para los siguientes incrementos.
 

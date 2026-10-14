@@ -1,6 +1,6 @@
 # Modelo implementado — identidad e inventario
 
-Migración: `renttool-bootstrap/src/main/resources/db/migration/V1__identity_inventory.sql`.
+Migración: `infrastructure/src/main/resources/db/migration/V1__identity_inventory.sql`.
 
 ```mermaid
 erDiagram

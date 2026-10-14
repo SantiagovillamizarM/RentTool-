@@ -7,7 +7,7 @@ java -version
 ./mvnw verify
 ```
 
-El JAR está en `renttool-bootstrap/target/renttool-bootstrap-0.1.0-SNAPSHOT.jar`. Maven copia `frontend/` al directorio estático del JAR; no se necesitan Node ni un bundler para ejecutar el producto. Para verificar sintaxis de JavaScript opcionalmente: `node --check frontend/app.js`.
+El JAR está en `infrastructure/target/renttool-infrastructure-0.1.0-SNAPSHOT.jar`. Maven copia `frontend/` al directorio estático del JAR; no se necesitan Node ni un bundler para ejecutar el producto. Para verificar sintaxis de JavaScript opcionalmente: `node --check frontend/app.js`.
 
 Las pruebas de API comprueban registro, exclusión de administradores públicos, 401, permisos, propiedad, unidades, catálogo, retirada y validación. Usan una base H2 efímera solo para pruebas. Las comprobaciones contra MySQL se registran aparte en VALIDACION.md.
 
@@ -19,7 +19,7 @@ export SERVER_PORT=8088
 export DB_USER=renttool
 export DB_PASSWORD='tu-contraseña-local'
 export JWT_SECRET='tu-secreto-aleatorio-de-al-menos-32-caracteres'
-java -jar renttool-bootstrap/target/renttool-bootstrap-0.1.0-SNAPSHOT.jar
+java -jar infrastructure/target/renttool-infrastructure-0.1.0-SNAPSHOT.jar
 ```
 
 Estos son ejemplos de configuración; usa valores propios fuera del repositorio. Flyway crea el esquema y Hibernate valida sus tipos. Para editar frontend y ver cambios, vuelve a empaquetar el JAR. No existe API de reservas o pagos en este incremento.
