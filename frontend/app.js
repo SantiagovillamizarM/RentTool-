@@ -151,16 +151,126 @@ async function loadTools() {
     $("#prev").disabled = $("#next").disabled = true;
   }
 }
+// Las fechas de alquiler son días de la zona del negocio, igual que en el backend.
+const businessToday = () =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota" }).format(
+    new Date(),
+  );
+function addDays(isoDate, days) {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d + days));
+  return date.toISOString().slice(0, 10);
+}
+const shortDate = (isoDate) => {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  return new Intl.DateTimeFormat("es-CO", {
+    day: "numeric",
+    month: "short",
+  }).format(new Date(y, m - 1, d));
+};
+const dateTime = (instant) =>
+  new Intl.DateTimeFormat("es-CO", {
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "America/Bogota",
+  }).format(new Date(instant));
 async function detail(id) {
   try {
     const t = await api("/tools/" + id);
+    const start = addDays(businessToday(), 1);
     $("#detail-content").innerHTML =
-      `<div class="detail-image">${imageMarkup(t)}</div><p class="eyebrow">${esc(t.category)}</p><h2>${esc(t.name)}</h2><p class="muted">${esc(t.description)}</p><p class="detail-price">${money(t.dailyRate)} <small>COP / día</small></p><p class="stock">${t.operationalUnits} unidades operativas</p><p class="badge">Las reservas aún no están habilitadas. Las unidades operativas no representan disponibilidad por fechas.</p>`;
+      `<div class="detail-image">${imageMarkup(t)}</div><p class="eyebrow">${esc(t.category)}</p><h2>${esc(t.name)}</h2><p class="muted">${esc(t.description)}</p><p class="detail-price">${money(t.dailyRate)} <small>COP / día</small></p><p class="stock">${t.operationalUnits} unidades operativas</p>` +
+      `<form id="reserve-form" class="reserve-form" novalidate><h3>Reserva por fechas</h3><div class="reserve-fields"><label>Entrega<input type="date" name="start" required min="${businessToday()}" value="${start}"></label><label>Devolución<input type="date" name="end" required min="${addDays(start, 1)}" value="${addDays(start, 2)}"></label><label>Unidades<input type="number" name="quantity" required min="1" max="20" value="1"></label></div><p class="reserve-quote" aria-live="polite"></p><p class="form-error" role="alert"></p><button class="button full">Solicitar reserva →</button><p class="muted reserve-hint">El día de devolución no se cobra. El proveedor tiene 24 horas para aceptar.</p></form>`;
     wireImages($("#detail-content"));
+    wireReservation(t);
     $("#detail-dialog").showModal();
   } catch (e) {
     notify(e.message);
   }
+}
+function wireReservation(tool) {
+  const form = $("#reserve-form");
+  const quote = form.querySelector(".reserve-quote");
+  const error = form.querySelector(".form-error");
+  const submit = form.querySelector("button");
+  const { start, end, quantity } = form.elements;
+  let timer;
+  let ticket = 0;
+  const check = async () => {
+    error.textContent = "";
+    if (!start.value || !end.value) return;
+    end.min = addDays(start.value, 1);
+    if (end.value <= start.value) end.value = addDays(start.value, 1);
+    const current = ++ticket;
+    quote.textContent = "Consultando disponibilidad…";
+    quote.className = "reserve-quote";
+    try {
+      const params = new URLSearchParams({
+        start: start.value,
+        end: end.value,
+        quantity: quantity.value || 1,
+      });
+      const a = await api(`/tools/${tool.id}/availability?${params}`);
+      if (current !== ticket) return; // llegó una consulta más reciente
+      submit.disabled = !a.available;
+      quote.className = "reserve-quote " + (a.available ? "ok" : "warn");
+      quote.innerHTML = a.available
+        ? `<strong>${a.availableUnits} ${a.availableUnits === 1 ? "libre" : "libres"}</strong> · ${a.days} ${a.days === 1 ? "día" : "días"} · Total <strong>${money(a.total)}</strong>`
+        : a.availableUnits
+          ? `Solo ${a.availableUnits === 1 ? "queda 1 unidad libre" : `quedan ${a.availableUnits} unidades libres`} en esas fechas.`
+          : "No hay unidades libres en esas fechas. Prueba otro rango.";
+    } catch (e) {
+      if (current !== ticket) return;
+      submit.disabled = true;
+      quote.textContent = "";
+      error.textContent = e.message;
+    }
+  };
+  const schedule = () => {
+    clearTimeout(timer);
+    timer = setTimeout(check, 250);
+  };
+  for (const field of [start, end, quantity])
+    field.addEventListener("input", schedule);
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    if (!state.user) {
+      $("#detail-dialog").close();
+      openAuth("login");
+      notify("Inicia sesión con tu cuenta de cliente para reservar.");
+      return;
+    }
+    if (state.user.role !== "CLIENTE") {
+      error.textContent = "Las reservas se hacen con una cuenta de cliente.";
+      return;
+    }
+    submit.disabled = true;
+    try {
+      const r = await api("/reservations", {
+        method: "POST",
+        body: JSON.stringify({
+          toolId: tool.id,
+          start: start.value,
+          end: end.value,
+          quantity: Number(quantity.value),
+        }),
+      });
+      $("#detail-dialog").close();
+      notify(
+        `Solicitud enviada. El proveedor tiene hasta el ${dateTime(r.respondBy)} para responder.`,
+      );
+      loadReservations();
+      location.hash = "workspace";
+    } catch (err) {
+      error.textContent = err.message;
+      check();
+    } finally {
+      submit.disabled = false;
+    }
+  };
+  check();
 }
 function openAuth(mode) {
   if (state.user) {
@@ -215,13 +325,121 @@ function renderAccount() {
       ? "Tu equipo. Tu inventario."
       : "Tu próximo proyecto empieza aquí.";
   $("#profile-form").elements.name.value = state.user.name;
-  $("#new-tool").hidden = !["PROVEEDOR", "ADMINISTRADOR"].includes(
+  const managesInventory = ["PROVEEDOR", "ADMINISTRADOR"].includes(
     state.user.role,
   );
-  if (!$("#new-tool").hidden) loadInventory();
-  else
-    $("#inventory").innerHTML =
-      '<p class="muted">Explora el catálogo. Tus reservas y pagos estarán disponibles próximamente.</p>';
+  $("#new-tool").hidden =
+    $("#inventory-title").hidden =
+    $("#inventory").hidden =
+      !managesInventory;
+  $("#reservations-title").textContent = {
+    CLIENTE: "Mis reservas",
+    PROVEEDOR: "Solicitudes de reserva",
+    ADMINISTRADOR: "Todas las reservas",
+  }[state.user.role];
+  loadReservations();
+  if (managesInventory) loadInventory();
+}
+const reservationStatus = {
+  SOLICITADA: "Pendiente",
+  ACEPTADA: "Aceptada",
+  RECHAZADA: "Rechazada",
+  CANCELADA: "Cancelada",
+  VENCIDA: "Vencida",
+};
+function reservationRow(r) {
+  const role = state.user.role;
+  const actions = [];
+  if (role === "PROVEEDOR" && r.status === "SOLICITADA")
+    actions.push(
+      `<button class="button compact" data-accept="${r.id}">Aceptar</button>`,
+      `<button class="outline-button" data-reject="${r.id}">Rechazar</button>`,
+    );
+  const cancellable =
+    r.status === "SOLICITADA" ||
+    (r.status === "ACEPTADA" && r.start > businessToday());
+  if (role !== "PROVEEDOR" && cancellable)
+    actions.push(
+      `<button class="outline-button" data-cancel="${r.id}">Cancelar</button>`,
+    );
+  const who =
+    role === "CLIENTE" ? "" : ` · Cliente: ${esc(r.clientName)}`;
+  const extra =
+    r.status === "SOLICITADA" && r.respondBy
+      ? `<p class="muted">Respuesta antes del ${dateTime(r.respondBy)}</p>`
+      : r.note
+        ? `<p class="muted">Motivo: ${esc(r.note)}</p>`
+        : "";
+  return `<article class="inventory-row reservation-row"><div><h3>${esc(r.toolName)} <span class="status-chip status-${r.status.toLowerCase()}">${reservationStatus[r.status]}</span></h3><p class="muted">${shortDate(r.start)} → ${shortDate(r.end)} · ${r.days} ${r.days === 1 ? "día" : "días"} · ${r.quantity} ${r.quantity === 1 ? "unidad" : "unidades"} · ${money(r.total)}${who}</p>${extra}</div>${actions.length ? `<div class="inventory-actions">${actions.join("")}</div>` : ""}</article>`;
+}
+async function loadReservations() {
+  const box = $("#reservations");
+  if (!state.user) return;
+  try {
+    const data = await api("/reservations?size=50");
+    const empty = {
+      CLIENTE:
+        "Aún no tienes reservas. Abre una herramienta del catálogo y elige tus fechas.",
+      PROVEEDOR: "Cuando un cliente reserve tus herramientas, lo verás aquí.",
+      ADMINISTRADOR: "Todavía no hay reservas en la plataforma.",
+    }[state.user.role];
+    box.innerHTML = data.content.length
+      ? data.content.map(reservationRow).join("")
+      : `<p class="muted">${empty}</p>`;
+    const act = async (button, request, message) => {
+      button.disabled = true;
+      try {
+        await request();
+        notify(message);
+      } catch (e) {
+        notify(e.message);
+      }
+      loadReservations();
+    };
+    box.querySelectorAll("[data-accept]").forEach(
+      (b) =>
+        (b.onclick = () =>
+          act(
+            b,
+            () =>
+              api(`/reservations/${b.dataset.accept}/accept`, {
+                method: "POST",
+              }),
+            "Reserva aceptada. Las unidades quedaron asignadas.",
+          )),
+    );
+    box.querySelectorAll("[data-reject]").forEach(
+      (b) =>
+        (b.onclick = () => {
+          const reason = prompt("Motivo del rechazo (opcional):", "");
+          if (reason === null) return;
+          act(
+            b,
+            () =>
+              api(`/reservations/${b.dataset.reject}/reject`, {
+                method: "POST",
+                body: JSON.stringify({ reason: reason.trim() || null }),
+              }),
+            "Solicitud rechazada.",
+          );
+        }),
+    );
+    box.querySelectorAll("[data-cancel]").forEach(
+      (b) =>
+        (b.onclick = () => {
+          if (!confirm("¿Cancelar esta reserva? Las unidades quedarán libres."))
+            return;
+          act(
+            b,
+            () =>
+              api(`/reservations/${b.dataset.cancel}`, { method: "DELETE" }),
+            "Reserva cancelada.",
+          );
+        }),
+    );
+  } catch (e) {
+    box.innerHTML = `<p class="muted">${esc(e.message)}</p>`;
+  }
 }
 function wireAuth() {
   document

@@ -205,15 +205,16 @@ em {
 }
 .hero-index small {
   writing-mode: vertical-rl;
-  font-size: 11px;
+  font-size: clamp(11px, 0.75vw, 14px);
   letter-spacing: 2px;
   color: #696970;
 }
 .hero-copy {
   position: relative;
   z-index: 2;
-  width: 48%;
-  padding: 45px 0 55px 8%;
+  width: 43%;
+  /* El margen derecho evita que el texto toque la curva de la imagen */
+  padding: 45px 6% 55px 5%;
 }
 .eyebrow {
   display: flex;
@@ -234,12 +235,12 @@ em {
   border: 1px solid #ffffff09;
   width: max-content;
   border-radius: 30px;
-  padding: 9px 12px;
-  font-size: 11px;
-  letter-spacing: 1px;
+  padding: 0.8em 1.2em;
+  font-size: clamp(11px, 0.8vw, 15px);
+  letter-spacing: 1.2px;
 }
 .hero h1 {
-  font-size: clamp(40px, 4.2vw, 64px);
+  font-size: clamp(40px, 4.4vw, 88px);
   line-height: 1.09;
   font-weight: 500;
   letter-spacing: -3.2px;
@@ -249,11 +250,11 @@ em {
   font-weight: 750;
 }
 .hero-description {
-  font-size: 16px;
+  font-size: clamp(16px, 1.15vw, 21px);
   line-height: 1.75;
   color: #b1b1b8;
-  max-width: 470px;
-  margin: 24px 0 28px;
+  max-width: 30em;
+  margin: 1.6em 0 1.9em;
 }
 .hero-actions {
   display: flex;
@@ -289,6 +290,18 @@ em {
   white-space: nowrap;
   gap: 9px;
   font-size: 13px;
+}
+/* Botones del hero: crecen con la pantalla en escritorio */
+.hero-actions .button {
+  font-size: clamp(14px, 1vw, 18px);
+  padding: 1.15em 1.8em;
+}
+.hero-actions .watch-link {
+  font-size: clamp(13px, 0.95vw, 17px);
+}
+.hero-actions .play {
+  width: 2.7em;
+  height: 2.7em;
 }
 .play {
   width: 35px;
@@ -390,6 +403,13 @@ em {
   width: 29px;
   margin-bottom: 18px;
 }
+.card-icon {
+  display: block;
+  width: 36px;
+  height: auto;
+  margin-bottom: 16px;
+  opacity: 0.92;
+}
 .floating-card small {
   font-size: 15px;
   font-weight: 600;
@@ -453,13 +473,6 @@ h2 {
   color: var(--muted);
   margin: 17px 0 24px;
   max-width: 250px;
-}
-.underlined {
-  display: inline-flex;
-  gap: 20px;
-  font-size: 12px;
-  border-bottom: 1px solid #57543b;
-  padding-bottom: 6px;
 }
 .category-grid {
   display: grid;
@@ -786,9 +799,6 @@ footer .brand {
 footer > span {
   margin-left: auto;
 }
-footer a:last-child {
-  white-space: nowrap;
-}
 dialog {
   background: #141416;
   color: white;
@@ -979,6 +989,86 @@ textarea {
 #manage-dialog {
   width: min(650px, calc(100% - 30px));
 }
+/* Reserva por fechas, dentro del detalle de una herramienta */
+.reserve-form {
+  border-top: 1px solid var(--line);
+  margin-top: 22px;
+}
+.reserve-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr 92px;
+  gap: 10px;
+}
+.reserve-fields label {
+  margin-top: 0;
+}
+.reserve-quote {
+  min-height: 22px;
+  margin-top: 16px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.reserve-quote.ok strong {
+  color: var(--yellow);
+}
+.reserve-quote.warn {
+  color: #ffc46b;
+}
+.reserve-form .button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+.reserve-hint {
+  margin-top: 12px;
+  text-align: center;
+}
+/* Reservas en el espacio de trabajo */
+.reservations {
+  margin-bottom: 34px;
+}
+.reservations > h3,
+.workspace-subtitle {
+  font-size: 18px;
+  margin-bottom: 6px;
+}
+.reservation-row h3 {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.reservation-row .muted + .muted {
+  margin-top: 4px;
+}
+.status-chip {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+.status-solicitada {
+  color: var(--yellow);
+  border-color: #ffda0050;
+  background: #ffda000d;
+}
+.status-aceptada {
+  color: #7be3a1;
+  border-color: #7be3a150;
+  background: #7be3a10d;
+}
+@media (max-width: 520px) {
+  .reserve-fields {
+    grid-template-columns: 1fr 1fr;
+  }
+  .reserve-fields label:last-child {
+    grid-column: span 2;
+  }
+}
 /* Pantallas anchas: fondos y bordes a todo el ancho; el contenido se alinea
    a una columna de 1600px para que no se estire de más. */
 @media (min-width: 1500px) {
@@ -990,10 +1080,11 @@ textarea {
     min-height: 680px;
   }
   .hero-index {
-    left: max(2%, calc((100% - 1600px) / 2 + 32px));
+    left: max(2%, calc((100% - 1600px) / 2 + 4px));
   }
   .hero-copy {
-    padding-left: max(8%, calc((100% - 1600px) / 2 + 128px));
+    width: 45%;
+    padding-left: max(5%, calc((100% - 1600px) / 2 + 72px));
   }
   .hero-art {
     left: max(42%, calc((100% - 1600px) / 2 + 672px));
@@ -1026,14 +1117,15 @@ textarea {
     font-size: 49px;
   }
   .hero-copy {
-    padding-left: 7%;
-    width: 51%;
+    padding-left: 5%;
+    width: 49%;
   }
   .hero-art {
     width: calc(54% + var(--art-bleed));
   }
   .floating-card {
     right: calc(5% + var(--art-bleed));
+    top: 40px;
     width: 250px;
   }
   .categories {
@@ -1128,7 +1220,7 @@ textarea {
   }
   .hero-art {
     position: relative;
-    height: 430px;
+    height: 480px;
     width: 100%;
     border-radius: 80px 0 0 0;
     --art-bleed: 0px;
@@ -1269,9 +1361,6 @@ textarea {
   }
   footer > span {
     margin-left: 0;
-  }
-  footer a:last-child {
-    margin-left: auto;
   }
   .inventory-row {
     align-items: flex-start;

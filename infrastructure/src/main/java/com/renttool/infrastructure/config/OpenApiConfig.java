@@ -29,10 +29,18 @@ public class OpenApiConfig {
       aunque no haya vencido.
 
       ## Roles
-      - **CLIENTE**: explora el catálogo y gestiona su perfil.
-      - **PROVEEDOR**: además publica herramientas y gestiona sus unidades e imágenes. Solo \
-      puede modificar lo que le pertenece.
-      - **ADMINISTRADOR**: no se puede registrar desde la API pública; se provisiona al desplegar.
+      - **CLIENTE**: explora el catálogo, solicita reservas por fechas y cancela las suyas.
+      - **PROVEEDOR**: además publica herramientas, gestiona sus unidades e imágenes y acepta o \
+      rechaza las reservas de sus herramientas. Solo puede modificar lo que le pertenece.
+      - **ADMINISTRADOR**: consulta todas las reservas y puede cancelarlas. No se puede registrar \
+      desde la API pública; se provisiona al desplegar.
+
+      ## Reservas
+      Las fechas son días completos en la zona `America/Bogota` con la forma `[inicio, fin)`: el \
+      día de devolución no se cobra. Una solicitud no aparta unidades; cuando el proveedor la \
+      acepta se asignan unidades concretas bajo bloqueo, así dos aceptaciones simultáneas no \
+      pueden repartir la misma. Si el proveedor no responde en 24 horas (o antes de que termine \
+      el día de inicio), la solicitud vence.
 
       ## Errores
       Los errores usan el formato estándar `ProblemDetail` (RFC 9457) con los campos `status`, \

@@ -50,6 +50,14 @@ class ToolManagementServiceTest {
       return Optional.ofNullable(data.get(id));
     }
 
+    public Optional<Tool> findByIdForUpdate(Long id) {
+      return findById(id);
+    }
+
+    public List<Long> findIdsByProviderId(Long providerId) {
+      return data.values().stream().filter(t -> t.providerId().equals(providerId)).map(Tool::id).toList();
+    }
+
     public Tool save(Tool tool) {
       var stored =
           tool.id() != null

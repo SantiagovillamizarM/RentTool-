@@ -13,8 +13,9 @@ Plataforma de alquiler de herramientas y equipos de construcción. Este incremen
 - Imágenes HTTPS o subida PNG/JPEG con límites de tamaño y dimensiones.
 - Catálogo paginado, búsqueda literal, filtros por categoría y detalle de herramientas.
 - Portada responsiva, panel de inventario, estados vacíos, errores y notificaciones.
+- **Reservas por fechas**: disponibilidad pública por rango, solicitud del cliente con tarifa congelada, aceptación del proveedor con asignación de unidades bajo bloqueo, rechazo con motivo, cancelación y vencimiento automático de solicitudes sin respuesta.
 
-Reservas, disponibilidad por fechas, pagos, facturas, entregas, devoluciones y administración global **siguen pendientes** según [la planeación](docs/PLANEACION_PROYECTO.md). El conteo de unidades operativas no implica disponibilidad para un rango de fechas. No se cobran pagos desde esta versión.
+Pagos, facturas, entregas, devoluciones y administración global **siguen pendientes** según [la planeación](docs/PLANEACION_PROYECTO.md). No se cobran pagos desde esta versión.
 
 ## Ejecución con Docker
 
@@ -60,7 +61,7 @@ Las pruebas automatizadas usan H2 en modo MySQL exclusivamente para pruebas; no 
 
 Arquitectura hexagonal (puertos y adaptadores) por módulo; detalle en [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md).
 
-Tres módulos Maven, uno por capa, cada uno con un paquete por contexto (`identity`, `inventory`):
+Tres módulos Maven, uno por capa, cada uno con un paquete por contexto (`identity`, `inventory`, `reservation`):
 
 - `domain/`: agregados y reglas de negocio en Java puro, sin dependencias.
 - `application/`: casos de uso (`port/in`), puertos de salida (`port/out`) y servicios; solo depende de `domain`.

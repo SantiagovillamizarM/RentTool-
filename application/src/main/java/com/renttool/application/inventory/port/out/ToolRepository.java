@@ -3,10 +3,17 @@ package com.renttool.application.inventory.port.out;
 import com.renttool.domain.inventory.Tool;
 import com.renttool.application.shared.PageQuery;
 import com.renttool.application.shared.PageResult;
+import java.util.List;
 import java.util.Optional;
 
 public interface ToolRepository {
   Optional<Tool> findById(Long id);
+
+  /** Carga la herramienta bloqueándola para escritura hasta el fin de la transacción en curso. */
+  Optional<Tool> findByIdForUpdate(Long id);
+
+  /** Todas las herramientas del proveedor, activas o retiradas. */
+  List<Long> findIdsByProviderId(Long providerId);
 
   Tool save(Tool tool);
 

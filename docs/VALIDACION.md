@@ -24,3 +24,17 @@ Para la prueba de navegador, arranca la aplicación con perfil demo en una base 
 Docker Compose se preparó, pero no se ejecutó: Docker Desktop no estaba disponible y el usuario no tenía acceso al socket del motor del sistema. La validación real usó JAR y una instancia aislada de MySQL. No se validaron pagos ni reservas porque aún no están implementados.
 
 El procedimiento administrativo inicial es opcional y se configura mediante variables; la batería actual no incluye su prueba específica. La prueba móvil comprueba viewport y navegación, sin emular un dispositivo físico. Las capturas muestran datos de demostración y una publicación temporal de QA.
+
+# Validación de reservas (MVP 02)
+
+Fecha: 15 de octubre de 2026, America/Bogota.
+
+- `./mvnw verify` contra MySQL 8.4 en tres bases vacías distintas: 37 pruebas sin fallos en las tres corridas. Con H2: las mismas 37 pruebas sin fallos.
+- Dominio (8): bordes de fechas `[inicio, fin)`, límite de 90 días, total congelado, transiciones de estado, cancelación antes del inicio, vencimiento y permisos por propietario.
+- Aplicación (6): disponibilidad con unidades operativas y ocupadas, 409 sin unidades, aceptación que vuelve a comprobar y asigna unidades distintas, decisión solo del proveedor dueño, listado por rol y vencimiento con reloj fijo.
+- API (6): disponibilidad pública y validada, flujo solicitar → aceptar → cancelar con 401/403/404/409, rechazo con motivo, dos aceptaciones simultáneas por la última unidad (una 200, otra 409), dos aceptaciones simultáneas de la misma solicitud (se aplica una vez) y documentación Swagger.
+- La prueba concurrente se comprobó también en sentido inverso: al quitar el bloqueo de la herramienta, ambas aceptaciones devuelven 200 (doble reserva) en 3 de 3 intentos.
+- Hallazgo corregido: en MySQL, con su aislamiento por defecto REPEATABLE READ, la transacción que esperaba el bloqueo seguía leyendo la foto previa y asignaba la misma unidad; H2 no lo reproducía. Las escrituras de reservas usan READ COMMITTED y bloquean primero la reserva y luego la herramienta.
+- Migración `V2__reservations.sql` aplicada por Flyway sobre MySQL 8.4 vacío y validada por Hibernate.
+- Navegador Chrome real contra la demo MySQL: `scripts/check-browser.mjs` completo sin fallos; recorrido adicional de cliente que cotiza, ve el aviso de unidades insuficientes y solicita, y de proveedor que acepta desde su panel. Sin excepciones JavaScript y sin desbordamiento horizontal a 390 px.
+- No se validaron pagos, entregas ni devoluciones porque aún no están implementados.

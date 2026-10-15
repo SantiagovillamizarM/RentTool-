@@ -22,4 +22,4 @@ export JWT_SECRET='tu-secreto-aleatorio-de-al-menos-32-caracteres'
 java -jar infrastructure/target/renttool-infrastructure-0.1.0-SNAPSHOT.jar
 ```
 
-Estos son ejemplos de configuración; usa valores propios fuera del repositorio. Flyway crea el esquema y Hibernate valida sus tipos. Para editar frontend y ver cambios, vuelve a empaquetar el JAR. No existe API de reservas o pagos en este incremento.
+Estos son ejemplos de configuración; usa valores propios fuera del repositorio. Flyway crea el esquema y Hibernate valida sus tipos. Para editar frontend y ver cambios, vuelve a empaquetar el JAR. La API de reservas está disponible; pagos y facturas aún no existen.

@@ -114,6 +114,7 @@
           </div>
           <div class="floating-card">
             <span class="yellow-line"></span
+            ><img class="card-icon" src="assets/icons/casco.png" alt="" width="36" height="26"
             ><small>MENOS INVERSIÓN.<br />MÁS POSIBILIDADES.</small>
             <p>Tu proyecto avanza.<br />Nosotros te equipamos.</p>
             <a href="#catalogo">Encuentra tu herramienta</a>
@@ -131,9 +132,6 @@
             Desde el primer plano hasta el último detalle. Explora nuestras
             categorías.
           </p>
-          <a class="underlined" href="#catalogo"
-            >Ver todo el catálogo <span>↗</span></a
-          >
         </div>
         <div class="category-grid" id="category-grid">
           <p class="muted">Cargando categorías…</p>
@@ -178,7 +176,6 @@
             <p class="eyebrow"><span></span> SIMPLE DESDE EL PRINCIPIO</p>
             <h2>Menos vueltas.<br /><em>Más manos a la obra.</em></h2>
           </div>
-          <a class="outline-button" href="#catalogo">Encuentra tu equipo ↗</a>
         </div>
         <div class="steps">
           <article>
@@ -198,9 +195,10 @@
           </article>
           <article>
             <span>03 /</span>
-            <h3>Prepara tu próximo proyecto</h3>
+            <h3>Reserva por fechas</h3>
             <p>
-              La gestión de reservas y pagos llegará próximamente en RentTool.
+              Elige el día de entrega y de devolución, consulta cuántas unidades
+              quedan libres y envía tu solicitud al proveedor.
             </p>
           </article>
         </div>
@@ -219,6 +217,13 @@
           <label>Tu nombre<input name="name" required maxlength="120" /></label
           ><button class="outline-button">Guardar perfil</button>
         </form>
+        <div class="reservations">
+          <h3 id="reservations-title">Mis reservas</h3>
+          <div id="reservations"></div>
+        </div>
+        <h3 id="inventory-title" class="workspace-subtitle" hidden>
+          Tu inventario
+        </h3>
         <div id="inventory" class="inventory"></div>
       </section>
       <section class="faq section" id="preguntas">
@@ -237,17 +242,17 @@
           <details>
             <summary>¿Cómo se calcula el precio?<span>+</span></summary>
             <p>
-              El catálogo muestra la tarifa diaria en pesos colombianos. El
-              cálculo por fechas y cantidad formará parte del módulo de
-              reservas.
+              Tarifa diaria × días × unidades. El día de devolución no se
+              cobra: un alquiler del 10 al 12 son dos días. La tarifa queda
+              fija desde que envías la solicitud.
             </p>
           </details>
           <details>
             <summary>¿Ya puedo reservar y pagar?<span>+</span></summary>
             <p>
-              Actualmente puedes registrarte, consultar el catálogo y
-              administrar herramientas. Reservas y pagos se incorporarán
-              próximamente.
+              Sí puedes reservar: con una cuenta de cliente eliges fechas y el
+              proveedor tiene 24 horas para aceptar. Los pagos en línea se
+              incorporarán próximamente.
             </p>
           </details>
           <details>
@@ -255,9 +260,9 @@
               ¿Qué significa “unidades operativas”?<span>+</span>
             </summary>
             <p>
-              Son los equipos que el proveedor mantiene en condición de uso. No
-              garantiza disponibilidad para unas fechas: esa validación llegará
-              con reservas.
+              Son los equipos que el proveedor mantiene en condición de uso.
+              Para saber cuántos están libres en unas fechas concretas, elígelas
+              en el detalle de la herramienta.
             </p>
           </details>
         </div>
@@ -281,8 +286,7 @@
         >RentTool<span class="brand-dot">.</span></a
       >
       <p>Herramientas para hacer que las cosas pasen.</p>
-      <span>© <span id="year"></span> RentTool · Equipo para tu proyecto</span
-      ><a href="#inicio">Volver arriba ↑</a>
+      <span>© <span id="year"></span> RentTool · Equipo para tu proyecto</span>
     </footer>
     <dialog id="auth-dialog">
       <button class="close" aria-label="Cerrar">×</button>

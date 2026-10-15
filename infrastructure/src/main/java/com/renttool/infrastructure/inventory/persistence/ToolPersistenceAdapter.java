@@ -25,6 +25,16 @@ class ToolPersistenceAdapter implements ToolRepository {
   }
 
   @Override
+  public Optional<Tool> findByIdForUpdate(Long id) {
+    return jpa.findByIdForUpdate(id).map(ToolPersistenceAdapter::toDomain);
+  }
+
+  @Override
+  public List<Long> findIdsByProviderId(Long providerId) {
+    return jpa.findIdsByProviderId(providerId);
+  }
+
+  @Override
   public Tool save(Tool tool) {
     return toDomain(jpa.save(toEntity(tool)));
   }

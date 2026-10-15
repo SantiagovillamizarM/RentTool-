@@ -3,6 +3,7 @@ package com.renttool.infrastructure.config;
 import com.renttool.domain.shared.exception.*;
 import java.util.stream.Collectors;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.http.*;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -39,6 +40,13 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(DataIntegrityViolationException.class)
   ResponseEntity<ProblemDetail> conflict(Exception e) {
     return problem(HttpStatus.CONFLICT, "El registro está duplicado o tiene relaciones inválidas");
+  }
+
+  /** Espera de bloqueo agotada o interbloqueo detectado por la base de datos. */
+  @ExceptionHandler(PessimisticLockingFailureException.class)
+  ResponseEntity<ProblemDetail> lockConflict(Exception e) {
+    return problem(
+        HttpStatus.CONFLICT, "La operación coincidió con otra en curso. Inténtalo de nuevo.");
   }
 
   @ExceptionHandler(MaxUploadSizeExceededException.class)
