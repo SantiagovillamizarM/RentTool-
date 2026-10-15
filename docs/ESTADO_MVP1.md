@@ -8,4 +8,4 @@ El esquema de identidad del MVP usa una tabla común de usuarios; perfiles comer
 
 Siguiente paso planificado: MVP 02, reservas con fechas, cantidad, precio histórico, aceptación y rechazo, asignación transaccional, vencimiento y cancelación. No hay endpoints ficticios para estos flujos en el código actual.
 
-Para la entrega académica final siguen pendientes los MVP 02–07, incluyendo pagos reales/sandbox, facturas, devoluciones, administración global, reportes, Swagger, colección Postman, diagrama exportado y datos completos de evaluación.
+Para la entrega académica final siguen pendientes los MVP 02–07, incluyendo pagos reales/sandbox, facturas, devoluciones, administración global, reportes, colección Postman, diagrama exportado y datos completos de evaluación.

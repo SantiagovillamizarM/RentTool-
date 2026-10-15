@@ -86,13 +86,13 @@ em {
   display: flex;
   align-items: center;
   gap: 30px;
-  padding: 0 5.5%;
+  padding: 0 clamp(16px, 2.5%, 48px);
   position: relative;
   z-index: 10;
   background: #0a0a0bef;
 }
 .brand {
-  font-size: 27px;
+  font-size: 34px;
   font-weight: 800;
   letter-spacing: -1.4px;
   display: inline-flex;
@@ -105,20 +105,20 @@ em {
 .brand-mark {
   color: var(--yellow);
   font-style: italic;
-  margin-right: 10px;
-  font-size: 31px;
+  margin-right: 0.35em;
+  font-size: 1.15em;
   position: relative;
 }
 .brand-mark span {
-  font-size: 24px;
+  font-size: 0.77em;
   color: white;
   margin-left: -10px;
 }
 .header nav {
   display: flex;
-  gap: 27px;
+  gap: 34px;
   margin: auto;
-  font-size: 12px;
+  font-size: 15px;
   color: #a9a9af;
 }
 .header nav a {
@@ -147,7 +147,7 @@ em {
   background: none;
   color: var(--text);
   padding: 10px 0;
-  font-size: 12px;
+  font-size: 14px;
 }
 .outline-button {
   background: transparent;
@@ -167,6 +167,16 @@ em {
 }
 .header .outline-button {
   color: var(--yellow);
+  font-size: 14px;
+  transition:
+    background-color 0.9s ease,
+    color 0.9s ease,
+    border-color 0.9s ease;
+}
+.header .outline-button:hover {
+  background: var(--yellow);
+  border-color: var(--yellow);
+  color: #101010;
 }
 .menu-toggle {
   display: none;
@@ -191,19 +201,11 @@ em {
   align-items: center;
   flex-direction: column;
   gap: 17px;
-  font-size: 10px;
-}
-.hero-index b {
-  color: var(--yellow);
-}
-.hero-index span {
-  height: 90px;
-  width: 1px;
-  background: linear-gradient(var(--yellow), #ffffff20);
+  font-size: 12px;
 }
 .hero-index small {
   writing-mode: vertical-rl;
-  font-size: 8px;
+  font-size: 11px;
   letter-spacing: 2px;
   color: #696970;
 }
@@ -217,7 +219,7 @@ em {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 1.6px;
   color: #aeafb3;
@@ -233,11 +235,11 @@ em {
   width: max-content;
   border-radius: 30px;
   padding: 9px 12px;
-  font-size: 8px;
+  font-size: 11px;
   letter-spacing: 1px;
 }
 .hero h1 {
-  font-size: clamp(42px, 4.6vw, 68px);
+  font-size: clamp(40px, 4.2vw, 64px);
   line-height: 1.09;
   font-weight: 500;
   letter-spacing: -3.2px;
@@ -247,10 +249,10 @@ em {
   font-weight: 750;
 }
 .hero-description {
-  font-size: 14px;
-  line-height: 1.8;
+  font-size: 16px;
+  line-height: 1.75;
   color: #b1b1b8;
-  max-width: 345px;
+  max-width: 470px;
   margin: 24px 0 28px;
 }
 .hero-actions {
@@ -264,7 +266,8 @@ em {
   padding: 16px 25px;
   border-radius: 40px;
   font-weight: 700;
-  font-size: 12px;
+  font-size: 14px;
+  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
@@ -283,8 +286,9 @@ em {
 .watch-link {
   display: flex;
   align-items: center;
+  white-space: nowrap;
   gap: 9px;
-  font-size: 11px;
+  font-size: 13px;
 }
 .play {
   width: 35px;
@@ -295,32 +299,42 @@ em {
   place-items: center;
   color: #d1d1d4;
 }
-.hero-foot {
-  display: flex;
-  gap: 9px;
-  align-items: center;
-  margin-top: 42px;
-  color: #828289;
-  font-size: 10px;
-}
-.tiny-icon {
-  color: var(--yellow);
-  font-size: 19px;
-}
 .hero-art {
+  /* Se extiende más allá del borde derecho para que el skew no la recorte */
+  --art-bleed: 70px;
   position: absolute;
-  width: 58%;
-  right: 0;
+  width: calc(58% + var(--art-bleed));
+  right: calc(-1 * var(--art-bleed));
   top: 0;
   bottom: 0;
-  background-image: url("assets/hero-architecture.png");
-  background-size: cover;
-  background-position: center;
   border-radius: 160px 0 0 120px;
   transform: skewX(-8deg);
   border-left: 1px solid #ffda0070;
   overflow: hidden;
   isolation: isolate;
+}
+.hero-slides {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+.hero-slide {
+  /* El marco va inclinado: la foto se contra-inclina para verse recta y se
+     ensancha para cubrir las esquinas que deja el sesgo. */
+  --unskew: skewX(8deg);
+  position: absolute;
+  inset: 0 -130px;
+  background-size: cover;
+  background-position: center;
+  opacity: 0;
+  transform: var(--unskew) scale(1.04);
+  transition:
+    opacity 1.4s ease,
+    transform 6s ease-out;
+}
+.hero-slide.active {
+  opacity: 1;
+  transform: var(--unskew) scale(1);
 }
 .art-shade {
   position: absolute;
@@ -338,8 +352,9 @@ em {
   transform: skewX(8deg);
 }
 .art-label > span {
-  font-size: 8px;
-  letter-spacing: 2px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 2.4px;
   color: var(--yellow);
 }
 .art-label strong {
@@ -351,16 +366,16 @@ em {
 }
 .art-label i {
   font-style: normal;
-  font-size: 8px;
+  font-size: 11px;
   letter-spacing: 1.5px;
   color: #c1c1c5;
 }
 .floating-card {
   position: absolute;
-  right: 9%;
-  top: 130px;
-  padding: 24px;
-  width: 190px;
+  right: calc(9% + var(--art-bleed));
+  top: 120px;
+  padding: 28px;
+  width: 290px;
   background: #0a0a0bf2;
   border: 1px solid #ffffff15;
   border-radius: 14px;
@@ -376,30 +391,36 @@ em {
   margin-bottom: 18px;
 }
 .floating-card small {
-  font-size: 10px;
-  letter-spacing: 1px;
-  line-height: 1.8;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  line-height: 1.7;
 }
 .floating-card p {
-  color: #929299;
-  font-size: 11px;
-  line-height: 1.7;
-  margin: 13px 0 20px;
+  color: #a5a5ac;
+  font-size: 16px;
+  line-height: 1.65;
+  margin: 14px 0 22px;
 }
 .floating-card a {
-  font-size: 9px;
+  white-space: nowrap;
+  font-size: 14px;
   border-bottom: 1px solid var(--yellow);
   padding-bottom: 5px;
+  transition: color 0.3s ease;
+}
+.floating-card a:hover {
+  color: var(--yellow);
 }
 .art-bottom {
   position: absolute;
   bottom: 22px;
   left: 9%;
-  right: 8%;
+  right: calc(8% + var(--art-bleed));
   display: flex;
   justify-content: space-between;
   z-index: 2;
-  font-size: 8px;
+  font-size: 11px;
   letter-spacing: 2px;
   color: #929299;
   transform: skewX(8deg);
@@ -436,7 +457,7 @@ h2 {
 .underlined {
   display: inline-flex;
   gap: 20px;
-  font-size: 10px;
+  font-size: 12px;
   border-bottom: 1px solid #57543b;
   padding-bottom: 6px;
 }
@@ -479,7 +500,7 @@ h2 {
   font-weight: 600;
 }
 .category-card p {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--muted);
   line-height: 1.8;
   margin-top: 9px;
@@ -533,13 +554,13 @@ h2 {
 }
 .compact {
   padding: 11px 22px;
-  font-size: 11px;
+  font-size: 13px;
 }
 .catalog-meta {
   margin: 26px 0 20px;
   display: flex;
   justify-content: space-between;
-  font-size: 9px;
+  font-size: 12px;
   color: var(--muted);
   letter-spacing: 0.8px;
 }
@@ -586,7 +607,7 @@ h2 {
   top: 16px;
   left: 16px;
   z-index: 1;
-  font-size: 8px;
+  font-size: 11px;
   color: var(--yellow);
   background: #0a0a0bc9;
   border: 1px solid #ffda0025;
@@ -598,7 +619,7 @@ h2 {
   border-top: 1px solid #ffffff06;
 }
 .product-category {
-  font-size: 8px;
+  font-size: 11px;
   letter-spacing: 1.7px;
   color: #85858d;
   text-transform: uppercase;
@@ -609,13 +630,13 @@ h2 {
   margin: 8px 0 13px;
 }
 .stock {
-  font-size: 10px;
+  font-size: 12px;
   color: #a1a1a7;
 }
 .stock:before {
   content: "●";
   color: var(--yellow);
-  font-size: 7px;
+  font-size: 11px;
   margin-right: 7px;
 }
 .product-bottom {
@@ -631,7 +652,7 @@ h2 {
   font-weight: 650;
 }
 .price small {
-  font-size: 9px;
+  font-size: 12px;
   color: var(--muted);
   font-weight: 400;
 }
@@ -671,10 +692,10 @@ h2 {
   gap: 24px;
   align-items: center;
   margin-top: 30px;
-  font-size: 11px;
+  font-size: 13px;
 }
 .pagination .outline-button {
-  font-size: 10px;
+  font-size: 12px;
 }
 .how {
   background: radial-gradient(ellipse at 100% 100%, #ffda0008, transparent 60%);
@@ -747,7 +768,7 @@ h2 {
   font-size: 12px;
 }
 .contact .contact-note {
-  font-size: 10px;
+  font-size: 12px;
   margin-top: 26px;
 }
 footer {
@@ -755,7 +776,7 @@ footer {
   align-items: center;
   gap: 30px;
   padding: 32px 7%;
-  font-size: 9px;
+  font-size: 12px;
   color: var(--muted);
 }
 footer .brand {
@@ -784,7 +805,7 @@ dialog::backdrop {
 }
 dialog .eyebrow {
   color: var(--yellow);
-  font-size: 8px;
+  font-size: 11px;
   margin: 6px 0 17px;
 }
 dialog h2 {
@@ -810,7 +831,7 @@ dialog h3 {
 }
 form label {
   display: block;
-  font-size: 11px;
+  font-size: 13px;
   color: #b3b3ba;
   margin-top: 18px;
 }
@@ -841,7 +862,7 @@ textarea {
   color: var(--yellow);
 }
 .form-error {
-  font-size: 11px;
+  font-size: 13px;
   color: #ff9898;
   line-height: 1.6;
   margin-top: 12px;
@@ -893,7 +914,7 @@ textarea {
   flex-wrap: wrap;
 }
 .inventory-actions button {
-  font-size: 10px;
+  font-size: 12px;
   padding: 9px 15px;
 }
 .inline-form {
@@ -904,7 +925,7 @@ textarea {
 .inline-form input,
 .inline-form select {
   margin: 0;
-  font-size: 10px;
+  font-size: 12px;
 }
 .inline-form select {
   width: 135px;
@@ -916,12 +937,12 @@ textarea {
   gap: 10px;
   padding: 12px 0;
   border-bottom: 1px solid var(--line);
-  font-size: 11px;
+  font-size: 13px;
 }
 .manage-row button {
   color: var(--yellow);
   background: transparent;
-  font-size: 10px;
+  font-size: 12px;
 }
 .manage-row img {
   height: 40px;
@@ -949,7 +970,7 @@ textarea {
   padding: 8px 12px;
   background: #ffda000a;
   color: var(--yellow);
-  font-size: 10px;
+  font-size: 12px;
   border: 1px solid #ffda0020;
   border-radius: 8px;
   margin-top: 20px;
@@ -958,33 +979,45 @@ textarea {
 #manage-dialog {
   width: min(650px, calc(100% - 30px));
 }
+/* Pantallas anchas: fondos y bordes a todo el ancho; el contenido se alinea
+   a una columna de 1600px para que no se estire de más. */
 @media (min-width: 1500px) {
-  .header,
-  main,
+  .section,
   footer {
-    max-width: 1600px;
-    margin: auto;
+    padding-inline: max(7%, calc((100% - 1600px) / 2 + 112px));
   }
   .hero {
     min-height: 680px;
+  }
+  .hero-index {
+    left: max(2%, calc((100% - 1600px) / 2 + 32px));
+  }
+  .hero-copy {
+    padding-left: max(8%, calc((100% - 1600px) / 2 + 128px));
+  }
+  .hero-art {
+    left: max(42%, calc((100% - 1600px) / 2 + 672px));
+    width: auto;
   }
 }
 @media (max-width: 1100px) {
   .header {
     gap: 16px;
-    padding: 0 4%;
     height: 80px;
   }
+  .brand {
+    font-size: 30px;
+  }
   .header nav {
-    gap: 16px;
-    font-size: 10px;
+    gap: 18px;
+    font-size: 13px;
   }
   .header-actions {
     gap: 10px;
   }
   .header .outline-button {
     padding: 10px 14px;
-    font-size: 10px;
+    font-size: 12px;
   }
   .hero {
     min-height: 560px;
@@ -997,11 +1030,11 @@ textarea {
     width: 51%;
   }
   .hero-art {
-    width: 54%;
+    width: calc(54% + var(--art-bleed));
   }
   .floating-card {
-    right: 5%;
-    width: 170px;
+    right: calc(5% + var(--art-bleed));
+    width: 250px;
   }
   .categories {
     grid-template-columns: 1fr;
@@ -1031,14 +1064,15 @@ textarea {
     height: 190px;
   }
 }
-@media (max-width: 760px) {
+/* Tablet y móvil: menú hamburguesa y hero apilado */
+@media (max-width: 900px) {
   .header {
     height: 74px;
     flex-wrap: wrap;
     gap: 15px;
   }
   .brand {
-    font-size: 24px;
+    font-size: 28px;
   }
   .menu-toggle {
     display: block;
@@ -1071,7 +1105,7 @@ textarea {
   }
   .header .outline-button {
     gap: 10px;
-    font-size: 9px;
+    font-size: 12px;
   }
   .hero {
     display: block;
@@ -1089,21 +1123,21 @@ textarea {
     letter-spacing: -2.5px;
   }
   .hero-description {
-    max-width: 390px;
-    font-size: 13px;
-  }
-  .hero-foot {
-    margin-top: 25px;
+    max-width: 520px;
+    font-size: 15px;
   }
   .hero-art {
     position: relative;
-    height: 330px;
+    height: 430px;
     width: 100%;
     border-radius: 80px 0 0 0;
+    --art-bleed: 0px;
     transform: none;
-    background-size: cover;
-    background-position: center;
     margin-top: 10px;
+  }
+  .hero-slide {
+    --unskew: skewX(0deg);
+    inset: 0;
   }
   .art-label,
   .art-bottom,
@@ -1112,23 +1146,25 @@ textarea {
   }
   .art-label {
     left: 7%;
-    bottom: 65px;
+    bottom: 55px;
   }
   .art-label strong {
     font-size: 25px;
   }
   .floating-card {
-    top: 45px;
+    top: 28px;
     right: 5%;
     padding: 20px;
-    width: 155px;
+    width: 240px;
   }
   .floating-card small {
-    font-size: 8px;
+    font-size: 13px;
   }
   .floating-card p {
-    font-size: 10px;
+    font-size: 14px;
   }
+}
+@media (max-width: 760px) {
   .section {
     padding: 45px 6%;
   }
@@ -1157,7 +1193,7 @@ textarea {
     font-size: 30px;
   }
   .section-heading > p {
-    font-size: 11px;
+    font-size: 13px;
   }
   .filters {
     flex-wrap: wrap;
@@ -1169,7 +1205,7 @@ textarea {
   .filters select {
     flex: 1;
     width: auto;
-    font-size: 11px;
+    font-size: 13px;
   }
   .products {
     grid-template-columns: repeat(2, 1fr);
@@ -1192,13 +1228,13 @@ textarea {
     margin-top: 4px;
   }
   .product-category {
-    font-size: 7px;
+    font-size: 11px;
   }
   .stock {
-    font-size: 8px;
+    font-size: 11px;
   }
   .product-tag {
-    font-size: 7px;
+    font-size: 11px;
     left: 10px;
     top: 10px;
   }
@@ -1220,7 +1256,7 @@ textarea {
     font-size: 30px;
   }
   .contact .eyebrow {
-    font-size: 7px;
+    font-size: 11px;
   }
   footer {
     flex-wrap: wrap;
@@ -1229,7 +1265,7 @@ textarea {
   }
   footer p {
     width: 65%;
-    font-size: 9px;
+    font-size: 12px;
   }
   footer > span {
     margin-left: 0;
@@ -1258,7 +1294,15 @@ textarea {
     width: 100%;
   }
   .hero .eyebrow {
-    font-size: 7px;
+    font-size: 11px;
+  }
+  .hero-actions {
+    flex-wrap: wrap;
+    gap: 16px 20px;
+  }
+  .hero .button {
+    gap: 18px;
+    padding: 15px 22px;
   }
   .pagination {
     gap: 15px;
@@ -1274,10 +1318,10 @@ textarea {
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   .header-actions #logout {
     display: block;
-    font-size: 10px;
+    font-size: 12px;
   }
   .header-actions .outline-button {
     max-width: 135px;
@@ -1286,5 +1330,249 @@ textarea {
   }
   .header-actions {
     gap: 8px;
+  }
+}
+
+/* Teléfonos pequeños: el header cabe en una sola línea */
+@media (max-width: 420px) {
+  .header {
+    gap: 10px;
+  }
+  .brand {
+    font-size: 24px;
+  }
+  .header .outline-button {
+    gap: 8px;
+    padding: 9px 12px;
+    font-size: 12px;
+  }
+}
+
+/* Pantalla de carga: martillo que llega en arco, golpea y revela la marca */
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 45%, #18181b 0, var(--bg) 62%);
+  /* Respaldo si el script falla: la pantalla se oculta sola */
+  animation: splash-fallback 0.4s ease 5s forwards;
+}
+@keyframes splash-fallback {
+  to {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+}
+.splash-lock,
+.splash-lock body {
+  overflow: hidden;
+}
+.splash-trail {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.splash-trail path {
+  fill: none;
+  stroke: url(#splash-trail-color);
+  stroke-linecap: round;
+  stroke-dasharray: 0 3;
+}
+.splash-trail .glow {
+  stroke-width: 16;
+  opacity: 0.4;
+  filter: url(#splash-glow);
+}
+.splash-trail .body {
+  stroke-width: 5;
+  opacity: 0.85;
+}
+.splash-trail .core {
+  stroke: #fff;
+  stroke-width: 2;
+}
+.splash-arena {
+  position: relative;
+}
+/* Línea de suelo donde cae el martillazo */
+.splash-floor {
+  position: absolute;
+  left: -130%;
+  right: -130%;
+  bottom: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.35),
+    transparent
+  );
+  opacity: 0;
+}
+.splash-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(14px, 3vh, 28px);
+}
+.splash-hammer {
+  height: min(34vh, 46vw);
+  aspect-ratio: 426 / 840;
+  opacity: 0;
+}
+.splash-swing {
+  position: relative;
+  height: 100%;
+  transform-origin: 50% 97%;
+}
+.splash-swing img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.55));
+}
+.splash-impact {
+  position: absolute;
+  left: 0;
+  top: 7%;
+  width: 1px;
+  height: 1px;
+}
+.splash-word {
+  font-family: Manrope, Arial, sans-serif;
+  font-weight: 800;
+  font-size: clamp(38px, 8vw, 72px);
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--text);
+}
+.splash-letter {
+  display: inline-block;
+  opacity: 0;
+}
+.splash-letter.is-dot {
+  color: var(--yellow);
+}
+.splash-spark {
+  position: absolute;
+  width: 2px;
+  border-radius: 2px;
+  background: linear-gradient(#fff, var(--yellow) 45%, #ff8a00);
+  box-shadow: 0 0 6px rgba(255, 218, 0, 0.8);
+  pointer-events: none;
+}
+.splash-flash {
+  position: absolute;
+  width: 150px;
+  height: 150px;
+  margin: -75px 0 0 -75px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.95),
+    rgba(255, 218, 0, 0.5) 30%,
+    transparent 70%
+  );
+  pointer-events: none;
+}
+.splash-ember {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--yellow);
+  box-shadow: 0 0 6px #ff9d00;
+  pointer-events: none;
+}
+.splash-shock {
+  position: absolute;
+  width: 240px;
+  height: 44px;
+  margin: -22px 0 0 -120px;
+  border: 2px solid var(--yellow);
+  border-radius: 50%;
+  pointer-events: none;
+}
+/* Impact frame: cortes de color de un par de fotogramas en el golpe */
+.splash.is-impact-a {
+  filter: invert(1) grayscale(1) contrast(4);
+}
+.splash.is-impact-b {
+  background: var(--yellow);
+}
+.splash.is-impact-b .splash-swing img {
+  filter: brightness(0);
+}
+.splash.is-impact-b .splash-floor {
+  background: #000;
+}
+/* Pantalla de entrada: Enter desbloquea el audio y arranca la animación */
+.splash-stage,
+.splash-enter {
+  grid-area: 1 / 1;
+}
+.splash-enter {
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  text-align: center;
+}
+.splash-enter-title {
+  color: #fff;
+  font-family: Manrope, Arial, sans-serif;
+  font-size: clamp(22px, 4vw, 32px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+/* Aviso de qué tecla usar */
+.splash-hint {
+  color: var(--muted);
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+.splash-hint kbd {
+  display: inline-block;
+  margin: 0 4px;
+  padding: 3px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-bottom-width: 3px;
+  border-radius: 6px;
+  color: #fff;
+  font-family: inherit;
+  font-size: 12px;
+}
+.splash-dots {
+  display: inline-flex;
+  margin-left: 2px;
+}
+.splash-dots i {
+  font-style: normal;
+  animation: splash-dot 1.2s ease-in-out infinite;
+}
+.splash-dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.splash-dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes splash-dot {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+  30% {
+    transform: translateY(-7px);
+    opacity: 1;
   }
 }

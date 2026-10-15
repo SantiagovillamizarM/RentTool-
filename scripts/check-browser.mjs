@@ -62,6 +62,9 @@ await send("Emulation.setDeviceMetricsOverride", {
 });
 await send("Page.navigate", { url: baseUrl + "/" });
 await until('document.querySelectorAll(".product").length===6');
+await until('document.querySelector(".splash-enter")');
+await evalJs('dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }))');
+await until('!document.querySelector("#splash")');
 await evalJs("document.fonts.ready");
 await screenshot("docs/screenshots/desktop.png");
 console.log("PASS: catálogo conectado a MySQL, 6 publicaciones demo.");

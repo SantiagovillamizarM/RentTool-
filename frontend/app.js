@@ -201,7 +201,7 @@ function renderAccount() {
   $("#workspace").hidden = !state.user;
   if (!state.user) {
     actions.innerHTML =
-      '<button class="text-button" data-auth="login">Iniciar sesión</button><button class="outline-button" data-auth="register">Comienza ahora ↗</button>';
+      '<button class="text-button" data-auth="login">Iniciar sesión</button><button class="outline-button" data-auth="register">Comienza ahora</button>';
     wireAuth();
     return;
   }

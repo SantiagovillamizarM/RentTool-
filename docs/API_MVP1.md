@@ -30,4 +30,4 @@ Ejemplo de herramienta:
 
 Listado: `{content, totalElements, totalPages, page}`. Creación devuelve 201, baja 204, validación 400, falta de credenciales 401, acceso indebido 403, recurso inexistente 404 y duplicados 409. Los errores de aplicación usan ProblemDetail con `detail`; errores del filtro de seguridad pueden tener cuerpo diferente en este incremento.
 
-OpenAPI/Swagger interactivo y colección Postman son entregables pendientes. Las rutas de los MVP siguientes descritas en el desglose todavía no existen.
+La documentación interactiva está en `/swagger-ui.html` (especificación OpenAPI en `/v3/api-docs`), con ejemplos JSON y autenticación JWT mediante el botón **Authorize**. La colección Postman es un entregable pendiente. Las rutas de los MVP siguientes descritas en el desglose todavía no existen.

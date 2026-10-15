@@ -26,7 +26,9 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Abre **http://localhost:8088**. El frontend y la API se sirven desde el mismo origen. MySQL y las imágenes persisten en volúmenes. No abras `index.html` con `file://`: necesita la API.
+Abre **http://localhost:8088**. El frontend y la API se sirven desde el mismo origen.
+
+La documentación interactiva de la API (Swagger) está en **http://localhost:8088/swagger-ui.html**. Para probar los endpoints protegidos, obtén un token con `/auth/login`, pulsa **Authorize** y pégalo. MySQL y las imágenes persisten en volúmenes. No abras `index.html` con `file://`: necesita la API.
 
 Para cargar seis herramientas de demostración, añade `DEMO_PASSWORD` (mínimo 10 caracteres) a `.env` y ejecuta:
 
@@ -69,6 +71,6 @@ El JWT se conserva en `sessionStorage`, con vencimiento de una hora. Cerrar sesi
 
 ## Límites actuales
 
-Swagger/OpenAPI interactivo, auditoría, perfiles comerciales completos, paginación del panel de inventario más allá de 100 elementos y el resto de MVP aún deben incorporarse. Las imágenes eliminadas de una publicación conservan su archivo físico; su limpieza se implementará con una política de retención. No se inventan garantías comerciales, estadísticas ni contacto de una empresa real.
+Auditoría, perfiles comerciales completos, paginación del panel de inventario más allá de 100 elementos y el resto de MVP aún deben incorporarse. Las imágenes eliminadas de una publicación conservan su archivo físico; su limpieza se implementará con una política de retención. No se inventan garantías comerciales, estadísticas ni contacto de una empresa real.
 
 Para provisionar el administrador inicial en ejecución JAR, configura `RENTTOOL_ADMIN_EMAIL` y `RENTTOOL_ADMIN_PASSWORD` (12–64 caracteres). No se eleva una cuenta existente ni se cambia su contraseña automáticamente. El panel administrativo global pertenece a un MVP posterior.

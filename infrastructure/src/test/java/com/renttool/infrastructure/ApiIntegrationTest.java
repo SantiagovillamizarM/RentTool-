@@ -48,7 +48,7 @@ class ApiIntegrationTest {
             .andReturn()
             .getResponse()
             .getContentAsString();
-    return new ObjectMapper().readTree(response).get("token").asText();
+    return new ObjectMapper().readTree(response).get("token").asString();
   }
 
   @Test
@@ -186,7 +186,7 @@ class ApiIntegrationTest {
         new ObjectMapper()
             .readTree(response.getResponse().getContentAsString())
             .get("location")
-            .asText();
+            .asString();
     mvc.perform(get(location))
         .andExpect(status().isOk())
         .andExpect(content().contentType("image/png"));
@@ -194,6 +194,18 @@ class ApiIntegrationTest {
 
   @Test
   @Order(5)
+  void swaggerDocumentsTheApiWithoutLogin() throws Exception {
+    mvc.perform(get("/v3/api-docs"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("info.title").value("RentTool API"))
+        .andExpect(jsonPath("components.securitySchemes.bearerAuth.scheme").value("bearer"))
+        .andExpect(jsonPath("paths['/api/v1/tools'].post.security[0].bearerAuth").exists())
+        .andExpect(jsonPath("paths['/api/v1/auth/login'].post.security").doesNotExist());
+    mvc.perform(get("/swagger-ui/index.html")).andExpect(status().isOk());
+  }
+
+  @Test
+  @Order(6)
   void disabledAccountCannotUseExistingToken() throws Exception {
     var repository =
         context.getBean(com.renttool.application.identity.port.out.AccountRepository.class);

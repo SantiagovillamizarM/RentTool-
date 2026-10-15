@@ -9,9 +9,49 @@
       content="RentTool: herramientas y equipos para tu próximo proyecto. Consulta el catálogo y gestiona tu inventario."
     />
     <title>RentTool — Equipa tu próxima gran obra</title>
+    <link rel="icon" type="image/png" href="assets/favicon.png" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <div class="splash" id="splash">
+      <div class="splash-enter">
+        <p class="splash-enter-title">
+          Entrar<span class="splash-dots" aria-hidden="true"
+            ><i>.</i><i>.</i><i>.</i></span
+          >
+        </p>
+        <p class="splash-hint">Presiona <kbd>Enter ↵</kbd> para continuar</p>
+      </div>
+      <svg class="splash-trail" aria-hidden="true">
+        <defs>
+          <linearGradient id="splash-trail-color" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#ff7a00" />
+            <stop offset="0.6" stop-color="#ffda00" />
+            <stop offset="1" stop-color="#fff6c2" />
+          </linearGradient>
+          <filter id="splash-glow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="5" />
+          </filter>
+        </defs>
+        <path class="glow" pathLength="1" />
+        <path class="body" pathLength="1" />
+        <path class="core" pathLength="1" />
+      </svg>
+      <div class="splash-stage" aria-hidden="true">
+        <div class="splash-arena">
+          <i class="splash-floor"></i>
+          <div class="splash-hammer">
+            <div class="splash-swing">
+              <img src="assets/logo-renttool.png" alt="" /><i
+                class="splash-impact"
+              ></i>
+            </div>
+          </div>
+        </div>
+        <p class="splash-word">RentTool.</p>
+      </div>
+    </div>
+    <script src="splash.js"></script>
     <header class="header">
       <a class="brand" href="#inicio" aria-label="RentTool inicio"
         ><span class="brand-mark">R<span>↗</span></span
@@ -33,23 +73,22 @@
       <div class="header-actions" id="account-actions">
         <button class="text-button" data-auth="login">Iniciar sesión</button
         ><button class="outline-button" data-auth="register">
-          Comienza ahora <span>↗</span>
+          Comienza ahora
         </button>
       </div>
     </header>
     <main>
       <section class="hero" id="inicio">
         <div class="hero-index">
-          <b>01</b><span></span><small>CONSTRUYE SIN LÍMITES</small>
+          <small>CONSTRUYE SIN LÍMITES</small>
         </div>
         <div class="hero-copy">
           <p class="eyebrow"><span></span> HERRAMIENTAS PARA GRANDES IDEAS</p>
-          <h1>
-            Tu próxima obra.<br />El mejor equipo.<br /><em>Sin comprarlo.</em>
-          </h1>
+          <h1>Tu próximo proyecto empieza <em>aquí.</em></h1>
           <p class="hero-description">
-            Todo lo que necesitas para construir, transformar y crear. Encuentra
-            herramientas de proveedores en un solo lugar.
+            Encuentra y renta las herramientas que necesitas para hacer realidad
+            tus proyectos, todo en un solo lugar. Construye más, invierte menos y
+            llega más lejos.
           </p>
           <div class="hero-actions">
             <a class="button" href="#catalogo"
@@ -58,16 +97,15 @@
               ><span class="play">▷</span> Así funciona</a
             >
           </div>
-          <div class="hero-foot">
-            <span class="tiny-icon">⌖</span
-            ><span>El equipo correcto, para cada proyecto.</span>
-          </div>
         </div>
-        <div
-          class="hero-art"
-          role="img"
-          aria-label="Arquitectura contemporánea de concreto con iluminación amarilla"
-        >
+        <div class="hero-art" aria-roledescription="carrusel" aria-label="Obras y construcción">
+          <div class="hero-slides">
+            <div class="hero-slide active" role="img" aria-label="Arquitectura contemporánea de concreto con iluminación amarilla" style="background-image: url('assets/hero-architecture.png')"></div>
+            <div class="hero-slide" role="img" aria-label="Edificio moderno con balcones curvos de concreto" style="background-image: url('assets/hero/edificio-balcones-curvos.jpg'); background-position: center 40%"></div>
+            <div class="hero-slide" role="img" aria-label="Cubiertas curvas de concreto y cerámica contra el cielo" style="background-image: url('assets/hero/cubiertas-concreto.jpg'); background-position: center 15%"></div>
+            <div class="hero-slide" role="img" aria-label="Mausoleo de piedra reflejado en un estanque" style="background-image: url('assets/hero/mausoleo-reflejo.jpg'); background-position: center 22%"></div>
+            <div class="hero-slide" role="img" aria-label="Escultura metálica iluminada de noche bajo la luna llena" style="background-image: url('assets/hero/escultura-metalica-noche.jpg'); background-position: center 52%"></div>
+          </div>
           <div class="art-shade"></div>
           <div class="art-label">
             <span>CONSTRUYE TU SIGUIENTE CAPÍTULO</span
@@ -78,10 +116,10 @@
             <span class="yellow-line"></span
             ><small>MENOS INVERSIÓN.<br />MÁS POSIBILIDADES.</small>
             <p>Tu proyecto avanza.<br />Nosotros te equipamos.</p>
-            <a href="#catalogo">Encuentra tu herramienta ↗</a>
+            <a href="#catalogo">Encuentra tu herramienta</a>
           </div>
           <div class="art-bottom">
-            <span>RENTTOOL / EQUIPAMIENTO</span><span>01 — 03</span>
+            <span>RENTTOOL / EQUIPAMIENTO</span>
           </div>
         </div>
       </section>
@@ -371,6 +409,7 @@
       <p id="manage-error" class="form-error" role="alert"></p>
     </dialog>
     <div class="toast" id="toast" role="status" hidden></div>
+    <script src="carousel.js" defer></script>
     <script src="app.js" defer></script>
   </body>
 </html>

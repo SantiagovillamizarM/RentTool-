@@ -3,6 +3,7 @@ package com.renttool.infrastructure.inventory.web;
 import com.renttool.application.inventory.port.in.*;
 import com.renttool.domain.inventory.*;
 import com.renttool.application.shared.PageResult;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
 import java.util.List;
@@ -12,31 +13,46 @@ public final class InventoryDtos {
   private InventoryDtos() {}
 
   public record ToolRequest(
-      @NotNull Long categoryId,
-      @NotBlank @Size(max = 160) String name,
-      @NotBlank @Size(max = 3000) String description,
-      @NotNull @DecimalMin("0.01") @Digits(integer = 12, fraction = 2) BigDecimal dailyRate) {
+      @Schema(example = "1") @NotNull Long categoryId,
+      @Schema(example = "Taladro percutor 800 W") @NotBlank @Size(max = 160) String name,
+      @Schema(example = "Incluye maletín, broca para concreto y mandril de 13 mm.")
+          @NotBlank
+          @Size(max = 3000)
+          String description,
+      @Schema(example = "25000", description = "Tarifa por día en pesos colombianos")
+          @NotNull
+          @DecimalMin("0.01")
+          @Digits(integer = 12, fraction = 2)
+          BigDecimal dailyRate) {
     public ManageToolsUseCase.Command toCommand() {
       return new ManageToolsUseCase.Command(categoryId, name, description, dailyRate);
     }
   }
 
-  public record UnitRequest(@NotBlank @Size(max = 80) String code, @NotNull UnitStatus status) {
+  public record UnitRequest(
+      @Schema(example = "TAL-001", description = "Único dentro de la herramienta")
+          @NotBlank
+          @Size(max = 80)
+          String code,
+      @Schema(example = "OPERATIVA") @NotNull UnitStatus status) {
     public ManageUnitsUseCase.Command toCommand() {
       return new ManageUnitsUseCase.Command(code, status);
     }
   }
 
-  public record ImageReferenceRequest(@NotBlank @Size(max = 1000) String location) {}
+  public record ImageReferenceRequest(
+      @Schema(example = "https://example.com/taladro.png") @NotBlank @Size(max = 1000)
+          String location) {}
 
   public record ToolResponse(
-      Long id,
-      Long providerId,
-      Long categoryId,
-      String name,
-      String description,
-      BigDecimal dailyRate,
-      boolean active) {
+      @Schema(example = "12") Long id,
+      @Schema(example = "4") Long providerId,
+      @Schema(example = "1") Long categoryId,
+      @Schema(example = "Taladro percutor 800 W") String name,
+      @Schema(example = "Incluye maletín, broca para concreto y mandril de 13 mm.")
+          String description,
+      @Schema(example = "25000.00") BigDecimal dailyRate,
+      @Schema(example = "true") boolean active) {
     public static ToolResponse from(Tool t) {
       return new ToolResponse(
           t.id(), t.providerId(), t.categoryId(), t.name(), t.description(), t.dailyRate(),
@@ -45,16 +61,17 @@ public final class InventoryDtos {
   }
 
   public record ToolDetailsResponse(
-      Long id,
-      String name,
-      String description,
-      Long categoryId,
-      String category,
-      Long providerId,
-      BigDecimal dailyRate,
-      boolean active,
+      @Schema(example = "12") Long id,
+      @Schema(example = "Taladro percutor 800 W") String name,
+      @Schema(example = "Incluye maletín, broca para concreto y mandril de 13 mm.")
+          String description,
+      @Schema(example = "1") Long categoryId,
+      @Schema(example = "Herramientas eléctricas") String category,
+      @Schema(example = "4") Long providerId,
+      @Schema(example = "25000.00") BigDecimal dailyRate,
+      @Schema(example = "true") boolean active,
       List<ImageResponse> images,
-      long operationalUnits) {
+      @Schema(example = "3", description = "Unidades en estado OPERATIVA") long operationalUnits) {
     public static ToolDetailsResponse from(ToolDetails d) {
       var t = d.tool();
       return new ToolDetailsResponse(
@@ -71,25 +88,39 @@ public final class InventoryDtos {
     }
   }
 
-  public record UnitResponse(Long id, Long toolId, String code, UnitStatus status) {
+  public record UnitResponse(
+      @Schema(example = "31") Long id,
+      @Schema(example = "12") Long toolId,
+      @Schema(example = "TAL-001") String code,
+      @Schema(example = "OPERATIVA") UnitStatus status) {
     public static UnitResponse from(Unit u) {
       return new UnitResponse(u.id(), u.toolId(), u.code(), u.status());
     }
   }
 
-  public record ImageResponse(Long id, Long toolId, String location) {
+  public record ImageResponse(
+      @Schema(example = "8") Long id,
+      @Schema(example = "12") Long toolId,
+      @Schema(example = "/uploads/5f3c9a.png") String location) {
     public static ImageResponse from(ToolImage i) {
       return new ImageResponse(i.id(), i.toolId(), i.location());
     }
   }
 
-  public record CategoryResponse(Long id, String name, String icon) {
+  public record CategoryResponse(
+      @Schema(example = "1") Long id,
+      @Schema(example = "Herramientas eléctricas") String name,
+      @Schema(example = "↯") String icon) {
     public static CategoryResponse from(Category c) {
       return new CategoryResponse(c.id(), c.name(), c.icon());
     }
   }
 
-  public record PageResponse<T>(List<T> content, long totalElements, int totalPages, int page) {
+  public record PageResponse<T>(
+      List<T> content,
+      @Schema(example = "27") long totalElements,
+      @Schema(example = "3") int totalPages,
+      @Schema(example = "0", description = "Página actual, desde 0") int page) {
     public static <T> PageResponse<T> from(PageResult<T> p) {
       return new PageResponse<>(p.content(), p.totalElements(), p.totalPages(), p.page());
     }
