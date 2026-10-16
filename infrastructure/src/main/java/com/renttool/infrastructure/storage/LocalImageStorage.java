@@ -1,5 +1,6 @@
-package com.renttool.infrastructure.inventory.external;
+package com.renttool.infrastructure.storage;
 
+import com.renttool.application.identity.port.out.LogoStorage;
 import com.renttool.application.inventory.port.out.ImageStorage;
 import com.renttool.domain.shared.exception.InvalidInputException;
 import java.io.*;
@@ -11,10 +12,11 @@ import org.springframework.stereotype.Component;
 
 /**
  * Guarda imágenes en disco local. Decodifica el contenido para aceptar solo PNG o JPEG reales y lo
- * vuelve a codificar como PNG, descartando metadatos y contenido ajeno a la imagen.
+ * vuelve a codificar como PNG, descartando metadatos y contenido ajeno a la imagen. Sirve tanto las
+ * fotos del inventario como los logos de proveedores; por eso vive fuera de ambos contextos.
  */
 @Component
-class LocalImageStorage implements ImageStorage {
+class LocalImageStorage implements ImageStorage, LogoStorage {
   static final String PUBLIC_PREFIX = "/uploads/";
   private static final long MAX_PIXELS = 16_000_000;
 

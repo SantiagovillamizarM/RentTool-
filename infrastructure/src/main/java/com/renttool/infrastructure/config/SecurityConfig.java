@@ -23,7 +23,9 @@ public class SecurityConfig {
         .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(
             a ->
-                a.requestMatchers("/api/v1/auth/**")
+                a.requestMatchers(HttpMethod.POST, "/api/v1/auth/refresh")
+                    .authenticated()
+                    .requestMatchers("/api/v1/auth/**")
                     .permitAll()
                     .requestMatchers(
                         HttpMethod.GET,
@@ -32,6 +34,8 @@ public class SecurityConfig {
                         "/api/v1/tools/{id}/availability",
                         "/api/v1/categories")
                     .permitAll()
+                    .requestMatchers("/api/v1/admin/**")
+                    .hasRole("ADMINISTRADOR")
                     .requestMatchers("/api/**")
                     .authenticated()
                     .anyRequest()

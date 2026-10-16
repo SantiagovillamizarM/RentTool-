@@ -1,65 +1,13 @@
 "use strict";
-const $ = (s) => document.querySelector(s),
-  esc = (s) =>
-    String(s ?? "").replace(
-      /[&<>"']/g,
-      (c) =>
-        ({
-          "&": "&amp;",
-          "<": "&lt;",
-          ">": "&gt;",
-          '"': "&quot;",
-          "'": "&#39;",
-        })[c],
-    );
-const state = {
-  token: sessionStorage.getItem("renttool.token"),
-  user: null,
+// Sitio público: catálogo, reservas y espacio de clientes y proveedores.
+Object.assign(state, {
   categories: [],
   page: 0,
   totalPages: 0,
   mode: "login",
   editing: null,
   managing: null,
-};
-const money = (v) =>
-  new Intl.NumberFormat("es-CO", {
-    style: "currency",
-    currency: "COP",
-    maximumFractionDigits: 0,
-  }).format(v);
-function notify(message) {
-  $("#toast").textContent = message;
-  $("#toast").hidden = false;
-  clearTimeout(notify.timer);
-  notify.timer = setTimeout(() => ($("#toast").hidden = true), 4500);
-}
-async function api(path, options = {}) {
-  const headers = { ...options.headers };
-  if (options.body && !(options.body instanceof FormData))
-    headers["Content-Type"] = "application/json";
-  if (state.token) headers.Authorization = `Bearer ${state.token}`;
-  const response = await fetch("/api/v1" + path, { ...options, headers });
-  if (!response.ok) {
-    let error = {};
-    try {
-      error = await response.json();
-    } catch {}
-    if (response.status === 401 && state.token) {
-      logout();
-      notify("Tu sesión ha vencido. Inicia sesión nuevamente.");
-    }
-    throw new Error(
-      error.detail ||
-        {
-          401: "Inicia sesión para continuar.",
-          403: "No tienes permiso para esta acción.",
-        }[response.status] ||
-        "No se pudo completar la solicitud.",
-    );
-  }
-  return response.status === 204 ? null : response.json();
-}
+});
 const toolArt = (id = 0) =>
   `<svg viewBox="0 0 300 200" aria-hidden="true"><defs><linearGradient id="metal${id}" x2="0.7" y2="1"><stop stop-color="#929296"/><stop offset=".4" stop-color="#3e3e43"/><stop offset="1" stop-color="#19191c"/></linearGradient><linearGradient id="gold${id}" x2="0" y2="1"><stop stop-color="#ffdf21"/><stop offset="1" stop-color="#b89a00"/></linearGradient></defs><ellipse cx="147" cy="175" rx="92" ry="9" fill="#000" opacity=".35"/><g transform="rotate(-12 150 100)"><path d="M70 70h103l20 20-5 41H80l-16-15z" fill="url(#gold${id})"/><path d="M82 125l23 3-9 47H64l6-16z" fill="#202024"/><path d="M67 166h39l5 17H60z" fill="url(#gold${id})"/><path d="M156 73h44v52h-44z" fill="url(#metal${id})"/><path d="M200 84h20v30h-20z" fill="#b3b3b7"/><path d="M219 94h49v10h-49z" fill="url(#metal${id})"/><path d="M107 83h36v7h-36z M107 98h36v7h-36z" fill="#2d2b1b"/><path d="M91 127h13v14H91z" fill="#9c9ca2"/><path d="M72 75h25v41H70z" fill="#e8c710"/><circle cx="170" cy="100" r="8" fill="#333339"/></g></svg>`;
 function imageMarkup(t) {
@@ -132,13 +80,13 @@ async function loadTools() {
               `<article class="product"><div class="product-image"><span class="product-tag">${t.operationalUnits > 0 ? "EQUIPO OPERATIVO" : "CONSULTAR INVENTARIO"}</span>${imageMarkup(t)}</div><div class="product-body"><p class="product-category">${esc(t.category)}</p><h3>${esc(t.name)}</h3><p class="stock">${t.operationalUnits} unidades operativas</p><div class="product-bottom"><p class="price">${money(t.dailyRate)} <small>COP / día</small></p><button class="icon-button" data-detail="${t.id}" aria-label="Ver ${esc(t.name)}">↗</button></div></div></article>`,
           )
           .join("")
-      : '<div class="empty"><h3>Tu próxima herramienta está por llegar.</h3><p>No hay publicaciones para estos filtros.<br>Regístrate como proveedor para añadir equipo al catálogo.</p><button class="outline-button" data-empty-register>Publicar mi inventario ↗</button></div>';
+      : '<div class="empty"><h3>Tu próxima herramienta está por llegar.</h3><p>No hay publicaciones para estos filtros.<br>¿Eres proveedor? Entra con la cuenta que te asignó RentTool.</p><button class="outline-button" data-empty-register>Publicar mi inventario ↗</button></div>';
     container
       .querySelectorAll("[data-detail]")
       .forEach((b) => (b.onclick = () => detail(b.dataset.detail)));
     container
       .querySelector("[data-empty-register]")
-      ?.addEventListener("click", () => openAuth("register"));
+      ?.addEventListener("click", () => openAuth("login"));
     wireImages(container);
     $("#page-label").textContent =
       `${data.totalPages ? state.page + 1 : 0} / ${data.totalPages}`;
@@ -151,31 +99,6 @@ async function loadTools() {
     $("#prev").disabled = $("#next").disabled = true;
   }
 }
-// Las fechas de alquiler son días de la zona del negocio, igual que en el backend.
-const businessToday = () =>
-  new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota" }).format(
-    new Date(),
-  );
-function addDays(isoDate, days) {
-  const [y, m, d] = isoDate.split("-").map(Number);
-  const date = new Date(Date.UTC(y, m - 1, d + days));
-  return date.toISOString().slice(0, 10);
-}
-const shortDate = (isoDate) => {
-  const [y, m, d] = isoDate.split("-").map(Number);
-  return new Intl.DateTimeFormat("es-CO", {
-    day: "numeric",
-    month: "short",
-  }).format(new Date(y, m - 1, d));
-};
-const dateTime = (instant) =>
-  new Intl.DateTimeFormat("es-CO", {
-    day: "numeric",
-    month: "short",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone: "America/Bogota",
-  }).format(new Date(instant));
 async function detail(id) {
   try {
     const t = await api("/tools/" + id);
@@ -273,13 +196,17 @@ function wireReservation(tool) {
   check();
 }
 function openAuth(mode) {
+  if (isAdministrator()) {
+    location.href = "/admin";
+    return;
+  }
   if (state.user) {
     location.hash = "workspace";
     return;
   }
   state.mode = mode;
   const register = mode === "register";
-  $("#name-field").hidden = $("#role-field").hidden = !register;
+  $("#name-field").hidden = $("#register-note").hidden = !register;
   $("#auth-form").elements.name.required = register;
   $("#auth-form").elements.password.minLength = register ? 10 : 1;
   $("#auth-form").elements.password.autocomplete = register
@@ -289,7 +216,7 @@ function openAuth(mode) {
     ? "Empieza algo grande."
     : "Vuelve a construir.";
   $("#auth-description").textContent = register
-    ? "Crea tu cuenta y prepara tu siguiente proyecto."
+    ? "Crea tu cuenta de cliente y prepara tu siguiente proyecto."
     : "Accede a tu espacio de trabajo.";
   $("#auth-submit").textContent = register
     ? "Crear mi cuenta →"
@@ -298,17 +225,29 @@ function openAuth(mode) {
     ? "¿Ya tienes cuenta? Inicia sesión"
     : "¿Aún no tienes cuenta? Regístrate";
   $("#auth-error").textContent = "";
+  $("#auth-notice").hidden = true;
   if (!$("#auth-dialog").open) $("#auth-dialog").showModal();
 }
 function logout() {
-  state.token = null;
-  state.user = null;
-  sessionStorage.removeItem("renttool.token");
+  clearSession();
   renderAccount();
 }
+const isAdministrator = () => state.user?.role === "ADMINISTRADOR";
 function renderAccount() {
   const actions = $("#account-actions");
-  $("#workspace").hidden = !state.user;
+  // El administrador trabaja en /admin; aquí solo ve el sitio público.
+  $("#admin-bar").hidden = !isAdministrator();
+  $("#workspace").hidden = !state.user || isAdministrator();
+  if (isAdministrator()) {
+    watchAdminIdle();
+    actions.innerHTML =
+      '<a href="/admin" class="outline-button">Panel de administración ↗</a><button class="text-button" id="logout">Salir</button>';
+    $("#logout").onclick = () => {
+      logout();
+      notify("Sesión cerrada en este navegador.");
+    };
+    return;
+  }
   if (!state.user) {
     actions.innerHTML =
       '<button class="text-button" data-auth="login">Iniciar sesión</button><button class="outline-button" data-auth="register">Comienza ahora</button>';
@@ -325,121 +264,30 @@ function renderAccount() {
       ? "Tu equipo. Tu inventario."
       : "Tu próximo proyecto empieza aquí.";
   $("#profile-form").elements.name.value = state.user.name;
-  const managesInventory = ["PROVEEDOR", "ADMINISTRADOR"].includes(
-    state.user.role,
+  $("#profile-avatar").src =
+    state.user.role === "PROVEEDOR"
+      ? state.user.logoUrl || DEFAULT_LOGO
+      : "assets/icons/user.png";
+  $("#profile-avatar").classList.toggle(
+    "photo",
+    state.user.role === "PROVEEDOR" && Boolean(state.user.logoUrl),
   );
+  const managesInventory = state.user.role === "PROVEEDOR";
   $("#new-tool").hidden =
     $("#inventory-title").hidden =
     $("#inventory").hidden =
       !managesInventory;
-  $("#reservations-title").textContent = {
-    CLIENTE: "Mis reservas",
-    PROVEEDOR: "Solicitudes de reserva",
-    ADMINISTRADOR: "Todas las reservas",
-  }[state.user.role];
+  if (state.user.mustChangePassword) {
+    $("#reservations").innerHTML =
+      '<p class="muted">Cambia tu contraseña temporal para ver tu espacio de trabajo.</p>';
+    $("#inventory").innerHTML = "";
+    openPassword(true);
+    return;
+  }
+  $("#reservations-title").textContent =
+    state.user.role === "PROVEEDOR" ? "Solicitudes de reserva" : "Mis reservas";
   loadReservations();
   if (managesInventory) loadInventory();
-}
-const reservationStatus = {
-  SOLICITADA: "Pendiente",
-  ACEPTADA: "Aceptada",
-  RECHAZADA: "Rechazada",
-  CANCELADA: "Cancelada",
-  VENCIDA: "Vencida",
-};
-function reservationRow(r) {
-  const role = state.user.role;
-  const actions = [];
-  if (role === "PROVEEDOR" && r.status === "SOLICITADA")
-    actions.push(
-      `<button class="button compact" data-accept="${r.id}">Aceptar</button>`,
-      `<button class="outline-button" data-reject="${r.id}">Rechazar</button>`,
-    );
-  const cancellable =
-    r.status === "SOLICITADA" ||
-    (r.status === "ACEPTADA" && r.start > businessToday());
-  if (role !== "PROVEEDOR" && cancellable)
-    actions.push(
-      `<button class="outline-button" data-cancel="${r.id}">Cancelar</button>`,
-    );
-  const who =
-    role === "CLIENTE" ? "" : ` · Cliente: ${esc(r.clientName)}`;
-  const extra =
-    r.status === "SOLICITADA" && r.respondBy
-      ? `<p class="muted">Respuesta antes del ${dateTime(r.respondBy)}</p>`
-      : r.note
-        ? `<p class="muted">Motivo: ${esc(r.note)}</p>`
-        : "";
-  return `<article class="inventory-row reservation-row"><div><h3>${esc(r.toolName)} <span class="status-chip status-${r.status.toLowerCase()}">${reservationStatus[r.status]}</span></h3><p class="muted">${shortDate(r.start)} → ${shortDate(r.end)} · ${r.days} ${r.days === 1 ? "día" : "días"} · ${r.quantity} ${r.quantity === 1 ? "unidad" : "unidades"} · ${money(r.total)}${who}</p>${extra}</div>${actions.length ? `<div class="inventory-actions">${actions.join("")}</div>` : ""}</article>`;
-}
-async function loadReservations() {
-  const box = $("#reservations");
-  if (!state.user) return;
-  try {
-    const data = await api("/reservations?size=50");
-    const empty = {
-      CLIENTE:
-        "Aún no tienes reservas. Abre una herramienta del catálogo y elige tus fechas.",
-      PROVEEDOR: "Cuando un cliente reserve tus herramientas, lo verás aquí.",
-      ADMINISTRADOR: "Todavía no hay reservas en la plataforma.",
-    }[state.user.role];
-    box.innerHTML = data.content.length
-      ? data.content.map(reservationRow).join("")
-      : `<p class="muted">${empty}</p>`;
-    const act = async (button, request, message) => {
-      button.disabled = true;
-      try {
-        await request();
-        notify(message);
-      } catch (e) {
-        notify(e.message);
-      }
-      loadReservations();
-    };
-    box.querySelectorAll("[data-accept]").forEach(
-      (b) =>
-        (b.onclick = () =>
-          act(
-            b,
-            () =>
-              api(`/reservations/${b.dataset.accept}/accept`, {
-                method: "POST",
-              }),
-            "Reserva aceptada. Las unidades quedaron asignadas.",
-          )),
-    );
-    box.querySelectorAll("[data-reject]").forEach(
-      (b) =>
-        (b.onclick = () => {
-          const reason = prompt("Motivo del rechazo (opcional):", "");
-          if (reason === null) return;
-          act(
-            b,
-            () =>
-              api(`/reservations/${b.dataset.reject}/reject`, {
-                method: "POST",
-                body: JSON.stringify({ reason: reason.trim() || null }),
-              }),
-            "Solicitud rechazada.",
-          );
-        }),
-    );
-    box.querySelectorAll("[data-cancel]").forEach(
-      (b) =>
-        (b.onclick = () => {
-          if (!confirm("¿Cancelar esta reserva? Las unidades quedarán libres."))
-            return;
-          act(
-            b,
-            () =>
-              api(`/reservations/${b.dataset.cancel}`, { method: "DELETE" }),
-            "Reserva cancelada.",
-          );
-        }),
-    );
-  } catch (e) {
-    box.innerHTML = `<p class="muted">${esc(e.message)}</p>`;
-  }
 }
 function wireAuth() {
   document
@@ -578,23 +426,24 @@ $("#auth-form").onsubmit = async (event) => {
   b.disabled = true;
   $("#auth-error").textContent = "";
   const data = Object.fromEntries(new FormData(event.target));
-  if (state.mode === "login") {
-    delete data.name;
-    delete data.role;
-  }
+  if (state.mode === "login") delete data.name;
   try {
     const result = await api(
       "/auth/" + (state.mode === "register" ? "register" : "login"),
       { method: "POST", body: JSON.stringify(data) },
     );
-    state.token = result.token;
+    saveSession(result);
     state.user = result.user;
-    sessionStorage.setItem("renttool.token", state.token);
+    sessionStorage.setItem("renttool.activity", String(Date.now()));
+    if (isAdministrator()) {
+      location.href = "/admin";
+      return;
+    }
     $("#auth-dialog").close();
     event.target.reset();
     renderAccount();
     location.hash = "workspace";
-    notify("Bienvenido a RentTool.");
+    if (!state.user.mustChangePassword) notify("Bienvenido a RentTool.");
   } catch (e) {
     $("#auth-error").textContent = e.message;
   } finally {
@@ -683,23 +532,6 @@ $("#next").onclick = () => {
     loadTools();
   }
 };
-document
-  .querySelectorAll("dialog .close")
-  .forEach((b) => (b.onclick = () => b.closest("dialog").close()));
-document.querySelectorAll("dialog").forEach((d) =>
-  d.addEventListener("click", (e) => {
-    if (e.target === d) {
-      const r = d.getBoundingClientRect();
-      if (
-        e.clientX < r.left ||
-        e.clientX > r.right ||
-        e.clientY < r.top ||
-        e.clientY > r.bottom
-      )
-        d.close();
-    }
-  }),
-);
 $(".menu-toggle").onclick = () => {
   const open = $("nav").classList.toggle("open");
   $(".menu-toggle").setAttribute("aria-expanded", String(open));
@@ -726,6 +558,15 @@ wireAuth();
     } catch {
       logout();
     }
+  }
+  // El panel de administración envía aquí a quien llega sin sesión.
+  if (location.hash === "#acceso" && !state.user) {
+    history.replaceState(null, "", location.pathname);
+    openAuth("login");
+    const notice = sessionStorage.getItem("renttool.notice");
+    sessionStorage.removeItem("renttool.notice");
+    $("#auth-notice").textContent = notice || "";
+    $("#auth-notice").hidden = !notice;
   }
 })();
 

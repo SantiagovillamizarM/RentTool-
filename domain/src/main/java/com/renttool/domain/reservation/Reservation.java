@@ -96,6 +96,26 @@ public record Reservation(
     return with(ReservationStatus.CANCELADA, Set.of(), note);
   }
 
+  /**
+   * Cancelación forzada por el administrador con un motivo, por ejemplo porque el proveedor dejó la
+   * plataforma. Sigue las mismas reglas que {@link #cancel}: un alquiler ya iniciado no se toca.
+   */
+  public Reservation cancelBecause(LocalDate today, String reason) {
+    var cancelled = cancel(today);
+    return cancelled.with(ReservationStatus.CANCELADA, Set.of(), reason);
+  }
+
+  /** Pendiente, o aceptada sin haber empezado: lo que todavía se puede cancelar. */
+  public boolean isCancellableToday(LocalDate today) {
+    return status == ReservationStatus.SOLICITADA
+        || (status == ReservationStatus.ACEPTADA && today.isBefore(period.start()));
+  }
+
+  /** Aceptada y con la fecha de inicio ya alcanzada: el equipo está en manos del cliente. */
+  public boolean isInProgress(LocalDate today) {
+    return status == ReservationStatus.ACEPTADA && !today.isBefore(period.start());
+  }
+
   /** Una solicitud sin respuesta a tiempo deja de estar pendiente. */
   public Reservation expire() {
     ensureStatus(ReservationStatus.SOLICITADA, "Solo vence una solicitud pendiente");

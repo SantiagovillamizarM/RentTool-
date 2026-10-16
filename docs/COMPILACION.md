@@ -9,7 +9,7 @@ java -version
 
 El JAR está en `infrastructure/target/renttool-infrastructure-0.1.0-SNAPSHOT.jar`. Maven copia `frontend/` al directorio estático del JAR; no se necesitan Node ni un bundler para ejecutar el producto. Para verificar sintaxis de JavaScript opcionalmente: `node --check frontend/app.js`.
 
-Las pruebas de API comprueban registro, exclusión de administradores públicos, 401, permisos, propiedad, unidades, catálogo, retirada y validación. Usan una base H2 efímera solo para pruebas. Las comprobaciones contra MySQL se registran aparte en VALIDACION.md.
+Las pruebas de API comprueban registro solo de clientes, alta de proveedores por el administrador con NIT y contraseña temporal, desactivación inmediata, 401, permisos, propiedad, unidades, catálogo, retirada y validación. Usan una base H2 efímera solo para pruebas. Las comprobaciones contra MySQL se registran aparte en VALIDACION.md.
 
 Para ejecutar con MySQL existente, crea una base vacía y un usuario con permisos sobre ella, configura las variables y arranca el JAR:
 

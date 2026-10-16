@@ -1,6 +1,7 @@
 package com.renttool.infrastructure.identity.persistence;
 
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "users")
@@ -19,4 +20,11 @@ public class AccountEntity {
 
   public String role;
   public boolean active;
+
+  @Column(name = "must_change_password")
+  public boolean mustChangePassword;
+
+  /** UTC, como el resto de instantes; null si la cuenta no fue eliminada. */
+  @Column(name = "removed_at")
+  public LocalDateTime removedAt;
 }

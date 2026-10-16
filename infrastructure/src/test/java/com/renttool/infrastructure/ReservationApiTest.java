@@ -25,7 +25,9 @@ import tools.jackson.databind.ObjectMapper;
       "spring.datasource.password=${TEST_DB_PASSWORD:}",
       "spring.jpa.hibernate.ddl-auto=validate",
       "renttool.jwt-secret=test-only-secret-at-least-32-characters-long",
-      "renttool.upload-dir=${java.io.tmpdir}/renttool-api-test-uploads"
+      "renttool.upload-dir=${java.io.tmpdir}/renttool-api-test-uploads",
+      TestAccounts.ADMIN_EMAIL_PROPERTY,
+      TestAccounts.ADMIN_PASSWORD_PROPERTY
     })
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class ReservationApiTest {
@@ -44,24 +46,6 @@ class ReservationApiTest {
 
   JsonNode body(ResultActions result) throws Exception {
     return JSON.readTree(result.andReturn().getResponse().getContentAsString());
-  }
-
-  String register(String email, String role) throws Exception {
-    return body(
-            mvc.perform(
-                    post("/api/v1/auth/register")
-                        .contentType("application/json")
-                        .content(
-                            "{\"name\":\"Persona "
-                                + role
-                                + "\",\"email\":\""
-                                + email
-                                + "\",\"password\":\"correct-test-password\",\"role\":\""
-                                + role
-                                + "\"}"))
-                .andExpect(status().isCreated()))
-        .get("token")
-        .asString();
   }
 
   long publishWithUnits(String token, int units) throws Exception {
@@ -108,10 +92,10 @@ class ReservationApiTest {
   @Test
   @Order(1)
   void availabilityIsPublicAndValidated() throws Exception {
-    provider = register("res-provider@test.example", "PROVEEDOR");
-    otherProvider = register("res-other@test.example", "PROVEEDOR");
-    client = register("res-client@test.example", "CLIENTE");
-    secondClient = register("res-client2@test.example", "CLIENTE");
+    provider = TestAccounts.provider(mvc, "res-provider@test.example");
+    otherProvider = TestAccounts.provider(mvc, "res-other@test.example");
+    client = TestAccounts.client(mvc, "res-client@test.example");
+    secondClient = TestAccounts.client(mvc, "res-client2@test.example");
     tool = publishWithUnits(provider, 2);
 
     mvc.perform(
@@ -162,7 +146,7 @@ class ReservationApiTest {
     mvc.perform(get("/api/v1/reservations").header("Authorization", "Bearer " + provider))
         .andExpect(status().isOk())
         .andExpect(jsonPath("totalElements").value(1))
-        .andExpect(jsonPath("content[0].clientName").value("Persona CLIENTE"));
+        .andExpect(jsonPath("content[0].clientName").value("Cliente de prueba"));
 
     mvc.perform(
             post("/api/v1/reservations/" + id + "/accept")

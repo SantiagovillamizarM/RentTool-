@@ -29,11 +29,16 @@ public class OpenApiConfig {
       aunque no haya vencido.
 
       ## Roles
-      - **CLIENTE**: explora el catálogo, solicita reservas por fechas y cancela las suyas.
-      - **PROVEEDOR**: además publica herramientas, gestiona sus unidades e imágenes y acepta o \
-      rechaza las reservas de sus herramientas. Solo puede modificar lo que le pertenece.
-      - **ADMINISTRADOR**: consulta todas las reservas y puede cancelarlas. No se puede registrar \
-      desde la API pública; se provisiona al desplegar.
+      - **CLIENTE**: explora el catálogo, solicita reservas por fechas y cancela las suyas. Es \
+      el único rol que crea el registro público.
+      - **PROVEEDOR**: publica herramientas, gestiona sus unidades e imágenes y acepta o \
+      rechaza las reservas de sus herramientas. Solo puede modificar lo que le pertenece. Lo da \
+      de alta el administrador con NIT y datos legales y una contraseña temporal; hasta \
+      cambiarla con `PUT /api/v1/me/password` el resto de la API responde 403 con \
+      `code: PASSWORD_CHANGE_REQUIRED`.
+      - **ADMINISTRADOR**: gestiona proveedores (`/api/v1/admin/providers`), consulta todas las \
+      reservas y puede cancelarlas. No se puede registrar desde la API pública; se provisiona al \
+      desplegar con `RENTTOOL_ADMIN_EMAIL` y `RENTTOOL_ADMIN_PASSWORD`.
 
       ## Reservas
       Las fechas son días completos en la zona `America/Bogota` con la forma `[inicio, fin)`: el \

@@ -11,6 +11,20 @@
     <title>RentTool — Equipa tu próxima gran obra</title>
     <link rel="icon" type="image/png" href="assets/favicon.png" />
     <link rel="stylesheet" href="styles.css" />
+    <script>
+      // Sin pantalla de entrada para el administrador (va y viene desde su
+      // panel) ni al volver al inicio de sesión tras cerrarse la sesión. Se
+      // decide antes de pintar para que el martillo no aparezca ni un instante.
+      try {
+        const token = sessionStorage.getItem("renttool.token");
+        const payload = token && token.split(".")[1];
+        const role =
+          payload &&
+          JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/"))).role;
+        if (role === "ADMINISTRADOR" || location.hash === "#acceso")
+          document.documentElement.classList.add("skip-splash");
+      } catch {}
+    </script>
   </head>
   <body>
     <div class="splash" id="splash">
@@ -52,6 +66,10 @@
       </div>
     </div>
     <script src="splash.js"></script>
+    <div class="admin-bar" id="admin-bar" hidden>
+      <span>Estás viendo el sitio público como administrador.</span>
+      <a class="admin-bar-link" href="/admin">← Volver al panel de administración</a>
+    </div>
     <header class="header">
       <a class="brand" href="#inicio" aria-label="RentTool inicio"
         ><span class="brand-mark">R<span>↗</span></span
@@ -190,7 +208,8 @@
             <span>02 /</span>
             <h3>Crea tu cuenta</h3>
             <p>
-              Regístrate como cliente o publica tu inventario como proveedor.
+              Regístrate como cliente. Los proveedores entran con la cuenta
+              que les asigna RentTool tras validar su NIT.
             </p>
           </article>
           <article>
@@ -213,10 +232,22 @@
             + Publicar herramienta
           </button>
         </div>
-        <form id="profile-form" class="profile-form">
-          <label>Tu nombre<input name="name" required maxlength="120" /></label
-          ><button class="outline-button">Guardar perfil</button>
-        </form>
+        <div class="profile-card">
+          <span class="avatar"
+            ><img
+              id="profile-avatar"
+              src="assets/icons/user.png"
+              alt="Foto de perfil"
+          /></span>
+          <form id="profile-form" class="profile-form">
+            <label>Tu nombre<input name="name" required maxlength="120" /></label
+            ><button class="outline-button" id="save-profile">
+              Guardar perfil</button
+            ><button type="button" class="outline-button" id="change-password">
+              Cambiar contraseña
+            </button>
+          </form>
+        </div>
         <div class="reservations">
           <h3 id="reservations-title">Mis reservas</h3>
           <div id="reservations"></div>
@@ -235,8 +266,9 @@
           <details>
             <summary>¿Puedo publicar mis herramientas?<span>+</span></summary>
             <p>
-              Sí. Crea una cuenta de proveedor para administrar publicaciones,
-              tarifas, imágenes y unidades de tu inventario.
+              Sí. Las cuentas de proveedor las crea el equipo de RentTool
+              después de verificar tu NIT y tus datos legales. Con ella
+              administras publicaciones, tarifas, imágenes y unidades.
             </p>
           </details>
           <details>
@@ -272,9 +304,12 @@
         <h2>
           Que tus herramientas<br /><em>también construyan oportunidades.</em>
         </h2>
-        <p>Únete como proveedor y dale un nuevo espacio a tu equipo.</p>
-        <button class="button" data-auth="register">
-          Quiero ser proveedor <span>↗</span>
+        <p>
+          Únete como proveedor y dale un nuevo espacio a tu equipo. Validamos
+          tu NIT y te entregamos una cuenta para publicar.
+        </p>
+        <button class="button" data-auth="login">
+          Ya soy proveedor <span>↗</span>
         </button>
         <p class="contact-note">
           Contacto comercial: pendiente de configuración.
@@ -293,6 +328,7 @@
       <p class="eyebrow">BIENVENIDO A RENTTOOL</p>
       <h2 id="auth-title">Vuelve a construir.</h2>
       <p id="auth-description" class="muted">Accede a tu espacio de trabajo.</p>
+      <p id="auth-notice" class="badge" role="status" hidden></p>
       <form id="auth-form">
         <label id="name-field" hidden
           >Nombre<input
@@ -313,14 +349,11 @@
             autocomplete="current-password"
             required
             maxlength="64" /></label
-        ><label id="role-field" hidden
-          >Quiero usar RentTool como<select name="role">
-            <option value="CLIENTE">Cliente — explorar herramientas</option>
-            <option value="PROVEEDOR">
-              Proveedor — publicar mi inventario
-            </option>
-          </select></label
         >
+        <p id="register-note" class="muted" hidden>
+          El registro crea una cuenta de cliente. Si eres proveedor, RentTool
+          te entrega tu acceso tras validar tu NIT.
+        </p>
         <p id="auth-error" class="form-error" role="alert"></p>
         <button class="button full" id="auth-submit">Iniciar sesión →</button>
       </form>
@@ -414,6 +447,7 @@
     </dialog>
     <div class="toast" id="toast" role="status" hidden></div>
     <script src="carousel.js" defer></script>
+    <script src="common.js" defer></script>
     <script src="app.js" defer></script>
   </body>
 </html>

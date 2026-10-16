@@ -4,6 +4,7 @@ import com.renttool.application.shared.PageQuery;
 import com.renttool.application.shared.PageResult;
 import com.renttool.domain.reservation.RentalPeriod;
 import com.renttool.domain.reservation.Reservation;
+import com.renttool.domain.reservation.ReservationStatus;
 import java.time.Instant;
 import java.util.*;
 
@@ -26,6 +27,15 @@ public interface ReservationRepository {
   PageResult<Reservation> findByTools(Collection<Long> toolIds, PageQuery page);
 
   PageResult<Reservation> findAll(PageQuery page);
+
+  /**
+   * Reservas solicitadas en [from, to), de la más antigua a la más reciente. {@code status} null
+   * incluye todas.
+   */
+  List<Reservation> findRequestedBetween(Instant from, Instant to, ReservationStatus status);
+
+  /** Reservas SOLICITADA o ACEPTADA de esas herramientas, sin importar sus fechas. */
+  List<Reservation> findOpenByTools(Collection<Long> toolIds);
 
   /** Ids de las solicitudes pendientes cuyo plazo de respuesta ya pasó. */
   List<Long> findPendingIdsDueBy(Instant now);

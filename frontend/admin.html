@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0a0a0b" />
+    <meta name="robots" content="noindex" />
+    <title>RentTool — Administración</title>
+    <link rel="icon" type="image/png" href="assets/favicon.png" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="admin-page">
+    <header class="header admin-header">
+      <a class="brand" href="/admin" aria-label="Panel de administración"
+        ><span class="brand-mark">R<span>↗</span></span
+        >RentTool<span class="brand-dot">.</span
+        ><span class="admin-badge">Admin</span></a
+      >
+      <nav class="admin-tabs" aria-label="Secciones del panel">
+        <a href="#proveedores" data-tab="proveedores">Proveedores</a
+        ><a href="#catalogo" data-tab="catalogo">Catálogo</a
+        ><a href="#reservas" data-tab="reservas">Reservas</a>
+      </nav>
+      <div class="header-actions">
+        <a class="outline-button" href="/">Ver sitio público ↗</a
+        ><button class="text-button" id="logout">Salir</button>
+      </div>
+    </header>
+    <main class="admin-main" id="admin-main" hidden>
+      <section class="admin-intro">
+        <div>
+          <p class="eyebrow"><span></span> PANEL DE ADMINISTRACIÓN</p>
+          <h1>La plataforma, bajo control.</h1>
+        </div>
+        <div class="profile-card">
+          <span class="avatar"
+            ><img src="assets/icons/user.png" alt="Foto de perfil"
+          /></span>
+          <form class="profile-form" onsubmit="return false">
+            <label
+              >Tu nombre<input
+                id="admin-name"
+                value="Administrador"
+                readonly
+                aria-readonly="true" /></label
+            ><button type="button" class="outline-button" id="change-password">
+              Cambiar contraseña
+            </button>
+          </form>
+        </div>
+      </section>
+      <div class="admin-stats">
+        <a class="stat" href="#proveedores"
+          ><strong id="stat-providers">—</strong><span>Proveedores</span></a
+        ><a class="stat" href="#catalogo"
+          ><strong id="stat-tools">—</strong
+          ><span>Herramientas publicadas</span></a
+        ><a class="stat" href="#reservas"
+          ><strong id="stat-reservations">—</strong><span>Reservas</span></a
+        >
+      </div>
+      <section class="admin-panel" id="tab-proveedores" data-panel="proveedores">
+        <div class="panel-heading">
+          <div>
+            <h2>Proveedores</h2>
+            <p class="muted">
+              Solo los proveedores registrados aquí pueden publicar herramientas.
+              Desactivar uno le cierra el acceso de inmediato.
+            </p>
+          </div>
+          <button class="button compact" id="new-provider">
+            + Registrar proveedor
+          </button>
+        </div>
+        <div id="providers"></div>
+      </section>
+      <section class="admin-panel" id="tab-catalogo" data-panel="catalogo" hidden>
+        <div class="panel-heading">
+          <div>
+            <h2>Catálogo publicado</h2>
+            <p class="muted">
+              Lo que ven los clientes en el sitio público. Retirar una
+              herramienta la quita del catálogo y conserva su registro.
+            </p>
+          </div>
+          <form id="admin-search" class="admin-search" role="search">
+            <input
+              name="q"
+              type="search"
+              placeholder="Buscar herramienta"
+              aria-label="Buscar herramienta"
+              maxlength="100"
+            /><button class="outline-button">Buscar</button>
+          </form>
+        </div>
+        <div id="admin-tools"></div>
+        <div class="pagination admin-pagination">
+          <button class="outline-button" id="tools-prev">← Anterior</button
+          ><span id="tools-page" class="muted"></span
+          ><button class="outline-button" id="tools-next">Siguiente →</button>
+        </div>
+      </section>
+      <section class="admin-panel" id="tab-reservas" data-panel="reservas" hidden>
+        <div class="panel-heading">
+          <div>
+            <h2 id="reservations-title">Todas las reservas</h2>
+            <p class="muted">
+              Puedes cancelar solicitudes pendientes y reservas aceptadas que aún
+              no empiezan. En "Historial" ves quién hizo cada cambio y cuándo.
+            </p>
+          </div>
+          <button class="button compact" id="open-report">
+            ↓ Descargar informe
+          </button>
+        </div>
+        <div id="reservations"></div>
+      </section>
+    </main>
+    <dialog id="provider-dialog">
+      <button class="close" aria-label="Cerrar">×</button>
+      <p class="eyebrow">ADMINISTRACIÓN DE PROVEEDORES</p>
+      <h2 id="provider-title">Registra un proveedor.</h2>
+      <form id="provider-form" novalidate>
+        <div class="logo-picker">
+          <span class="avatar avatar-large"
+            ><img id="logo-preview" src="assets/icons/casco.png" alt="Logo del proveedor"
+          /></span>
+          <div>
+            <p class="logo-title">Logo · opcional</p>
+            <p class="muted" id="logo-hint">
+              PNG o JPEG hasta 2 MB. Sin logo se usa el predeterminado.
+            </p>
+            <label class="logo-field"
+              ><span class="outline-button">Elegir logo</span
+              ><input
+                name="logo"
+                type="file"
+                accept="image/png,image/jpeg"
+                class="visually-hidden" /></label
+            ><button type="button" class="text-button" id="logo-remove" hidden>
+              Quitar logo
+            </button>
+          </div>
+        </div>
+        <fieldset id="provider-access">
+          <legend>Acceso</legend>
+          <label
+            >Correo de acceso<input
+              name="email"
+              type="email"
+              required
+              maxlength="190"
+              autocomplete="off" /></label
+          ><label
+            >Contraseña temporal<input
+              name="temporaryPassword"
+              type="text"
+              required
+              minlength="10"
+              maxlength="64"
+              autocomplete="off" /><small class="muted"
+              >Entrégala al proveedor; deberá cambiarla al entrar.</small
+            ></label
+          >
+        </fieldset>
+        <fieldset>
+          <legend>Identificación</legend>
+          <label
+            >Tipo de persona<select name="personType" required>
+              <option value="JURIDICA">Jurídica (empresa)</option>
+              <option value="NATURAL">Natural</option>
+            </select></label
+          >
+          <div class="nit-fields">
+            <label
+              >NIT<input
+                name="nit"
+                required
+                inputmode="numeric"
+                maxlength="15"
+                placeholder="900123456" /></label
+            ><label
+              >DV<input
+                name="verificationDigit"
+                required
+                inputmode="numeric"
+                maxlength="1"
+            /></label>
+          </div>
+          <p class="muted nit-hint" id="nit-hint" aria-live="polite">
+            Escribe el NIT sin puntos ni dígito de verificación.
+          </p>
+          <label
+            >Razón social o nombre completo<input
+              name="legalName"
+              required
+              maxlength="200" /></label
+          ><label
+            >Nombre comercial · opcional<input name="tradeName" maxlength="160"
+          /></label>
+          <div class="legal-rep" id="legal-rep">
+            <label
+              >Representante legal<input
+                name="legalRepresentative"
+                maxlength="160" /></label
+            ><label
+              >Documento del representante<input
+                name="representativeDocument"
+                maxlength="40"
+                placeholder="CC 79123456"
+            /></label>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>Contacto</legend>
+          <label
+            >Teléfono<input
+              name="phone"
+              type="tel"
+              required
+              maxlength="20" /></label
+          ><label
+            >Dirección<input name="address" required maxlength="200" /></label
+          ><label>Ciudad<input name="city" required maxlength="100" /></label>
+        </fieldset>
+        <p class="form-error" id="provider-error" role="alert"></p>
+        <button class="button full" id="provider-submit">
+          Registrar proveedor →
+        </button>
+      </form>
+    </dialog>
+    <dialog id="remove-dialog" class="danger-dialog">
+      <button class="close" aria-label="Cerrar">×</button>
+      <p class="eyebrow danger-eyebrow">ELIMINAR PROVEEDOR</p>
+      <h2 id="remove-title">¿Eliminar este proveedor?</h2>
+      <p class="muted" id="remove-identity"></p>
+      <div class="danger-box" role="alert">
+        <strong>Esta acción no se puede deshacer.</strong>
+        <ul id="remove-effects"></ul>
+      </div>
+      <p class="muted">
+        ¿Solo quieres pausarlo? Usa <strong>Desactivar</strong>: le cierra el
+        acceso, pero conserva su catálogo y puedes reactivarlo.
+      </p>
+      <form id="remove-form" novalidate>
+        <label
+          >Para confirmar, escribe <strong id="remove-expected"></strong
+          ><input name="confirm" autocomplete="off" spellcheck="false"
+        /></label>
+        <p class="form-error" id="remove-error" role="alert"></p>
+        <button class="button full danger-button" id="remove-submit" disabled>
+          Eliminar definitivamente
+        </button>
+      </form>
+    </dialog>
+    <dialog id="report-dialog">
+      <button class="close" aria-label="Cerrar">×</button>
+      <p class="eyebrow">INFORMES</p>
+      <h2>Descarga un informe.</h2>
+      <p class="muted">
+        Archivo CSV que abre directamente en Excel o Google Sheets, listo para
+        filtrar y sumar.
+      </p>
+      <form id="report-form" novalidate>
+        <fieldset class="report-types">
+          <legend>Tipo de informe</legend>
+          <label class="choice"
+            ><input type="radio" name="type" value="reservations" checked /><span
+              ><strong>Reservas</strong
+              ><small
+                >Una fila por reserva: cliente y correo, proveedor y NIT,
+                fechas, importes, estado y último cambio.</small
+              ></span
+            ></label
+          ><label class="choice"
+            ><input type="radio" name="type" value="events" /><span
+              ><strong>Historial de eventos</strong
+              ><small
+                >Una fila por cada acción: quién la hizo y cuándo. Para
+                auditoría.</small
+              ></span
+            ></label
+          >
+        </fieldset>
+        <div class="report-range">
+          <label>Desde<input name="from" type="date" required /></label
+          ><label>Hasta<input name="to" type="date" required /></label>
+        </div>
+        <div class="range-shortcuts" role="group" aria-label="Rangos rápidos">
+          <button type="button" class="chip-button" data-days="7">7 días</button
+          ><button type="button" class="chip-button" data-days="30">30 días</button
+          ><button type="button" class="chip-button" data-days="90">90 días</button
+          ><button type="button" class="chip-button" data-month>Este mes</button>
+        </div>
+        <label id="report-status-field"
+          >Estado actual<select name="status">
+            <option value="">Todos</option>
+            <option value="SOLICITADA">Pendientes</option>
+            <option value="ACEPTADA">Aceptadas</option>
+            <option value="RECHAZADA">Rechazadas</option>
+            <option value="CANCELADA">Canceladas</option>
+            <option value="VENCIDA">Vencidas</option>
+          </select></label
+        >
+        <p class="badge">
+          Incluye datos personales de clientes. Cada descarga queda registrada con
+          tu usuario y la fecha.
+        </p>
+        <p class="form-error" id="report-error" role="alert"></p>
+        <button class="button full" id="report-submit">Descargar CSV ↓</button>
+      </form>
+    </dialog>
+    <div class="toast" id="toast" role="status" hidden></div>
+    <script src="common.js" defer></script>
+    <script src="admin.js" defer></script>
+  </body>
+</html>

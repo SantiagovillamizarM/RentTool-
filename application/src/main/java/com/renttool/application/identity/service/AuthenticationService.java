@@ -5,31 +5,38 @@ import com.renttool.application.identity.port.out.*;
 import com.renttool.domain.identity.Account;
 import com.renttool.domain.identity.Role;
 import com.renttool.domain.shared.exception.*;
+import java.time.Clock;
+import java.time.Instant;
 
-public class AuthenticationService implements RegisterAccountUseCase, LoginUseCase {
+public class AuthenticationService
+    implements RegisterAccountUseCase, LoginUseCase, ChangePasswordUseCase, RefreshSessionUseCase {
   private final AccountRepository accounts;
   private final PasswordHasher passwords;
   private final TokenIssuer tokens;
+  private final Clock clock;
 
   public AuthenticationService(
-      AccountRepository accounts, PasswordHasher passwords, TokenIssuer tokens) {
+      AccountRepository accounts, PasswordHasher passwords, TokenIssuer tokens, Clock clock) {
     this.accounts = accounts;
     this.passwords = passwords;
     this.tokens = tokens;
+    this.clock = clock;
   }
 
   @Override
   public AuthenticatedSession register(Command command) {
-    if (command.role() == Role.ADMINISTRADOR)
-      throw new ForbiddenOperationException("El registro público no permite administradores");
+    if (command.role() != null && command.role() != Role.CLIENTE)
+      throw new ForbiddenOperationException(
+          "El registro público solo crea clientes. Las cuentas de proveedor las crea el"
+              + " administrador");
     String email = Account.normalizeEmail(command.email());
     if (accounts.findByEmail(email).isPresent())
       throw new ConflictException("Este correo ya está registrado");
     var account =
         accounts.save(
             Account.create(
-                command.name(), email, passwords.hash(command.rawPassword()), command.role()));
-    return new AuthenticatedSession(account, tokens.issue(account));
+                command.name(), email, passwords.hash(command.rawPassword()), Role.CLIENTE));
+    return session(account, clock.instant());
   }
 
   @Override
@@ -41,6 +48,39 @@ public class AuthenticationService implements RegisterAccountUseCase, LoginUseCa
             .filter(a -> passwords.matches(rawPassword, a.passwordHash()))
             .orElseThrow(
                 () -> new AuthenticationFailedException("Correo o contraseña incorrectos"));
-    return new AuthenticatedSession(account, tokens.issue(account));
+    return session(account, clock.instant());
+  }
+
+  @Override
+  public AuthenticatedSession refresh(Long accountId, Instant authenticatedAt) {
+    var account =
+        accounts
+            .findById(accountId)
+            .filter(Account::active)
+            .orElseThrow(() -> new AuthenticationFailedException("Cuenta no disponible"));
+    if (!SessionPolicy.canRenew(clock.instant(), authenticatedAt))
+      throw new AuthenticationFailedException("La sesión expiró; inicia sesión de nuevo");
+    return session(account, authenticatedAt);
+  }
+
+  private AuthenticatedSession session(Account account, Instant authenticatedAt) {
+    var expiresAt = SessionPolicy.expiryFor(account, clock.instant(), authenticatedAt);
+    return new AuthenticatedSession(
+        account, tokens.issue(account, authenticatedAt, expiresAt), expiresAt);
+  }
+
+  @Override
+  public Account changePassword(Long accountId, String currentPassword, String newPassword) {
+    var account =
+        accounts
+            .findById(accountId)
+            .filter(Account::active)
+            .orElseThrow(() -> new AuthenticationFailedException("Cuenta no disponible"));
+    if (!passwords.matches(currentPassword, account.passwordHash()))
+      throw new InvalidInputException("La contraseña actual no es correcta");
+    PasswordPolicy.check(newPassword);
+    if (passwords.matches(newPassword, account.passwordHash()))
+      throw new InvalidInputException("La nueva contraseña debe ser distinta de la actual");
+    return accounts.save(account.withPassword(passwords.hash(newPassword)));
   }
 }

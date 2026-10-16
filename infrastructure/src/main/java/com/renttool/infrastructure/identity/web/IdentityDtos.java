@@ -5,6 +5,7 @@ import com.renttool.domain.identity.Account;
 import com.renttool.domain.identity.Role;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
+import java.time.Instant;
 
 /** Contratos HTTP de identidad: validan formato y nunca exponen el hash de la contraseña. */
 public final class IdentityDtos {
@@ -17,7 +18,10 @@ public final class IdentityDtos {
           @NotBlank
           @Size(min = 10, max = 64)
           String password,
-      @Schema(example = "CLIENTE", description = "CLIENTE o PROVEEDOR") @NotNull Role role) {}
+      @Schema(
+              example = "CLIENTE",
+              description = "Opcional; solo se admite CLIENTE. Los proveedores los crea el administrador")
+          Role role) {}
 
   public record LoginRequest(
       @Schema(example = "laura@ejemplo.com") @NotBlank @Email String email,
@@ -26,13 +30,28 @@ public final class IdentityDtos {
   public record ProfileRequest(
       @Schema(example = "Laura Gómez Ruiz") @NotBlank @Size(max = 120) String name) {}
 
+  public record PasswordChangeRequest(
+      @Schema(example = "temporal-2026") @NotBlank String currentPassword,
+      @Schema(example = "mi-clave-nueva-456", description = "Entre 10 y 64 caracteres")
+          @NotBlank
+          @Size(min = 10, max = 64)
+          String newPassword) {}
+
   public record UserResponse(
       @Schema(example = "7") Long id,
       @Schema(example = "Laura Gómez") String name,
       @Schema(example = "laura@ejemplo.com") String email,
-      @Schema(example = "CLIENTE") Role role) {
-    public static UserResponse from(Account a) {
-      return new UserResponse(a.id(), a.name(), a.email(), a.role());
+      @Schema(example = "CLIENTE") Role role,
+      @Schema(
+              description =
+                  "La contraseña es temporal: hasta cambiarla solo se admiten GET /me y PUT"
+                      + " /me/password")
+          boolean mustChangePassword,
+      @Schema(description = "Logo del proveedor; null para otros roles o si no tiene")
+          String logoUrl) {
+    public static UserResponse from(Account a, String logoUrl) {
+      return new UserResponse(
+          a.id(), a.name(), a.email(), a.role(), a.mustChangePassword(), logoUrl);
     }
   }
 
@@ -41,9 +60,16 @@ public final class IdentityDtos {
               example = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI3Iiwicm9sZSI6IkNMSUVOVEUifQ.firma",
               description = "JWT para el header Authorization: Bearer <token>")
           String token,
+      @Schema(
+              example = "2026-10-15T15:10:00Z",
+              description =
+                  "Vencimiento del token: 10 minutos para el administrador (renovable con"
+                      + " /auth/refresh mientras haya actividad), una hora para los demás")
+          Instant expiresAt,
       UserResponse user) {
-    public static SessionResponse from(AuthenticatedSession s) {
-      return new SessionResponse(s.token(), UserResponse.from(s.account()));
+    public static SessionResponse from(AuthenticatedSession s, String logoUrl) {
+      return new SessionResponse(
+          s.token(), s.expiresAt(), UserResponse.from(s.account(), logoUrl));
     }
   }
 }

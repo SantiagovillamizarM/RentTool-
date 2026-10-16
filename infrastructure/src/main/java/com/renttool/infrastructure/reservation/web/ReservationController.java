@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -77,6 +78,22 @@ public class ReservationController {
   public ReservationResponse get(
       @PathVariable Long id, @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
     return ReservationResponse.from(reservations.get(ParticipantResolver.from(jwt), id));
+  }
+
+  @GetMapping("/{id}/history")
+  @Operation(
+      summary = "Historial de una reserva",
+      description =
+          "Cada cambio con fecha, acción y quién lo hizo, del más antiguo al más reciente. Los"
+              + " cambios anteriores a que existiera el historial llegan con recorded=false.")
+  @ApiResponse(responseCode = "200", description = "Línea de tiempo")
+  @ApiResponse(responseCode = "403", description = "No es del cliente ni del proveedor")
+  @ApiResponse(responseCode = "404", description = "La reserva no existe")
+  public List<HistoryResponse> history(
+      @PathVariable Long id, @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
+    return reservations.history(ParticipantResolver.from(jwt), id).stream()
+        .map(HistoryResponse::from)
+        .toList();
   }
 
   @PostMapping("/{id}/accept")

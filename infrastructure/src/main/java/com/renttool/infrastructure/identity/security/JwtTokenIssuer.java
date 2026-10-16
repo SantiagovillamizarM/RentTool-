@@ -2,7 +2,6 @@ package com.renttool.infrastructure.identity.security;
 
 import com.renttool.application.identity.port.out.TokenIssuer;
 import com.renttool.domain.identity.Account;
-import java.time.Duration;
 import java.time.Instant;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.*;
@@ -12,7 +11,8 @@ import org.springframework.stereotype.Component;
 class JwtTokenIssuer implements TokenIssuer {
   static final String ISSUER = "renttool";
   static final String ROLE_CLAIM = "role";
-  private static final Duration VALIDITY = Duration.ofHours(1);
+  /** Inicio de sesión original (claim estándar de OpenID Connect); se conserva al renovar. */
+  static final String AUTH_TIME_CLAIM = "auth_time";
 
   private final JwtEncoder encoder;
 
@@ -21,15 +21,15 @@ class JwtTokenIssuer implements TokenIssuer {
   }
 
   @Override
-  public String issue(Account account) {
-    var now = Instant.now();
+  public String issue(Account account, Instant authenticatedAt, Instant expiresAt) {
     var claims =
         JwtClaimsSet.builder()
             .issuer(ISSUER)
             .subject(account.id().toString())
-            .issuedAt(now)
-            .expiresAt(now.plus(VALIDITY))
+            .issuedAt(Instant.now())
+            .expiresAt(expiresAt)
             .claim(ROLE_CLAIM, account.role().name())
+            .claim(AUTH_TIME_CLAIM, authenticatedAt.getEpochSecond())
             .build();
     return encoder
         .encode(JwtEncoderParameters.from(JwsHeader.with(MacAlgorithm.HS256).build(), claims))

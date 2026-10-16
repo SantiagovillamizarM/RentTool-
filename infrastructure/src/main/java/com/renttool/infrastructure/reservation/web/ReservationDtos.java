@@ -55,6 +55,23 @@ public final class ReservationDtos {
     }
   }
 
+  public record HistoryResponse(
+      @Schema(example = "2026-10-15T14:30:00Z", description = "Null si no quedó registrado")
+          Instant at,
+      @Schema(example = "ACEPTADA") ReservationStatus action,
+      @Schema(example = "PROVEEDOR", description = "CLIENTE, PROVEEDOR, ADMINISTRADOR o SISTEMA")
+          ReservationEvent.ActorRole actorRole,
+      @Schema(example = "4") Long actorId,
+      @Schema(example = "ObraYa") String actorName,
+      @Schema(example = "Unidades asignadas: [#3, #4]") String detail,
+      @Schema(description = "False para cambios anteriores a que existiera el historial")
+          boolean recorded) {
+    public static HistoryResponse from(HistoryEntry h) {
+      return new HistoryResponse(
+          h.at(), h.action(), h.actorRole(), h.actorId(), h.actorName(), h.detail(), h.recorded());
+    }
+  }
+
   public record ReservationResponse(
       @Schema(example = "41") Long id,
       @Schema(example = "12") Long toolId,

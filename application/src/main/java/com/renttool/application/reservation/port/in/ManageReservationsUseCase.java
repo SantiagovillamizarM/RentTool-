@@ -4,6 +4,7 @@ import com.renttool.application.shared.PageQuery;
 import com.renttool.application.shared.PageResult;
 import com.renttool.domain.reservation.Participant;
 import java.time.LocalDate;
+import java.util.List;
 
 public interface ManageReservationsUseCase {
   ReservationDetails request(Participant client, RequestCommand command);
@@ -18,6 +19,9 @@ public interface ManageReservationsUseCase {
   ReservationDetails reject(Participant provider, Long reservationId, String reason);
 
   void cancel(Participant participant, Long reservationId);
+
+  /** Línea de tiempo de la reserva; la ven las mismas personas que pueden verla. */
+  List<HistoryEntry> history(Participant participant, Long reservationId);
 
   record RequestCommand(Long toolId, LocalDate start, LocalDate end, int quantity) {}
 }

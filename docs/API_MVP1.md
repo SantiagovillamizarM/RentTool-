@@ -1,12 +1,14 @@
 # API implementada — MVP 01
 
-Base `/api/v1`, JSON excepto subida de archivos. Autenticación: `Authorization: Bearer <token>` obtenido por registro/login. Rol público permitido: `CLIENTE` o `PROVEEDOR`.
+Base `/api/v1`, JSON excepto subida de archivos. Autenticación: `Authorization: Bearer <token>` obtenido por registro/login. El registro público solo crea `CLIENTE`; los proveedores los da de alta el administrador.
 
 | Método | Ruta | Operación |
 |---|---|---|
-| POST | /auth/register | name, email, password (10–64 caracteres), role |
-| POST | /auth/login | email, password; devuelve token y user |
-| GET/PUT | /me | Perfil propio; PUT modifica name |
+| POST | /auth/register | name, email, password (10–64 caracteres); role opcional y solo `CLIENTE` (otro valor: 403) |
+| POST | /auth/login | email, password; devuelve token, expiresAt y user |
+| POST | /auth/refresh | Con token vigente: emite uno nuevo para la misma sesión (máximo 8 horas desde el login) |
+| GET/PUT | /me | Perfil propio (incluye `mustChangePassword` y, para proveedores, `logoUrl`); PUT modifica name, salvo el del administrador, que es fijo (403) |
+| PUT | /me/password | currentPassword, newPassword (10–64); reemplaza la contraseña y libera la temporal |
 | GET | /categories | Categorías públicas |
 | GET | /tools | q, categoryId, page (desde 0), size (1–100), mine |
 | GET | /tools/{id} | Detalle de publicación activa |
@@ -19,6 +21,31 @@ Base `/api/v1`, JSON excepto subida de archivos. Autenticación: `Authorization:
 | POST | /tools/{id}/images | Añadir referencia HTTPS: location |
 | POST | /tools/{id}/images/upload | multipart/form-data, campo file, PNG/JPEG hasta 5 MB/16 MP |
 | DELETE | /tools/{id}/images/{imageId} | Eliminar referencia |
+
+## Administración de proveedores
+
+Solo `ADMINISTRADOR`; otro rol recibe 403.
+
+| Método | Ruta | Operación |
+|---|---|---|
+| POST | /admin/providers | email, temporaryPassword (10–64) y profile. 201; 409 si el correo o el NIT existen |
+| GET | /admin/providers | page, size. Incluye inactivos y proveedores antiguos con `profile: null` |
+| GET | /admin/providers/{id} | Detalle |
+| PUT | /admin/providers/{id} | Reemplaza profile (también completa el de un proveedor antiguo) |
+| PUT | /admin/providers/{id}/status | `{"active": false}` cierra el acceso de inmediato, también para tokens vigentes |
+| GET | /admin/providers/{id}/removal | Vista previa de la eliminación: herramientas activas, solicitudes pendientes, reservas aceptadas por empezar y alquileres en curso. No cambia nada |
+| DELETE | /admin/providers/{id} | Elimina el proveedor (irreversible), en una sola transacción: cierra la cuenta para siempre, retira todas sus herramientas del catálogo y cancela con motivo sus solicitudes y reservas que aún no empiezan. Los alquileres en curso siguen. Nada se borra: historial e informes siguen mostrando quién fue. El correo y el NIT quedan reservados |
+| PUT | /admin/providers/{id}/password | `{"temporaryPassword": "..."}`; 204 y vuelve a exigir cambio |
+| POST | /admin/providers/{id}/logo | Opcional. multipart/form-data, campo file, PNG/JPEG hasta 2 MB; reemplaza el anterior |
+| DELETE | /admin/providers/{id}/logo | Quita el logo; la interfaz vuelve al predeterminado (`logoUrl: null`) |
+
+`profile`: personType (`NATURAL` o `JURIDICA`), nit (5–15 dígitos, sin puntos ni DV), verificationDigit (se comprueba con el algoritmo DIAN; si no coincide, 400), legalName, tradeName opcional, legalRepresentative y representativeDocument (obligatorios para jurídica), phone, address, city.
+
+Mientras una cuenta tenga contraseña temporal, cualquier ruta de la API distinta de `GET /me` y `PUT /me/password` responde 403 con `code: "PASSWORD_CHANGE_REQUIRED"`.
+
+```json
+{"email":"ventas@obraya.co","temporaryPassword":"temporal-2026","profile":{"personType":"JURIDICA","nit":"800197268","verificationDigit":4,"legalName":"Obras y Equipos SAS","tradeName":"ObraYa","legalRepresentative":"Carlos Pérez","representativeDocument":"CC 79123456","phone":"+57 601 555 1234","address":"Calle 80 # 10-20","city":"Bogotá"}}
+```
 
 Inventario requiere rol proveedor o administrador y propiedad del recurso salvo administrador. `mine=true` requiere rol proveedor/administrador. Unidades: `OPERATIVA`, `MANTENIMIENTO`, `RETIRADA`.
 
@@ -45,6 +72,18 @@ Fechas ISO `AAAA-MM-DD`, días completos en `America/Bogota`, rango `[start, end
 | POST | /reservations/{id}/accept | Proveedor de la herramienta | Asigna unidades concretas y pasa a `ACEPTADA` |
 | POST | /reservations/{id}/reject | Proveedor de la herramienta | reason opcional (máximo 500); pasa a `RECHAZADA` |
 | DELETE | /reservations/{id} | Cliente dueño o administrador | Cancelación lógica; una aceptada solo antes del día de inicio |
+| GET | /reservations/{id}/history | Quien puede ver la reserva | Línea de tiempo: `at`, `action`, `actorRole` (CLIENTE, PROVEEDOR, ADMINISTRADOR o SISTEMA), `actorId`, `actorName`, `detail`, `recorded` |
+
+Cada cambio de estado agrega un evento en `reservation_events` en la misma transacción: quién lo hizo, con qué rol y cuándo. Los eventos nunca se modifican. Los vencimientos los registra `SISTEMA`. Las reservas creadas antes del historial conservan su solicitud (reconstruida con su fecha y su cliente); un cambio posterior sin evento aparece con `recorded: false` y sin fecha ni autor, en lugar de inventarlos.
+
+## Informes — administrador
+
+| Método | Ruta | Operación |
+|---|---|---|
+| GET | /admin/reports/reservations.csv | from, to (AAAA-MM-DD, incluidas, máximo 366 días), status opcional. Una fila por reserva solicitada en el rango |
+| GET | /admin/reports/reservation-events.csv | from, to. Una fila por evento ocurrido en el rango |
+
+CSV para Excel en español: UTF-8 con BOM, separador `;`, coma decimal, fechas y horas en America/Bogota. Los textos que empiezan por `= + - @` se prefijan con `'` para que la hoja de cálculo no los ejecute como fórmula. Incluyen datos personales (nombre y correo de clientes), por eso cada descarga queda en `report_downloads` con el administrador, el informe, el rango y la hora.
 
 Estados: `SOLICITADA` → `ACEPTADA` | `RECHAZADA` | `CANCELADA` | `VENCIDA`; `ACEPTADA` → `CANCELADA`. Solo `ACEPTADA` ocupa unidades. Disponibles = unidades `OPERATIVA` − unidades asignadas a reservas aceptadas que se cruzan con el rango.
 

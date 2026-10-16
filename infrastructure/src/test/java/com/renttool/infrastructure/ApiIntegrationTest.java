@@ -19,7 +19,9 @@ import tools.jackson.databind.ObjectMapper;
       "spring.datasource.password=${TEST_DB_PASSWORD:}",
       "spring.jpa.hibernate.ddl-auto=validate",
       "renttool.jwt-secret=test-only-secret-at-least-32-characters-long",
-      "renttool.upload-dir=${java.io.tmpdir}/renttool-api-test-uploads"
+      "renttool.upload-dir=${java.io.tmpdir}/renttool-api-test-uploads",
+      TestAccounts.ADMIN_EMAIL_PROPERTY,
+      TestAccounts.ADMIN_PASSWORD_PROPERTY
     })
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class ApiIntegrationTest {
@@ -33,30 +35,12 @@ class ApiIntegrationTest {
     mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
   }
 
-  String register(String email, String role) throws Exception {
-    String response =
-        mvc.perform(
-                post("/api/v1/auth/register")
-                    .contentType("application/json")
-                    .content(
-                        "{\"name\":\"Test User\",\"email\":\""
-                            + email
-                            + "\",\"password\":\"correct-test-password\",\"role\":\""
-                            + role
-                            + "\"}"))
-            .andExpect(status().isCreated())
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
-    return new ObjectMapper().readTree(response).get("token").asString();
-  }
-
   @Test
   @Order(1)
   void registrationAndSecurity() throws Exception {
-    provider = register("provider@test.example", "PROVEEDOR");
-    client = register("client@test.example", "CLIENTE");
-    other = register("other@test.example", "PROVEEDOR");
+    provider = TestAccounts.provider(mvc, "provider@test.example");
+    client = TestAccounts.client(mvc, "client@test.example");
+    other = TestAccounts.provider(mvc, "other@test.example");
     mvc.perform(get("/api/v1/me")).andExpect(status().isUnauthorized());
     mvc.perform(get("/api/v1/me").header("Authorization", "Bearer " + client))
         .andExpect(status().isOk())
@@ -67,6 +51,12 @@ class ApiIntegrationTest {
                 .contentType("application/json")
                 .content(
                     "{\"name\":\"Admin\",\"email\":\"admin@test.example\",\"password\":\"correct-test-password\",\"role\":\"ADMINISTRADOR\"}"))
+        .andExpect(status().isForbidden());
+    mvc.perform(
+            post("/api/v1/auth/register")
+                .contentType("application/json")
+                .content(
+                    "{\"name\":\"Intruso\",\"email\":\"self@test.example\",\"password\":\"correct-test-password\",\"role\":\"PROVEEDOR\"}"))
         .andExpect(status().isForbidden());
   }
 
@@ -126,6 +116,7 @@ class ApiIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.length()").value(4));
     mvc.perform(get("/")).andExpect(status().isOk());
+    mvc.perform(get("/admin")).andExpect(status().isOk()).andExpect(forwardedUrl("/admin.html"));
   }
 
   @Test

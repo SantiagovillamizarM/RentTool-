@@ -18,4 +18,7 @@ public interface RentalInventory {
   List<Long> operationalUnitIds(Long toolId);
 
   List<Long> toolIdsOf(Long providerId);
+
+  /** Nombre de la categoría de la herramienta, para informes. */
+  Optional<String> categoryOf(Long toolId);
 }

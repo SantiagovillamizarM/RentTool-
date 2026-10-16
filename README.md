@@ -6,8 +6,12 @@ Plataforma de alquiler de herramientas y equipos de construcción. Este incremen
 
 ## Funciones implementadas
 
-- Registro de clientes y proveedores, login JWT y edición del nombre de perfil.
-- Restricciones por rol y propietario; el registro público no permite crear administradores.
+- Registro público de clientes, login JWT, edición del nombre y cambio de contraseña.
+- **Alta de proveedores por el administrador**: correo, contraseña temporal, tipo de persona, NIT con dígito de verificación DIAN, razón social, nombre comercial, representante legal, teléfono, dirección y ciudad. El proveedor debe cambiar la contraseña temporal antes de usar la API; el administrador puede editar sus datos, desactivarlo (pierde el acceso al instante) o asignarle una nueva clave temporal.
+- Restricciones por rol y propietario; el registro público solo crea clientes.
+- **Eliminar proveedor** desde el panel, con aviso previo de lo que pasará y confirmación escribiendo su nombre: cierra su cuenta para siempre, retira todas sus herramientas del catálogo y cancela sus reservas que aún no empiezan (los alquileres en curso siguen). Sus datos se conservan para el historial.
+- **Historial y auditoría de reservas**: cada solicitud, aceptación, rechazo, cancelación y vencimiento queda registrado con quién lo hizo y cuándo, visible en "Historial" de cada reserva.
+- **Informes descargables (CSV para Excel)** desde el panel del administrador: reservas por rango de fechas y estado, con cliente y correo, proveedor y NIT, importes y último cambio; o el historial completo de eventos. Cada descarga queda registrada.
 - Publicación, edición y retirada lógica de herramientas con tarifa diaria y categoría.
 - Unidades físicas con códigos únicos y estados operativa, mantenimiento o retirada.
 - Imágenes HTTPS o subida PNG/JPEG con límites de tamaño y dimensiones.
@@ -15,7 +19,7 @@ Plataforma de alquiler de herramientas y equipos de construcción. Este incremen
 - Portada responsiva, panel de inventario, estados vacíos, errores y notificaciones.
 - **Reservas por fechas**: disponibilidad pública por rango, solicitud del cliente con tarifa congelada, aceptación del proveedor con asignación de unidades bajo bloqueo, rechazo con motivo, cancelación y vencimiento automático de solicitudes sin respuesta.
 
-Pagos, facturas, entregas, devoluciones y administración global **siguen pendientes** según [la planeación](docs/PLANEACION_PROYECTO.md). No se cobran pagos desde esta versión.
+Pagos, facturas, entregas, devoluciones y el resto de la administración global (usuarios, incidencias, reportes) **siguen pendientes** según [la planeación](docs/PLANEACION_PROYECTO.md). No se cobran pagos desde esta versión.
 
 ## Ejecución con Docker
 
@@ -23,11 +27,12 @@ Requiere Docker Engine activo y Docker Compose.
 
 ```bash
 cp .env.example .env
-# Edita .env: configura contraseñas y un JWT_SECRET aleatorio de al menos 32 caracteres.
+# Edita .env: configura contraseñas, un JWT_SECRET aleatorio de al menos 32 caracteres
+# y el administrador inicial (RENTTOOL_ADMIN_EMAIL y RENTTOOL_ADMIN_PASSWORD).
 docker compose up --build
 ```
 
-Abre **http://localhost:8088**. El frontend y la API se sirven desde el mismo origen.
+Abre **http://localhost:8088**. El frontend y la API se sirven desde el mismo origen. Al iniciar sesión como administrador se abre el panel **http://localhost:8088/admin**, separado del sitio público: proveedores, moderación del catálogo y todas las reservas. Desde ahí, "Ver sitio público" (o "Ver cambios" tras retirar una herramienta) lleva al sitio con una barra superior para volver al panel.
 
 La documentación interactiva de la API (Swagger) está en **http://localhost:8088/swagger-ui.html**. Para probar los endpoints protegidos, obtén un token con `/auth/login`, pulsa **Authorize** y pégalo. MySQL y las imágenes persisten en volúmenes. No abras `index.html` con `file://`: necesita la API.
 
@@ -68,10 +73,10 @@ Tres módulos Maven, uno por capa, cada uno con un paquete por contexto (`identi
 - `infrastructure/`: adaptadores web, JPA, JWT y archivos, configuración, migraciones y arranque de Spring Boot. Genera el JAR ejecutable.
 - `frontend/`: fuentes estáticas incluidas automáticamente en el JAR por Maven.
 
-El JWT se conserva en `sessionStorage`, con vencimiento de una hora. Cerrar sesión lo elimina de este navegador; no revoca una copia del token. El backend revisa que la cuenta siga activa en cada petición autenticada. El uso de un header Bearer permite desactivar CSRF sin usar cookies de autenticación. CORS se limita a orígenes configurados. Las imágenes externas no envían referrer desde la interfaz.
+El JWT se conserva en `sessionStorage`, con vencimiento de una hora. El del administrador vence a los **10 minutos** y la interfaz lo renueva (`/auth/refresh`) solo mientras hay actividad; tras 10 minutos sin actividad cierra la sesión sin preguntar y pide iniciar sesión de nuevo, y aunque alguien copiara el token, el servidor ya no lo acepta. Ninguna sesión se renueva más de 8 horas después del inicio de sesión. Cerrar sesión lo elimina de este navegador; no revoca una copia del token. El backend revisa que la cuenta siga activa en cada petición autenticada. El uso de un header Bearer permite desactivar CSRF sin usar cookies de autenticación. CORS se limita a orígenes configurados. Las imágenes externas no envían referrer desde la interfaz.
 
 ## Límites actuales
 
 Auditoría, perfiles comerciales completos, paginación del panel de inventario más allá de 100 elementos y el resto de MVP aún deben incorporarse. Las imágenes eliminadas de una publicación conservan su archivo físico; su limpieza se implementará con una política de retención. No se inventan garantías comerciales, estadísticas ni contacto de una empresa real.
 
-Para provisionar el administrador inicial en ejecución JAR, configura `RENTTOOL_ADMIN_EMAIL` y `RENTTOOL_ADMIN_PASSWORD` (12–64 caracteres). No se eleva una cuenta existente ni se cambia su contraseña automáticamente. El panel administrativo global pertenece a un MVP posterior.
+El administrador inicial se provisiona al arrancar con `RENTTOOL_ADMIN_EMAIL` y `RENTTOOL_ADMIN_PASSWORD` (12–64 caracteres); Docker Compose las exige. Sin él nadie puede dar de alta proveedores. No se eleva una cuenta existente ni se cambia su contraseña automáticamente. Los proveedores creados por registro público antes de este cambio aparecen en el panel como "Sin datos legales" para que el administrador los complete o desactive; sus publicaciones siguen visibles hasta que se retiren.

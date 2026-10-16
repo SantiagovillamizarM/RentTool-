@@ -108,4 +108,45 @@ class ReservationRulesTest {
     assertDoesNotThrow(() -> r.ensureCancellableBy(admin));
     assertThrows(ForbiddenOperationException.class, () -> r.ensureCancellableBy(provider));
   }
+
+  @Test
+  void eventsRecordWhoActedAndOnlyTheSystemIsAnonymous() {
+    var at = java.time.Instant.parse("2026-10-15T15:00:00Z");
+    var admin = new Participant(1L, Participant.Role.ADMINISTRADOR);
+    var cancelled = ReservationEvent.by(admin, 9L, ReservationStatus.CANCELADA, at, " ");
+    assertEquals(ReservationEvent.ActorRole.ADMINISTRADOR, cancelled.actorRole());
+    assertEquals(1L, cancelled.actorId());
+    assertNull(cancelled.detail());
+
+    var expired = ReservationEvent.bySystem(9L, ReservationStatus.VENCIDA, at, null);
+    assertNull(expired.actorId());
+    assertThrows(
+        InvalidInputException.class,
+        () ->
+            new ReservationEvent(
+                null, 9L, ReservationStatus.VENCIDA, null, ReservationEvent.ActorRole.CLIENTE, at, null));
+    assertThrows(
+        ForbiddenOperationException.class,
+        () -> ReservationEvent.by(Participant.anonymous(), 9L, ReservationStatus.CANCELADA, at, null));
+  }
+
+  @Test
+  void forcedCancellationKeepsTheReasonAndNeverTouchesStartedRentals() {
+    var today = LocalDate.of(2026, 10, 15);
+    var accepted =
+        new Reservation(
+            1L, 7L, 12L, new RentalPeriod(today.plusDays(2), today.plusDays(4)), 1,
+            BigDecimal.TEN, new BigDecimal("20.00"), ReservationStatus.ACEPTADA, Set.of(3L),
+            Instant.parse("2026-10-14T10:00:00Z"), null, null);
+    assertTrue(accepted.isCancellableToday(today));
+    var cancelled = accepted.cancelBecause(today, "El proveedor se retiró");
+    assertEquals(ReservationStatus.CANCELADA, cancelled.status());
+    assertEquals("El proveedor se retiró", cancelled.note());
+    assertTrue(cancelled.unitIds().isEmpty(), "libera las unidades");
+
+    var started = today.plusDays(2);
+    assertTrue(accepted.isInProgress(started));
+    assertFalse(accepted.isCancellableToday(started));
+    assertThrows(ConflictException.class, () -> accepted.cancelBecause(started, "x"));
+  }
 }

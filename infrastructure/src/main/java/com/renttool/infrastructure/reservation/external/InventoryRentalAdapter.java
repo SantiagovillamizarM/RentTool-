@@ -1,8 +1,10 @@
 package com.renttool.infrastructure.reservation.external;
 
+import com.renttool.application.inventory.port.out.CategoryRepository;
 import com.renttool.application.inventory.port.out.ToolRepository;
 import com.renttool.application.inventory.port.out.UnitRepository;
 import com.renttool.application.reservation.port.out.RentalInventory;
+import com.renttool.domain.inventory.Category;
 import com.renttool.domain.inventory.Tool;
 import com.renttool.domain.inventory.Unit;
 import com.renttool.domain.reservation.RentableTool;
@@ -16,10 +18,20 @@ import org.springframework.stereotype.Component;
 class InventoryRentalAdapter implements RentalInventory {
   private final ToolRepository tools;
   private final UnitRepository units;
+  private final CategoryRepository categories;
 
-  InventoryRentalAdapter(ToolRepository tools, UnitRepository units) {
+  InventoryRentalAdapter(ToolRepository tools, UnitRepository units, CategoryRepository categories) {
     this.tools = tools;
     this.units = units;
+    this.categories = categories;
+  }
+
+  @Override
+  public Optional<String> categoryOf(Long toolId) {
+    return tools
+        .findById(toolId)
+        .flatMap(t -> categories.findById(t.categoryId()))
+        .map(Category::name);
   }
 
   @Override

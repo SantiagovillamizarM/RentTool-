@@ -60,6 +60,30 @@ class ReservationPersistenceAdapter implements ReservationRepository {
   }
 
   @Override
+  public List<Reservation> findRequestedBetween(
+      Instant from, Instant to, ReservationStatus status) {
+    var found =
+        status == null
+            ? jpa.findByRequestedAtGreaterThanEqualAndRequestedAtLessThanOrderByRequestedAtAscIdAsc(
+                utc(from), utc(to))
+            : jpa
+                .findByRequestedAtGreaterThanEqualAndRequestedAtLessThanAndStatusOrderByRequestedAtAscIdAsc(
+                    utc(from), utc(to), status.name());
+    return found.stream().map(ReservationPersistenceAdapter::toDomain).toList();
+  }
+
+  @Override
+  public List<Reservation> findOpenByTools(Collection<Long> toolIds) {
+    return jpa
+        .findByToolIdInAndStatusIn(
+            toolIds,
+            List.of(ReservationStatus.SOLICITADA.name(), ReservationStatus.ACEPTADA.name()))
+        .stream()
+        .map(ReservationPersistenceAdapter::toDomain)
+        .toList();
+  }
+
+  @Override
   public List<Long> findPendingIdsDueBy(Instant now) {
     return jpa.findIdsByStatusDueBy(ReservationStatus.SOLICITADA.name(), utc(now));
   }

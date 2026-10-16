@@ -29,6 +29,16 @@ interface ReservationJpaRepository extends JpaRepository<ReservationEntity, Long
       @Param("start") LocalDate start,
       @Param("end") LocalDate end);
 
+  List<ReservationEntity> findByRequestedAtGreaterThanEqualAndRequestedAtLessThanOrderByRequestedAtAscIdAsc(
+      LocalDateTime from, LocalDateTime to);
+
+  List<ReservationEntity>
+      findByRequestedAtGreaterThanEqualAndRequestedAtLessThanAndStatusOrderByRequestedAtAscIdAsc(
+          LocalDateTime from, LocalDateTime to, String status);
+
+  List<ReservationEntity> findByToolIdInAndStatusIn(
+      Collection<Long> toolIds, Collection<String> statuses);
+
   Page<ReservationEntity> findByClientId(Long clientId, Pageable pageable);
 
   Page<ReservationEntity> findByToolIdIn(Collection<Long> toolIds, Pageable pageable);

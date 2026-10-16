@@ -1,9 +1,15 @@
 package com.renttool.infrastructure.identity.persistence;
 
 import com.renttool.application.identity.port.out.AccountRepository;
+import com.renttool.application.shared.PageQuery;
+import com.renttool.application.shared.PageResult;
 import com.renttool.domain.identity.Account;
 import com.renttool.domain.identity.Role;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Optional;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -25,12 +31,32 @@ class AccountPersistenceAdapter implements AccountRepository {
   }
 
   @Override
+  public PageResult<Account> findByRole(Role role, PageQuery page) {
+    var p =
+        jpa.findByRoleAndRemovedAtIsNull(
+            role.name(), PageRequest.of(page.page(), page.size(), Sort.by("id").descending()));
+    return new PageResult<>(
+        p.getContent().stream().map(this::toDomain).toList(),
+        p.getTotalElements(),
+        p.getTotalPages(),
+        page.page());
+  }
+
+  @Override
   public Account save(Account account) {
     return toDomain(jpa.save(toEntity(account)));
   }
 
   private Account toDomain(AccountEntity e) {
-    return new Account(e.id, e.name, e.email, e.passwordHash, Role.valueOf(e.role), e.active);
+    return new Account(
+        e.id,
+        e.name,
+        e.email,
+        e.passwordHash,
+        Role.valueOf(e.role),
+        e.active,
+        e.mustChangePassword,
+        e.removedAt == null ? null : e.removedAt.toInstant(ZoneOffset.UTC));
   }
 
   private AccountEntity toEntity(Account a) {
@@ -41,6 +67,9 @@ class AccountPersistenceAdapter implements AccountRepository {
     e.passwordHash = a.passwordHash();
     e.role = a.role().name();
     e.active = a.active();
+    e.mustChangePassword = a.mustChangePassword();
+    e.removedAt =
+        a.removedAt() == null ? null : LocalDateTime.ofInstant(a.removedAt(), ZoneOffset.UTC);
     return e;
   }
 }

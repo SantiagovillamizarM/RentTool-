@@ -5,6 +5,7 @@ import com.renttool.application.reservation.service.ReservationService;
 import com.renttool.application.shared.PageQuery;
 import com.renttool.application.shared.PageResult;
 import com.renttool.domain.reservation.Participant;
+import java.util.List;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -58,6 +59,11 @@ class TransactionalReservations implements ManageReservationsUseCase, ExpireRese
   @Override
   public void cancel(Participant participant, Long reservationId) {
     write.executeWithoutResult(s -> service.cancel(participant, reservationId));
+  }
+
+  @Override
+  public List<HistoryEntry> history(Participant participant, Long reservationId) {
+    return read.execute(s -> service.history(participant, reservationId));
   }
 
   @Override

@@ -1,6 +1,12 @@
 package com.renttool.infrastructure.reservation.config;
 
+import com.renttool.application.reservation.port.in.ReservationReportUseCase;
 import com.renttool.application.reservation.port.out.*;
+import com.renttool.domain.reservation.Participant;
+import com.renttool.domain.reservation.ReservationStatus;
+import java.util.List;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 import com.renttool.application.reservation.service.*;
 import java.time.Clock;
 import java.time.ZoneId;
@@ -31,11 +37,40 @@ public class ReservationConfig {
   @Bean
   TransactionalReservations reservationUseCases(
       ReservationRepository reservations,
+      ReservationEventRepository events,
       RentalInventory inventory,
       ParticipantDirectory directory,
       Clock clock,
       PlatformTransactionManager transactions) {
     return new TransactionalReservations(
-        new ReservationService(reservations, inventory, directory, clock), transactions);
+        new ReservationService(reservations, events, inventory, directory, clock), transactions);
+  }
+
+  /** Los informes leen mucho y escriben el registro de descarga en la misma transacción. */
+  @Bean
+  ReservationReportUseCase reservationReports(
+      ReservationRepository reservations,
+      ReservationEventRepository events,
+      RentalInventory inventory,
+      ParticipantDirectory directory,
+      ReportDownloadLog log,
+      Clock clock,
+      PlatformTransactionManager transactions) {
+    var service =
+        new ReservationReportService(reservations, events, inventory, directory, log, clock);
+    var tx = new TransactionTemplate(transactions);
+    tx.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
+    return new ReservationReportUseCase() {
+      @Override
+      public List<ReservationRow> reservations(
+          Participant admin, Range range, ReservationStatus status) {
+        return tx.execute(s -> service.reservations(admin, range, status));
+      }
+
+      @Override
+      public List<EventRow> events(Participant admin, Range range) {
+        return tx.execute(s -> service.events(admin, range));
+      }
+    };
   }
 }

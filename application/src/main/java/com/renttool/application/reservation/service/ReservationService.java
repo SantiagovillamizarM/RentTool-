@@ -7,7 +7,10 @@ import com.renttool.application.shared.PageResult;
 import com.renttool.domain.reservation.*;
 import com.renttool.domain.shared.exception.*;
 import java.time.*;
+import java.text.NumberFormat;
 import java.util.LinkedHashSet;
+import java.util.Locale;
+import java.util.stream.Collectors;
 import java.util.List;
 
 /**
@@ -20,7 +23,17 @@ public class ReservationService implements ManageReservationsUseCase, ExpireRese
   /** Plazo del proveedor para responder, acotado además al día de inicio del alquiler. */
   static final Duration RESPONSE_WINDOW = Duration.ofHours(24);
 
+  /** Importes como se leen en Colombia: 150.000 o 12.500,5. NumberFormat no es seguro entre hilos. */
+  private static final ThreadLocal<NumberFormat> PESOS =
+      ThreadLocal.withInitial(
+          () -> {
+            var f = NumberFormat.getNumberInstance(Locale.forLanguageTag("es-CO"));
+            f.setMaximumFractionDigits(2);
+            return f;
+          });
+
   private final ReservationRepository reservations;
+  private final ReservationEventRepository events;
   private final RentalInventory inventory;
   private final ParticipantDirectory directory;
   private final UnitAllocator allocator;
@@ -28,10 +41,12 @@ public class ReservationService implements ManageReservationsUseCase, ExpireRese
 
   public ReservationService(
       ReservationRepository reservations,
+      ReservationEventRepository events,
       RentalInventory inventory,
       ParticipantDirectory directory,
       Clock clock) {
     this.reservations = reservations;
+    this.events = events;
     this.inventory = inventory;
     this.directory = directory;
     this.allocator = new UnitAllocator(reservations, inventory);
@@ -53,6 +68,13 @@ public class ReservationService implements ManageReservationsUseCase, ExpireRese
     var saved =
         reservations.save(
             Reservation.request(client, tool, period, c.quantity(), now, respondBy));
+    record(
+        client,
+        saved,
+        c.quantity()
+            + (c.quantity() == 1 ? " unidad" : " unidades")
+            + " · total $"
+            + PESOS.get().format(saved.total()));
     return details(saved, tool);
   }
 
@@ -97,7 +119,16 @@ public class ReservationService implements ManageReservationsUseCase, ExpireRese
             allocator.freeUnits(tool.id(), reservation.period()).stream()
                 .limit(reservation.quantity())
                 .toList());
-    return details(reservations.save(reservation.accept(units)), tool);
+    var accepted = reservations.save(reservation.accept(units));
+    record(
+        provider,
+        accepted,
+        "Unidades asignadas: "
+            + accepted.unitIds().stream()
+                .sorted()
+                .map(id -> "#" + id)
+                .collect(Collectors.joining(", ")));
+    return details(accepted, tool);
   }
 
   @Override
@@ -105,14 +136,29 @@ public class ReservationService implements ManageReservationsUseCase, ExpireRese
     var reservation = lockedForChange(reservationId);
     var tool = tool(reservation.toolId());
     reservation.ensureDecidableBy(provider, tool.providerId());
-    return details(reservations.save(reservation.reject(reason)), tool);
+    var rejected = reservations.save(reservation.reject(reason));
+    record(provider, rejected, rejected.note());
+    return details(rejected, tool);
   }
 
   @Override
   public void cancel(Participant participant, Long reservationId) {
     var reservation = lockedForChange(reservationId);
     reservation.ensureCancellableBy(participant);
-    reservations.save(reservation.cancel(today()));
+    var cancelled = reservations.save(reservation.cancel(today()));
+    record(
+        participant,
+        cancelled,
+        reservation.status() == ReservationStatus.ACEPTADA
+            ? "Se liberaron las unidades asignadas"
+            : null);
+  }
+
+  @Override
+  public List<HistoryEntry> history(Participant participant, Long reservationId) {
+    var reservation = existing(reservationId);
+    reservation.ensureVisibleTo(participant, tool(reservation.toolId()).providerId());
+    return Timeline.of(reservation, events.findByReservation(reservationId), directory::nameOf);
   }
 
   @Override
@@ -123,11 +169,20 @@ public class ReservationService implements ManageReservationsUseCase, ExpireRese
       // Pudo aceptarse entre la consulta y el bloqueo: se vuelve a comprobar ya bloqueada.
       var reservation = lockedForChange(id);
       if (reservation.isPending() && !reservation.respondBy().isAfter(now)) {
-        reservations.save(reservation.expire());
+        var saved = reservations.save(reservation.expire());
+        events.append(
+            ReservationEvent.bySystem(
+                saved.id(), saved.status(), now, "Sin respuesta del proveedor dentro del plazo"));
         expired++;
       }
     }
     return expired;
+  }
+
+  /** Cada cambio de estado deja constancia de quién lo hizo y cuándo, en la misma transacción. */
+  private void record(Participant actor, Reservation r, String detail) {
+    var at = r.status() == ReservationStatus.SOLICITADA ? r.requestedAt() : clock.instant();
+    events.append(ReservationEvent.by(actor, r.id(), r.status(), at, detail));
   }
 
   private Reservation existing(Long id) {

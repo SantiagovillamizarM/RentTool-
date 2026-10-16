@@ -1,0 +1,3 @@
+ALTER TABLE users ADD COLUMN must_change_password BOOLEAN NOT NULL DEFAULT FALSE;
+CREATE INDEX idx_users_role ON users(role);
+CREATE TABLE provider_profiles (account_id BIGINT PRIMARY KEY, person_type VARCHAR(10) NOT NULL CHECK(person_type IN ('NATURAL','JURIDICA')), nit VARCHAR(15) NOT NULL UNIQUE, verification_digit INT NOT NULL CHECK(verification_digit BETWEEN 0 AND 9), legal_name VARCHAR(200) NOT NULL, trade_name VARCHAR(160), legal_representative VARCHAR(160), representative_document VARCHAR(40), phone VARCHAR(20) NOT NULL, address VARCHAR(200) NOT NULL, city VARCHAR(100) NOT NULL, FOREIGN KEY(account_id) REFERENCES users(id));

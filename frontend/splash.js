@@ -5,6 +5,10 @@
 (() => {
   const splash = document.getElementById("splash");
   if (!splash) return;
+  if (document.documentElement.classList.contains("skip-splash")) {
+    splash.remove();
+    return;
+  }
   const root = document.documentElement,
     stage = splash.querySelector(".splash-stage"),
     hammer = splash.querySelector(".splash-hammer"),
