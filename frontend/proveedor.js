@@ -121,8 +121,8 @@ async function manageTool(id) {
               notify("Unidad actualizada.");
               loadInventory();
             } catch (e) {
-              $("#manage-error").textContent = e.message;
               await manageTool(id);
+              $("#manage-error").textContent = e.message;
             }
           }),
       );
@@ -167,7 +167,7 @@ for (const type of ["unit", "image"])
       await manageTool(state.managing);
       loadInventory();
     } catch (error) {
-      $("#manage-error").textContent = error.message;
+      showFormError(e.target, error, $("#manage-error"));
     } finally {
       b.disabled = false;
     }
@@ -186,7 +186,7 @@ $("#upload-form").onsubmit = async (e) => {
     loadInventory();
     notify("Imagen subida.");
   } catch (error) {
-    $("#manage-error").textContent = error.message;
+    showFormError(e.target, error, $("#manage-error"), "file");
   } finally {
     b.disabled = false;
   }

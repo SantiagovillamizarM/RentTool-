@@ -231,11 +231,7 @@ $("#provider-form").onsubmit = async (e) => {
       $("#provider-submit").textContent = "Guardar datos →";
       notify("Proveedor registrado, pero el logo no se pudo guardar.");
     }
-    const field = errorField(error.message);
-    if (!(field && fieldError(form, field, error.message))) {
-      $("#provider-error").textContent = error.message;
-      reveal($("#provider-error"), form.closest("dialog"));
-    }
+    showFormError(form, error, $("#provider-error"));
   } finally {
     b.disabled = false;
   }

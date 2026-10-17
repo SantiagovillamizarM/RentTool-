@@ -930,6 +930,10 @@ textarea {
   align-items: center;
   gap: 8px;
 }
+.inline-form .field-wrapper {
+  flex: 1;
+  min-width: 0;
+}
 .inline-form input,
 .inline-form select {
   margin: 0;

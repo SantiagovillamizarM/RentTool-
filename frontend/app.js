@@ -129,7 +129,7 @@ function wireReservation(tool) {
       if (current !== ticket) return;
       submit.disabled = true;
       quote.textContent = "";
-      error.textContent = e.message;
+      showFormError(form, e, error);
     }
   };
   const schedule = () => {
@@ -168,8 +168,7 @@ function wireReservation(tool) {
       loadReservations();
       location.hash = "workspace";
     } catch (err) {
-      error.textContent = err.message;
-      check();
+      showFormError(form, err, error);
     } finally {
       submit.disabled = false;
     }
@@ -359,11 +358,7 @@ $("#apply-form").onsubmit = async (e) => {
     notify("Solicitud enviada. Te avisaremos aquí cuando el equipo de RentTool la revise.");
     renderProviderCta();
   } catch (error) {
-    const field = errorField(error.message);
-    if (!(field && form.elements[field] && fieldError(form, field, error.message))) {
-      $("#apply-error").textContent = error.message;
-      reveal($("#apply-error"), form.closest("dialog"));
-    }
+    showFormError(form, error, $("#apply-error"));
   } finally {
     button.disabled = false;
   }
@@ -444,7 +439,7 @@ $("#auth-form").onsubmit = async (event) => {
     else if (!state.user.mustChangePassword && !noticed) notify("Bienvenido a RentTool.");
     state.afterAuth = null;
   } catch (e) {
-    $("#auth-error").textContent = e.message;
+    showFormError(event.target, e, $("#auth-error"));
   } finally {
     b.disabled = false;
   }
@@ -461,7 +456,7 @@ $("#profile-form").onsubmit = async (e) => {
     renderAccount();
     notify("Perfil actualizado.");
   } catch (error) {
-    notify(error.message);
+    if (!showFormError(e.target, error)) notify(error.message);
   }
 };
 $("#search-form").onsubmit = (e) => {

@@ -1,5 +1,7 @@
 # API implementada — MVP 01
 
+Los errores de validación de formularios devuelven `ProblemDetail` con mensajes en español y un objeto `fieldErrors` que relaciona cada campo con su corrección (por ejemplo, `fieldErrors.email`). No se incluyen valores rechazados. La interfaz señala los campos correspondientes y conserva los datos para corregirlos.
+
 Base `/api/v1`, JSON excepto subida de archivos. Autenticación: `Authorization: Bearer <token>` obtenido por registro/login. El registro público solo crea `CLIENTE`; los proveedores los da de alta el administrador.
 
 | Método | Ruta | Operación |

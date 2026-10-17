@@ -157,11 +157,8 @@ $("#tool-edit-form").onsubmit = async (e) => {
     $("#tool-edit-dialog").close();
     toolEditor.onSaved?.(saved, created);
   } catch (error) {
-    const field = /imagen/i.test(error.message) ? "image" : errorField(error.message);
-    if (!(field && form.elements[field] && fieldError(form, field, error.message))) {
-      $("#tool-edit-error").textContent = error.message;
-      reveal($("#tool-edit-error"), form.closest("dialog"));
-    }
+    showFormError(form, error, $("#tool-edit-error"),
+      /imagen/i.test(error.message) ? "image" : null);
   } finally {
     button.disabled = false;
   }

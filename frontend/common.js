@@ -258,7 +258,16 @@ HTMLDialogElement.prototype.showModal = function () {
 // Marca un campo con error: desplaza solo su contenedor desplazable hasta él y lo ilumina.
 function fieldError(form, name, message) {
   const input = form.elements[name];
-  const box = input?.closest("label") || input;
+  let box = input?.closest("label");
+  if (input && !box) {
+    box = input.closest(".field-wrapper");
+    if (!box) {
+      box = document.createElement("div");
+      box.className = "field-wrapper";
+      input.before(box);
+      box.append(input);
+    }
+  }
   if (!box) return false;
   box.classList.add("has-error");
   let note = box.querySelector(".field-error");
@@ -319,16 +328,51 @@ function errorField(message) {
     [/teléfono/i, "phone"],
     [/dirección/i, "address"],
     [/ciudad/i, "city"],
+    [/categoría/i, "categoryId"],
+    [/tarifa/i, "dailyRate"],
+    [/descripción/i, "description"],
+    [/código/i, "code"],
+    [/cantidad/i, "quantity"],
+    [/devolución/i, "end"],
+    [/fechas pasadas|fecha de inicio/i, "start"],
+    [/nombre/i, "name"],
     [/logo|imagen/i, "logo"],
   ];
   return rules.find(([pattern]) => pattern.test(message))?.[1];
+}
+// Los errores de validación llegan por campo, sin depender del texto del mensaje.
+function showFormError(form, error, summary, fallbackField) {
+  clearFieldErrors(form);
+  const unmatched = [];
+  const entries = Object.entries(error.fieldErrors || {});
+  // Orden inverso para dejar el foco en el primer campo inválido.
+  let marked = false;
+  for (const [path, message] of entries.reverse()) {
+    const name = path.split(".").pop();
+    marked = fieldError(form, name, message) || marked;
+    if (!form.elements[name]) unmatched.unshift(message);
+  }
+  if (!entries.length) {
+    const name = fallbackField || errorField(error.message);
+    if (name) marked = fieldError(form, name, error.message);
+  }
+  if (summary) {
+    summary.textContent = unmatched.length ? unmatched.join("; ") : marked ? "Corrige los campos señalados." : error.message;
+    if (!marked) reveal(summary, form.closest("dialog") || document.scrollingElement);
+  }
+  return marked;
 }
 async function api(path, options = {}) {
   const headers = { ...options.headers };
   if (options.body && !(options.body instanceof FormData))
     headers["Content-Type"] = "application/json";
   if (state.token) headers.Authorization = `Bearer ${state.token}`;
-  const response = await fetch("/api/v1" + path, { ...options, headers });
+  let response;
+  try {
+    response = await fetch("/api/v1" + path, { ...options, headers });
+  } catch {
+    throw new Error("No se pudo conectar con RentTool. Revisa tu conexión e inténtalo de nuevo.");
+  }
   if (!response.ok) {
     let error = {};
     try {
@@ -354,10 +398,17 @@ async function api(path, options = {}) {
           {
             401: "Inicia sesión para continuar.",
             403: "No tienes permiso para esta acción.",
+            400: "Revisa los datos introducidos e inténtalo de nuevo.",
+            404: "El recurso ya no está disponible. Actualiza la lista.",
+            409: "La operación entra en conflicto con los datos actuales. Actualiza e inténtalo de nuevo.",
+            413: "El archivo supera el tamaño permitido. Selecciona una imagen de hasta 5 MB.",
+            429: "Hay demasiadas solicitudes. Espera un momento antes de intentarlo de nuevo.",
           }[response.status] ||
-          "No se pudo completar la solicitud.",
+          (response.status >= 500
+            ? "RentTool no pudo completar la operación. Inténtalo de nuevo en unos momentos."
+            : "No se pudo completar la solicitud. Inténtalo de nuevo."),
       ),
-      { status: response.status, code: error.code },
+      { status: response.status, code: error.code, fieldErrors: error.fieldErrors },
     );
   }
   return response.status === 204 ? null : response.json();
@@ -625,8 +676,7 @@ $("#password-form").onsubmit = async (e) => {
       : /nueva|caracteres/i.test(error.message)
         ? "newPassword"
         : null;
-    if (!(field && fieldError(e.target, field, error.message)))
-      $("#password-error").textContent = error.message;
+    showFormError(e.target, error, $("#password-error"), field);
   } finally {
     b.disabled = false;
   }

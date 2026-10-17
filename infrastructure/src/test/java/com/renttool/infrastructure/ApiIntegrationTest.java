@@ -248,4 +248,26 @@ class ApiIntegrationTest {
     mvc.perform(get("/api/v1/tools").param("sort", "INVALID"))
         .andExpect(status().isBadRequest());
   }
+
+  @Test
+  @Order(8)
+  void validationReturnsSpanishMessagesByFieldWithoutRejectedValues() throws Exception {
+    mvc.perform(post("/api/v1/auth/register").contentType("application/json")
+            .content("{\"name\":\"\",\"email\":\"invalid\",\"password\":\"secret\"}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("fieldErrors.name").value("Nombre: es obligatorio."))
+        .andExpect(jsonPath("fieldErrors.email").value(
+            "Correo electrónico: escribe una dirección válida, por ejemplo nombre@ejemplo.com."))
+        .andExpect(jsonPath("fieldErrors.password").value(
+            "Contraseña: debe tener entre 10 y 64 caracteres."))
+        .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("secret"))));
+    mvc.perform(post("/api/v1/tools").header("Authorization", "Bearer " + provider)
+            .contentType("application/json")
+            .content("{\"categoryId\":1,\"name\":\"Taladro\",\"description\":\"Equipo\",\"dailyRate\":0}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("fieldErrors.dailyRate").value("Tarifa diaria: debe ser como mínimo 0.01."));
+    mvc.perform(get("/api/v1/tools").param("sort", "INVALID"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("detail").value(org.hamcrest.Matchers.containsString("PRICE_ASC")));
+  }
 }
