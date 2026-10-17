@@ -13,4 +13,6 @@ class ToolImageEntity {
   Long toolId;
 
   String location;
+
+  int position;
 }

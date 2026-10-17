@@ -5,28 +5,8 @@ Object.assign(state, {
   page: 0,
   totalPages: 0,
   mode: "login",
-  editing: null,
-  managing: null,
+  afterAuth: null,
 });
-const toolArt = (id = 0) =>
-  `<svg viewBox="0 0 300 200" aria-hidden="true"><defs><linearGradient id="metal${id}" x2="0.7" y2="1"><stop stop-color="#929296"/><stop offset=".4" stop-color="#3e3e43"/><stop offset="1" stop-color="#19191c"/></linearGradient><linearGradient id="gold${id}" x2="0" y2="1"><stop stop-color="#ffdf21"/><stop offset="1" stop-color="#b89a00"/></linearGradient></defs><ellipse cx="147" cy="175" rx="92" ry="9" fill="#000" opacity=".35"/><g transform="rotate(-12 150 100)"><path d="M70 70h103l20 20-5 41H80l-16-15z" fill="url(#gold${id})"/><path d="M82 125l23 3-9 47H64l6-16z" fill="#202024"/><path d="M67 166h39l5 17H60z" fill="url(#gold${id})"/><path d="M156 73h44v52h-44z" fill="url(#metal${id})"/><path d="M200 84h20v30h-20z" fill="#b3b3b7"/><path d="M219 94h49v10h-49z" fill="url(#metal${id})"/><path d="M107 83h36v7h-36z M107 98h36v7h-36z" fill="#2d2b1b"/><path d="M91 127h13v14H91z" fill="#9c9ca2"/><path d="M72 75h25v41H70z" fill="#e8c710"/><circle cx="170" cy="100" r="8" fill="#333339"/></g></svg>`;
-function imageMarkup(t) {
-  const url = t.images?.[0]?.location;
-  if (url && /^(https:\/\/|\/uploads\/|\/assets\/)/.test(url))
-    return `<img src="${esc(url)}" alt="${esc(t.name)}" loading="lazy" referrerpolicy="no-referrer">`;
-  return toolArt(t.id);
-}
-function wireImages(parent) {
-  parent.querySelectorAll("img").forEach((img) =>
-    img.addEventListener(
-      "error",
-      () => {
-        img.outerHTML = toolArt("fallback");
-      },
-      { once: true },
-    ),
-  );
-}
 async function loadCategories() {
   try {
     state.categories = await api("/categories");
@@ -200,6 +180,10 @@ function openAuth(mode) {
     location.href = "/admin";
     return;
   }
+  if (isProvider()) {
+    location.href = "/proveedor";
+    return;
+  }
   if (state.user) {
     location.hash = "workspace";
     return;
@@ -233,19 +217,38 @@ function logout() {
   renderAccount();
 }
 const isAdministrator = () => state.user?.role === "ADMINISTRADOR";
+const isProvider = () => state.user?.role === "PROVEEDOR";
+// Administrador y proveedor trabajan en su panel; aquí solo ven el sitio público.
+const PANELS = {
+  ADMINISTRADOR: {
+    href: "/admin",
+    bar: "Estás viendo el sitio público como administrador.",
+    back: "← Volver al panel de administración",
+    button: "Panel de administración ↗",
+  },
+  PROVEEDOR: {
+    href: "/proveedor",
+    bar: "Así ven los clientes tu catálogo.",
+    back: "← Volver a tu panel de proveedor",
+    button: "Panel de proveedor ↗",
+  },
+};
 function renderAccount() {
   const actions = $("#account-actions");
-  // El administrador trabaja en /admin; aquí solo ve el sitio público.
-  $("#admin-bar").hidden = !isAdministrator();
-  $("#workspace").hidden = !state.user || isAdministrator();
-  if (isAdministrator()) {
-    watchAdminIdle();
-    actions.innerHTML =
-      '<a href="/admin" class="outline-button">Panel de administración ↗</a><button class="text-button" id="logout">Salir</button>';
+  const panel = PANELS[state.user?.role];
+  $("#admin-bar").hidden = !panel;
+  $("#workspace").hidden = !state.user || Boolean(panel);
+  if (panel) {
+    if (isAdministrator()) watchAdminIdle();
+    $("#role-bar-text").textContent = panel.bar;
+    $("#role-bar-link").textContent = panel.back;
+    $("#role-bar-link").href = panel.href;
+    actions.innerHTML = `<a href="${panel.href}" class="outline-button">${panel.button}</a><button class="text-button" id="logout">Salir</button>`;
     $("#logout").onclick = () => {
       logout();
       notify("Sesión cerrada en este navegador.");
     };
+    if (state.user.mustChangePassword) openPassword(true);
     return;
   }
   if (!state.user) {
@@ -259,166 +262,152 @@ function renderAccount() {
     logout();
     notify("Sesión cerrada en este navegador.");
   };
-  $("#workspace-title").textContent =
-    state.user.role === "PROVEEDOR"
-      ? "Tu equipo. Tu inventario."
-      : "Tu próximo proyecto empieza aquí.";
+  $("#workspace-title").textContent = "Tu próximo proyecto empieza aquí.";
   $("#profile-form").elements.name.value = state.user.name;
-  $("#profile-avatar").src =
-    state.user.role === "PROVEEDOR"
-      ? state.user.logoUrl || DEFAULT_LOGO
-      : "assets/icons/user.png";
-  $("#profile-avatar").classList.toggle(
-    "photo",
-    state.user.role === "PROVEEDOR" && Boolean(state.user.logoUrl),
-  );
-  const managesInventory = state.user.role === "PROVEEDOR";
-  $("#new-tool").hidden =
-    $("#inventory-title").hidden =
-    $("#inventory").hidden =
-      !managesInventory;
-  if (state.user.mustChangePassword) {
-    $("#reservations").innerHTML =
-      '<p class="muted">Cambia tu contraseña temporal para ver tu espacio de trabajo.</p>';
-    $("#inventory").innerHTML = "";
-    openPassword(true);
+  $("#profile-avatar").src = "assets/icons/user.png";
+  $("#profile-avatar").classList.remove("photo");
+  $("#reservations-title").textContent = "Mis reservas";
+  loadReservations();
+  renderProviderCta();
+}
+// Solicitud para ser proveedor: estado visible en el espacio del cliente.
+async function renderProviderCta() {
+  const cta = $("#provider-cta");
+  try {
+    state.application = await api("/me/provider-application");
+  } catch {
+    state.application = null;
+  }
+  const pending = state.application?.status === "PENDIENTE";
+  cta.hidden = false;
+  cta.classList.toggle("is-pending", pending);
+  $("#provider-cta-title").textContent = pending
+    ? "Tu solicitud de proveedor está en revisión."
+    : "¿Tienes herramientas para alquilar?";
+  $("#provider-cta-text").textContent = pending
+    ? `Enviada el ${fullDateTime(state.application.submittedAt)}. Te avisaremos aquí cuando el equipo de RentTool responda.`
+    : "Solicita ser proveedor y publica tu inventario en RentTool.";
+  cta.querySelector("[data-apply]").hidden = pending;
+}
+async function startApplication() {
+  if (!state.user) {
+    state.afterAuth = "apply";
+    openAuth("register");
+    $("#auth-notice").textContent =
+      "Primero crea tu cuenta o inicia sesión; después completas los datos de tu empresa.";
+    $("#auth-notice").hidden = false;
     return;
   }
-  $("#reservations-title").textContent =
-    state.user.role === "PROVEEDOR" ? "Solicitudes de reserva" : "Mis reservas";
-  loadReservations();
-  if (managesInventory) loadInventory();
+  if (isProvider()) {
+    location.href = "/proveedor";
+    return;
+  }
+  if (isAdministrator()) return;
+  try {
+    state.application = await api("/me/provider-application");
+  } catch (e) {
+    notify(e.message);
+    return;
+  }
+  if (state.application?.status === "PENDIENTE") {
+    notify("Tu solicitud ya está en revisión. Te avisaremos aquí cuando haya respuesta.");
+    return;
+  }
+  openApplicationForm(state.application?.status === "RECHAZADA" ? state.application.profile : null);
+}
+function openApplicationForm(previous) {
+  const form = $("#apply-form");
+  form.reset();
+  clearFieldErrors(form);
+  $("#apply-error").textContent = "";
+  if (previous)
+    for (const [field, value] of Object.entries(previous))
+      if (form.elements[field]) form.elements[field].value = value ?? "";
+  updateLegalFields(form);
+  $("#apply-dialog").showModal();
+}
+document.addEventListener("click", (e) => {
+  if (e.target.closest?.("[data-apply]")) startApplication();
+});
+$("#apply-form").addEventListener("input", (e) => {
+  if (["personType", "nit", "verificationDigit"].includes(e.target.name))
+    updateLegalFields(e.currentTarget);
+});
+$("#apply-form").onsubmit = async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  clearFieldErrors(form);
+  $("#apply-error").textContent = "";
+  const problem = legalProblem(form);
+  if (problem) {
+    fieldError(form, ...problem);
+    return;
+  }
+  if (!form.elements.consent.checked) {
+    fieldError(form, "consent", "Confirma que entiendes el cambio de tu cuenta.");
+    return;
+  }
+  const button = $("#apply-submit");
+  button.disabled = true;
+  try {
+    await api("/me/provider-application", {
+      method: "POST",
+      body: JSON.stringify(legalPayload(form)),
+    });
+    $("#apply-dialog").close();
+    notify("Solicitud enviada. Te avisaremos aquí cuando el equipo de RentTool la revise.");
+    renderProviderCta();
+  } catch (error) {
+    const field = errorField(error.message);
+    if (!(field && form.elements[field] && fieldError(form, field, error.message))) {
+      $("#apply-error").textContent = error.message;
+      reveal($("#apply-error"), form.closest("dialog"));
+    }
+  } finally {
+    button.disabled = false;
+  }
+};
+// Respuesta del administrador: se muestra una sola vez al volver a entrar.
+async function showApplicationNotice() {
+  let application;
+  try {
+    application = await api("/me/provider-application");
+  } catch {
+    return false;
+  }
+  if (!application?.needsNotice) return false;
+  const accepted = application.status === "ACEPTADA";
+  $("#notice-title").textContent = accepted
+    ? `¡Bienvenido, ${application.displayName}!`
+    : "Se rechazó tu solicitud de proveedor.";
+  $("#notice-text").textContent = accepted
+    ? "Tu solicitud fue aceptada. Ya puedes publicar tus herramientas y recibir reservas desde tu panel."
+    : "El equipo de RentTool revisó tus datos y no pudo aprobar la solicitud por ahora.";
+  $("#notice-reason").hidden = accepted;
+  $("#notice-reason").textContent = accepted ? "" : `Motivo: ${application.rejectionReason}`;
+  $("#notice-primary").textContent = accepted ? "Ingresar al panel proveedor →" : "Entendido";
+  $("#notice-secondary").hidden = accepted;
+  $("#notice-secondary").textContent = "Enviar una nueva solicitud";
+  const acknowledge = () =>
+    api("/me/provider-application/acknowledge", { method: "POST" }).catch(() => {});
+  $("#notice-primary").onclick = async () => {
+    await acknowledge();
+    if (accepted) location.href = "/proveedor";
+    else $("#notice-dialog").close();
+  };
+  $("#notice-secondary").onclick = async () => {
+    await acknowledge();
+    $("#notice-dialog").close();
+    openApplicationForm(application.profile);
+  };
+  $("#notice-dialog").addEventListener("close", acknowledge, { once: true });
+  $("#notice-dialog").showModal();
+  return true;
 }
 function wireAuth() {
   document
     .querySelectorAll("[data-auth]")
     .forEach((b) => (b.onclick = () => openAuth(b.dataset.auth)));
-}
-async function loadInventory() {
-  try {
-    const data = await api("/tools?mine=true&size=100");
-    $("#inventory").innerHTML = data.content.length
-      ? data.content
-          .map(
-            (t) =>
-              `<article class="inventory-row"><div><h3>${esc(t.name)}</h3><p class="muted">${money(t.dailyRate)} / día · ${t.operationalUnits} unidades operativas</p></div><div class="inventory-actions"><button class="outline-button" data-edit="${t.id}">Editar</button><button class="outline-button" data-manage="${t.id}">Unidades e imágenes</button><button class="outline-button" data-retire="${t.id}">Retirar</button></div></article>`,
-          )
-          .join("")
-      : '<div class="empty"><h3>Tu inventario empieza contigo.</h3><p>Publica tu primera herramienta usando el botón de arriba.</p></div>';
-    $("#inventory")
-      .querySelectorAll("[data-edit]")
-      .forEach((b) => (b.onclick = () => editTool(b.dataset.edit)));
-    $("#inventory")
-      .querySelectorAll("[data-manage]")
-      .forEach((b) => (b.onclick = () => manageTool(b.dataset.manage)));
-    $("#inventory")
-      .querySelectorAll("[data-retire]")
-      .forEach(
-        (b) =>
-          (b.onclick = async () => {
-            if (
-              !confirm(
-                "¿Retirar esta herramienta del catálogo? Se conservará su registro.",
-              )
-            )
-              return;
-            try {
-              await api("/tools/" + b.dataset.retire, { method: "DELETE" });
-              notify("Herramienta retirada.");
-              loadInventory();
-              loadTools();
-            } catch (e) {
-              notify(e.message);
-            }
-          }),
-      );
-  } catch (e) {
-    $("#inventory").textContent = e.message;
-  }
-}
-async function editTool(id) {
-  state.editing = id || null;
-  $("#tool-form").reset();
-  $("#tool-error").textContent = "";
-  $("#tool-title").textContent = id
-    ? "Actualiza tu equipo."
-    : "Publica tu equipo.";
-  if (id) {
-    try {
-      const t = await api("/tools/" + id);
-      for (const field of ["name", "categoryId", "description", "dailyRate"])
-        $("#tool-form").elements[field].value = t[field];
-    } catch (e) {
-      notify(e.message);
-      return;
-    }
-  }
-  $("#tool-dialog").showModal();
-}
-async function manageTool(id) {
-  state.managing = id;
-  $("#manage-error").textContent = "";
-  try {
-    const [t, units] = await Promise.all([
-      api("/tools/" + id),
-      api("/tools/" + id + "/units"),
-    ]);
-    $("#manage-title").textContent = t.name;
-    $("#unit-list").innerHTML = units.length
-      ? units
-          .map(
-            (u) =>
-              `<div class="manage-row"><span>${esc(u.code)}</span><select aria-label="Estado de ${esc(u.code)}" data-unit="${u.id}" data-code="${esc(u.code)}">${["OPERATIVA", "MANTENIMIENTO", "RETIRADA"].map((s) => `<option ${s === u.status ? "selected" : ""}>${s}</option>`).join("")}</select></div>`,
-          )
-          .join("")
-      : '<p class="muted">Sin unidades registradas.</p>';
-    $("#unit-list")
-      .querySelectorAll("select")
-      .forEach(
-        (s) =>
-          (s.onchange = async () => {
-            try {
-              await api(`/tools/${id}/units/${s.dataset.unit}`, {
-                method: "PUT",
-                body: JSON.stringify({ code: s.dataset.code, status: s.value }),
-              });
-              notify("Unidad actualizada.");
-              loadInventory();
-              loadTools();
-            } catch (e) {
-              $("#manage-error").textContent = e.message;
-              await manageTool(id);
-            }
-          }),
-      );
-    $("#image-list").innerHTML = t.images.length
-      ? t.images
-          .map(
-            (i) =>
-              `<div class="manage-row"><img src="${esc(i.location)}" alt="Imagen del inventario" referrerpolicy="no-referrer"><span>Imagen ${i.id}</span><button data-remove-image="${i.id}">Eliminar ×</button></div>`,
-          )
-          .join("")
-      : '<p class="muted">Sin imágenes registradas.</p>';
-    $("#image-list")
-      .querySelectorAll("button")
-      .forEach(
-        (b) =>
-          (b.onclick = async () => {
-            try {
-              await api(`/tools/${id}/images/${b.dataset.removeImage}`, {
-                method: "DELETE",
-              });
-              manageTool(id);
-              loadTools();
-            } catch (e) {
-              $("#manage-error").textContent = e.message;
-            }
-          }),
-      );
-    if (!$("#manage-dialog").open) $("#manage-dialog").showModal();
-  } catch (e) {
-    notify(e.message);
-  }
 }
 $("#auth-form").onsubmit = async (event) => {
   event.preventDefault();
@@ -441,9 +430,18 @@ $("#auth-form").onsubmit = async (event) => {
     }
     $("#auth-dialog").close();
     event.target.reset();
+    // Un proveedor recién aceptado ve primero la bienvenida; si no, va directo a su panel.
+    if (isProvider()) {
+      if (!(await showApplicationNotice())) location.href = "/proveedor";
+      else renderAccount();
+      return;
+    }
     renderAccount();
     location.hash = "workspace";
-    if (!state.user.mustChangePassword) notify("Bienvenido a RentTool.");
+    const noticed = await showApplicationNotice();
+    if (state.afterAuth === "apply" && !noticed) startApplication();
+    else if (!state.user.mustChangePassword && !noticed) notify("Bienvenido a RentTool.");
+    state.afterAuth = null;
   } catch (e) {
     $("#auth-error").textContent = e.message;
   } finally {
@@ -452,52 +450,6 @@ $("#auth-form").onsubmit = async (event) => {
 };
 $("#switch-auth").onclick = () =>
   openAuth(state.mode === "login" ? "register" : "login");
-$("#tool-form").onsubmit = async (e) => {
-  e.preventDefault();
-  const b = e.target.querySelector("button");
-  b.disabled = true;
-  const data = Object.fromEntries(new FormData(e.target));
-  data.categoryId = Number(data.categoryId);
-  data.dailyRate = Number(data.dailyRate);
-  try {
-    await api("/tools" + (state.editing ? "/" + state.editing : ""), {
-      method: state.editing ? "PUT" : "POST",
-      body: JSON.stringify(data),
-    });
-    $("#tool-dialog").close();
-    notify("Herramienta guardada.");
-    loadInventory();
-    loadTools();
-  } catch (error) {
-    $("#tool-error").textContent = error.message;
-  } finally {
-    b.disabled = false;
-  }
-};
-$("#new-tool").onclick = () => editTool();
-for (const type of ["unit", "image"])
-  $("#" + type + "-form").onsubmit = async (e) => {
-    e.preventDefault();
-    const b = e.target.querySelector("button");
-    b.disabled = true;
-    try {
-      await api(
-        `/tools/${state.managing}/${type === "unit" ? "units" : "images"}`,
-        {
-          method: "POST",
-          body: JSON.stringify(Object.fromEntries(new FormData(e.target))),
-        },
-      );
-      e.target.reset();
-      await manageTool(state.managing);
-      loadInventory();
-      loadTools();
-    } catch (error) {
-      $("#manage-error").textContent = error.message;
-    } finally {
-      b.disabled = false;
-    }
-  };
 $("#profile-form").onsubmit = async (e) => {
   e.preventDefault();
   try {
@@ -554,7 +506,9 @@ wireAuth();
   if (state.token) {
     try {
       state.user = await api("/me");
+      await syncSessionRole();
       renderAccount();
+      showApplicationNotice();
     } catch {
       logout();
     }
@@ -569,23 +523,3 @@ wireAuth();
     $("#auth-notice").hidden = !notice;
   }
 })();
-
-$("#upload-form").onsubmit = async (e) => {
-  e.preventDefault();
-  const b = e.target.querySelector("button");
-  b.disabled = true;
-  try {
-    await api(`/tools/${state.managing}/images/upload`, {
-      method: "POST",
-      body: new FormData(e.target),
-    });
-    e.target.reset();
-    await manageTool(state.managing);
-    loadTools();
-    notify("Imagen subida.");
-  } catch (error) {
-    $("#manage-error").textContent = error.message;
-  } finally {
-    b.disabled = false;
-  }
-};

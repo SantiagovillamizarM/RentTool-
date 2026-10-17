@@ -8,18 +8,9 @@ Object.assign(state, {
   editingProvider: null,
   toolPage: 0,
   removing: null,
+  rejecting: null,
   toolPages: 0,
 });
-// Dígito de verificación DIAN: módulo 11 con pesos primos, igual que el backend.
-function nitDigit(nit) {
-  const weights = [3, 7, 13, 17, 19, 23, 29, 37, 41, 43, 47, 53, 59, 67, 71];
-  let sum = 0;
-  for (let i = 0; i < nit.length; i++)
-    sum += Number(nit[nit.length - 1 - i]) * weights[i];
-  const r = sum % 11;
-  return r > 1 ? 11 - r : r;
-}
-const personLabel = { JURIDICA: "Persona jurídica", NATURAL: "Persona natural" };
 const MAX_LOGO_BYTES = 2 * 1024 * 1024;
 const logoMarkup = (url, name) =>
   `<span class="avatar avatar-small"><img src="${esc(url || DEFAULT_LOGO)}" alt="Logo de ${esc(name)}" class="${url ? "photo" : ""}"></span>`;
@@ -106,30 +97,7 @@ async function loadProviders() {
   }
 }
 function updateProviderForm() {
-  const form = $("#provider-form");
-  const legalEntity = form.elements.personType.value === "JURIDICA";
-  $("#legal-rep").hidden = !legalEntity;
-  form.elements.legalRepresentative.required =
-    form.elements.representativeDocument.required = legalEntity;
-  const nit = form.elements.nit.value.trim();
-  const hint = $("#nit-hint");
-  if (!/^\d{5,15}$/.test(nit)) {
-    hint.textContent = "Escribe el NIT sin puntos ni dígito de verificación.";
-    hint.className = "muted nit-hint";
-    return;
-  }
-  const expected = nitDigit(nit);
-  const typed = form.elements.verificationDigit.value.trim();
-  if (typed === "") {
-    hint.textContent = `Según la DIAN, el dígito de verificación es ${expected}.`;
-    hint.className = "muted nit-hint";
-  } else if (Number(typed) !== expected) {
-    hint.textContent = `El dígito no coincide: para este NIT debería ser ${expected}.`;
-    hint.className = "muted nit-hint warn";
-  } else {
-    hint.textContent = `NIT ${nit}-${expected} válido.`;
-    hint.className = "muted nit-hint ok";
-  }
+  updateLegalFields($("#provider-form"));
 }
 function showLogo(url) {
   $("#logo-preview").src = url || DEFAULT_LOGO;
@@ -183,24 +151,7 @@ function providerProblem(form) {
     if (pass.length < 10 || pass.length > 64)
       return ["temporaryPassword", "La contraseña temporal requiere entre 10 y 64 caracteres."];
   }
-  if (!/^\d{5,15}$/.test(v("nit")))
-    return ["nit", "El NIT debe tener entre 5 y 15 dígitos, sin puntos ni guion."];
-  if (!/^\d$/.test(v("verificationDigit")))
-    return ["verificationDigit", "Escribe el dígito de verificación."];
-  if (Number(v("verificationDigit")) !== nitDigit(v("nit")))
-    return ["verificationDigit", `No coincide con el NIT: debería ser ${nitDigit(v("nit"))}.`];
-  if (!v("legalName")) return ["legalName", "Escribe la razón social o el nombre completo."];
-  if (form.elements.personType.value === "JURIDICA") {
-    if (!v("legalRepresentative"))
-      return ["legalRepresentative", "Una persona jurídica requiere representante legal."];
-    if (!v("representativeDocument"))
-      return ["representativeDocument", "Escribe el documento del representante."];
-  }
-  if (!/^\+?[\d ]{7,20}$/.test(v("phone")))
-    return ["phone", "El teléfono solo admite dígitos, espacios y +, mínimo 7."];
-  if (!v("address")) return ["address", "Escribe la dirección."];
-  if (!v("city")) return ["city", "Escribe la ciudad."];
-  return null;
+  return legalProblem(form);
 }
 async function saveLogo(id) {
   const form = $("#provider-form");
@@ -304,29 +255,99 @@ function renderAccount() {
     openPassword(true);
     return;
   }
+  loadApplications();
   loadProviders().then(() => {
     loadCatalog();
     loadReservations().then(countReservations);
   });
 }
-// Pestañas del panel, sincronizadas con la URL (#proveedores, #catalogo, #reservas).
-function showTab() {
-  const tab = location.hash.slice(1) || "proveedores";
-  const known = [...document.querySelectorAll("[data-panel]")].some(
-    (p) => p.dataset.panel === tab,
-  );
-  const current = known ? tab : "proveedores";
-  document
-    .querySelectorAll("[data-panel]")
-    .forEach((p) => (p.hidden = p.dataset.panel !== current));
-  document.querySelectorAll("[data-tab]").forEach((a) => {
-    const active = a.dataset.tab === current;
-    a.classList.toggle("active", active);
-    if (active) a.setAttribute("aria-current", "page");
-    else a.removeAttribute("aria-current");
-  });
+// Solicitudes para ser proveedor enviadas desde el sitio.
+function applicationRow(r) {
+  const a = r.application;
+  const p = a.profile;
+  const who = r.applicant ? `${esc(r.applicant.name)} · ${esc(r.applicant.email)}` : "Cuenta no disponible";
+  return `<article class="inventory-row reservation-row provider-row application-row">${logoMarkup(null, a.displayName)}<div class="provider-info"><h3>${esc(a.displayName)} <span class="status-chip status-solicitada">Por revisar</span></h3><p class="muted">NIT ${esc(p.nit)}-${p.verificationDigit} · ${personLabel[p.personType]} · ${esc(p.legalName)}</p><p class="muted">Solicitante: ${who}</p><p class="muted">${esc(p.city)} · ${esc(p.address)} · ${esc(p.phone)}${p.legalRepresentative ? ` · Rep. legal: ${esc(p.legalRepresentative)} (${esc(p.representativeDocument)})` : ""}</p><p class="muted">Enviada el ${fullDateTime(a.submittedAt)}</p></div><div class="inventory-actions"><button class="button compact" data-accept-application="${a.id}" data-name="${esc(a.displayName)}">Aceptar</button><button class="outline-button danger-outline" data-reject-application="${a.id}" data-name="${esc(a.displayName)}">Rechazar</button></div></article>`;
 }
-addEventListener("hashchange", showTab);
+async function loadApplications() {
+  try {
+    const data = await api("/admin/provider-applications?status=PENDIENTE&size=50");
+    const count = data.totalElements;
+    $("#applications-box").hidden = count === 0;
+    $("#applications-count").textContent = count;
+    $("#tab-applications").hidden = count === 0;
+    $("#tab-applications").textContent = count;
+    $("#applications").innerHTML = data.content.map(applicationRow).join("");
+    $("#applications")
+      .querySelectorAll("[data-accept-application]")
+      .forEach(
+        (b) =>
+          (b.onclick = async () => {
+            if (
+              !confirm(
+                `¿Aceptar a ${b.dataset.name} como proveedor? Su cuenta pasará a ser de proveedor y podrá publicar herramientas.`,
+              )
+            )
+              return;
+            b.disabled = true;
+            try {
+              await api(`/admin/provider-applications/${b.dataset.acceptApplication}/accept`, {
+                method: "POST",
+              });
+              notify(`${b.dataset.name} ahora es proveedor. Verá la bienvenida al entrar.`);
+              loadApplications();
+              loadProviders();
+            } catch (e) {
+              notify(e.message);
+              b.disabled = false;
+            }
+          }),
+      );
+    $("#applications")
+      .querySelectorAll("[data-reject-application]")
+      .forEach(
+        (b) =>
+          (b.onclick = () => {
+            state.rejecting = b.dataset.rejectApplication;
+            const form = $("#reject-form");
+            form.reset();
+            clearFieldErrors(form);
+            $("#reject-error").textContent = "";
+            $("#reject-title").textContent = `Rechazar a ${b.dataset.name}.`;
+            $("#reject-dialog").showModal();
+          }),
+      );
+  } catch (e) {
+    $("#applications-box").hidden = false;
+    $("#applications").innerHTML = `<p class="muted">${esc(e.message)}</p>`;
+  }
+}
+$("#reject-form").onsubmit = async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  clearFieldErrors(form);
+  const reason = form.elements.reason.value.trim();
+  if (!reason) {
+    fieldError(form, "reason", "Escribe el motivo: el solicitante lo verá.");
+    return;
+  }
+  const button = $("#reject-submit");
+  button.disabled = true;
+  try {
+    await api(`/admin/provider-applications/${state.rejecting}/reject`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    });
+    $("#reject-dialog").close();
+    notify("Solicitud rechazada. El solicitante verá el motivo al entrar.");
+    loadApplications();
+  } catch (error) {
+    $("#reject-error").textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+};
+// Pestañas del panel, sincronizadas con la URL (#proveedores, #catalogo, #reservas).
+const showTab = setupTabs("proveedores");
 async function countReservations() {
   try {
     const data = await api("/reservations?size=1");
@@ -335,7 +356,7 @@ async function countReservations() {
 }
 const providerName = (id) => state.providers[id]?.name || `Proveedor #${id}`;
 function toolRow(t) {
-  return `<article class="inventory-row reservation-row provider-row"><span class="tool-thumb">${imageMarkup(t)}</span><div class="provider-info"><h3>${esc(t.name)} <span class="status-chip">${esc(t.category)}</span></h3><p class="muted">${money(t.dailyRate)} / día · ${t.operationalUnits} ${t.operationalUnits === 1 ? "unidad operativa" : "unidades operativas"} · ${esc(providerName(t.providerId))}</p></div><div class="inventory-actions"><button class="outline-button" data-retire="${t.id}" data-name="${esc(t.name)}">Retirar del catálogo</button></div></article>`;
+  return `<article class="inventory-row reservation-row provider-row"><span class="tool-thumb">${imageMarkup(t)}</span><div class="provider-info"><h3>${esc(t.name)} <span class="status-chip">${esc(t.category)}</span></h3><p class="muted">${money(t.dailyRate)} / día · ${t.operationalUnits} ${t.operationalUnits === 1 ? "unidad operativa" : "unidades operativas"} · ${esc(providerName(t.providerId))}</p></div><div class="inventory-actions"><button class="outline-button" data-edit-tool="${t.id}">Editar</button><button class="outline-button" data-retire="${t.id}" data-name="${esc(t.name)}">Retirar del catálogo</button></div></article>`;
 }
 async function loadCatalog() {
   const box = $("#admin-tools");
@@ -352,6 +373,19 @@ async function loadCatalog() {
       ? data.content.map(toolRow).join("")
       : `<div class="empty"><h3>${params.get("q") ? "Sin resultados." : "El catálogo está vacío."}</h3><p>${params.get("q") ? "Prueba con otra búsqueda." : "Cuando los proveedores publiquen, sus herramientas aparecerán aquí."}</p></div>`;
     wireImages(box);
+    box
+      .querySelectorAll("[data-edit-tool]")
+      .forEach(
+        (b) =>
+          (b.onclick = () =>
+            openToolEditor(b.dataset.editTool, b, {
+              owner: (t) => `Proveedor: ${providerName(t.providerId)}`,
+              onSaved: () => {
+                notify("Herramienta actualizada en el catálogo público.", SEE_CHANGES);
+                loadCatalog();
+              },
+            })),
+      );
     box.querySelectorAll("[data-retire]").forEach(
       (b) =>
         (b.onclick = async () => {
@@ -399,25 +433,6 @@ $("#tools-next").onclick = () => {
     loadCatalog();
   }
 };
-// Imagen de herramienta igual que en el catálogo público, sin depender de app.js.
-function imageMarkup(t) {
-  const url = t.images?.[0]?.location;
-  return url && /^(https:\/\/|\/uploads\/|\/assets\/)/.test(url)
-    ? `<img src="${esc(url)}" alt="" loading="lazy" referrerpolicy="no-referrer">`
-    : '<img src="assets/icons/casco.png" alt="" class="placeholder">';
-}
-function wireImages(parent) {
-  parent.querySelectorAll("img:not(.placeholder)").forEach((img) =>
-    img.addEventListener(
-      "error",
-      () => {
-        img.src = "assets/icons/casco.png";
-        img.className = "placeholder";
-      },
-      { once: true },
-    ),
-  );
-}
 // Eliminar proveedor: primero se muestra lo que pasará y se pide escribir su nombre.
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 async function openRemoval(id, button) {

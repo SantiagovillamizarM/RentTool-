@@ -12,8 +12,8 @@
     <link rel="icon" type="image/png" href="assets/favicon.png" />
     <link rel="stylesheet" href="styles.css" />
     <script>
-      // Sin pantalla de entrada para el administrador (va y viene desde su
-      // panel) ni al volver al inicio de sesión tras cerrarse la sesión. Se
+      // Sin pantalla de entrada para administrador y proveedor (van y vienen
+      // desde su panel) ni al volver al inicio de sesión tras cerrarse. Se
       // decide antes de pintar para que el martillo no aparezca ni un instante.
       try {
         const token = sessionStorage.getItem("renttool.token");
@@ -21,7 +21,7 @@
         const role =
           payload &&
           JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/"))).role;
-        if (role === "ADMINISTRADOR" || location.hash === "#acceso")
+        if (role === "ADMINISTRADOR" || role === "PROVEEDOR" || location.hash === "#acceso")
           document.documentElement.classList.add("skip-splash");
       } catch {}
     </script>
@@ -67,8 +67,10 @@
     </div>
     <script src="splash.js"></script>
     <div class="admin-bar" id="admin-bar" hidden>
-      <span>Estás viendo el sitio público como administrador.</span>
-      <a class="admin-bar-link" href="/admin">← Volver al panel de administración</a>
+      <span id="role-bar-text">Estás viendo el sitio público como administrador.</span>
+      <a class="admin-bar-link" id="role-bar-link" href="/admin"
+        >← Volver al panel de administración</a
+      >
     </div>
     <header class="header">
       <a class="brand" href="#inicio" aria-label="RentTool inicio"
@@ -86,7 +88,7 @@
         ><a href="#catalogo">Catálogo</a
         ><a href="#como-funciona">Cómo funciona</a
         ><a href="#preguntas">Preguntas frecuentes</a
-        ><a href="#contacto">Contacto</a>
+        ><a href="#proveedores">Sé proveedor</a>
       </nav>
       <div class="header-actions" id="account-actions">
         <button class="text-button" data-auth="login">Iniciar sesión</button
@@ -208,8 +210,8 @@
             <span>02 /</span>
             <h3>Crea tu cuenta</h3>
             <p>
-              Regístrate como cliente. Los proveedores entran con la cuenta
-              que les asigna RentTool tras validar su NIT.
+              Regístrate como cliente. Si tienes equipo para alquilar,
+              solicita ser proveedor con los datos de tu empresa.
             </p>
           </article>
           <article>
@@ -228,9 +230,6 @@
             <p class="eyebrow"><span></span> TU ESPACIO DE TRABAJO</p>
             <h2 id="workspace-title">Mi cuenta</h2>
           </div>
-          <button class="button compact" id="new-tool" hidden>
-            + Publicar herramienta
-          </button>
         </div>
         <div class="profile-card">
           <span class="avatar"
@@ -252,10 +251,15 @@
           <h3 id="reservations-title">Mis reservas</h3>
           <div id="reservations"></div>
         </div>
-        <h3 id="inventory-title" class="workspace-subtitle" hidden>
-          Tu inventario
-        </h3>
-        <div id="inventory" class="inventory"></div>
+        <aside class="provider-cta" id="provider-cta" hidden>
+          <div>
+            <h3 id="provider-cta-title">¿Tienes herramientas para alquilar?</h3>
+            <p class="muted" id="provider-cta-text">
+              Solicita ser proveedor y publica tu inventario en RentTool.
+            </p>
+          </div>
+          <button class="outline-button" data-apply>¿Quieres ser proveedor? ↗</button>
+        </aside>
       </section>
       <section class="faq section" id="preguntas">
         <div>
@@ -266,9 +270,10 @@
           <details>
             <summary>¿Puedo publicar mis herramientas?<span>+</span></summary>
             <p>
-              Sí. Las cuentas de proveedor las crea el equipo de RentTool
-              después de verificar tu NIT y tus datos legales. Con ella
-              administras publicaciones, tarifas, imágenes y unidades.
+              Sí. Pulsa “¿Quieres ser proveedor?”, completa los datos de tu
+              empresa y el equipo de RentTool revisa tu solicitud. Al
+              aceptarla, entras a tu panel para administrar publicaciones,
+              tarifas, imágenes y unidades.
             </p>
           </details>
           <details>
@@ -299,21 +304,21 @@
           </details>
         </div>
       </section>
-      <section class="contact section" id="contacto">
-        <p class="eyebrow"><span></span> TU INVENTARIO PUEDE HACER MÁS</p>
+      <section class="contact section" id="proveedores">
+        <p class="eyebrow"><span></span> SÉ PROVEEDOR</p>
         <h2>
           Que tus herramientas<br /><em>también construyan oportunidades.</em>
         </h2>
         <p>
-          Únete como proveedor y dale un nuevo espacio a tu equipo. Validamos
-          tu NIT y te entregamos una cuenta para publicar.
+          Únete como proveedor y dale un nuevo espacio a tu equipo. Envía los
+          datos de tu empresa y el equipo de RentTool revisa tu solicitud.
         </p>
-        <button class="button" data-auth="login">
-          Ya soy proveedor <span>↗</span>
-        </button>
-        <p class="contact-note">
-          Contacto comercial: pendiente de configuración.
-        </p>
+        <div class="contact-actions">
+          <button class="button" data-apply>
+            ¿Quieres ser proveedor? <span>↗</span>
+          </button>
+          <button class="text-button" data-auth="login">Ya soy proveedor</button>
+        </div>
       </section>
     </main>
     <footer>
@@ -351,8 +356,8 @@
             maxlength="64" /></label
         >
         <p id="register-note" class="muted" hidden>
-          El registro crea una cuenta de cliente. Si eres proveedor, RentTool
-          te entrega tu acceso tras validar tu NIT.
+          El registro crea una cuenta de cliente. Para ser proveedor, después
+          envía tu solicitud desde “¿Quieres ser proveedor?”.
         </p>
         <p id="auth-error" class="form-error" role="alert"></p>
         <button class="button full" id="auth-submit">Iniciar sesión →</button>
@@ -365,85 +370,96 @@
       <button class="close" aria-label="Cerrar">×</button>
       <div id="detail-content"></div>
     </dialog>
-    <dialog id="tool-dialog">
+    <dialog id="apply-dialog">
       <button class="close" aria-label="Cerrar">×</button>
-      <p class="eyebrow">GESTIÓN DE INVENTARIO</p>
-      <h2 id="tool-title">Publica tu equipo.</h2>
-      <form id="tool-form">
-        <label>Nombre<input name="name" required maxlength="160" /></label
-        ><label
-          >Categoría<select
-            name="categoryId"
-            id="tool-category"
-            required
-          ></select></label
-        ><label
-          >Descripción<textarea
-            name="description"
-            required
-            maxlength="3000"
-            rows="3"
-          ></textarea></label
-        ><label
-          >Tarifa diaria · COP<input
-            name="dailyRate"
-            type="number"
-            min="0.01"
-            max="999999999999.99"
-            step="0.01"
-            required
-        /></label>
-        <p class="muted">
-          Guarda la publicación para administrar imágenes y unidades.
-        </p>
-        <p class="form-error" id="tool-error" role="alert"></p>
-        <button class="button full">Guardar herramienta →</button>
+      <p class="eyebrow">QUIERO SER PROVEEDOR</p>
+      <h2>Cuéntanos sobre tu empresa.</h2>
+      <p class="muted">
+        El equipo de RentTool revisa tus datos. Te avisaremos aquí la próxima
+        vez que entres.
+      </p>
+      <form id="apply-form" novalidate>
+        <fieldset>
+          <legend>Identificación</legend>
+          <label
+            >Tipo de persona<select name="personType" required>
+              <option value="JURIDICA">Jurídica (empresa)</option>
+              <option value="NATURAL">Natural</option>
+            </select></label
+          >
+          <div class="nit-fields">
+            <label
+              >NIT<input
+                name="nit"
+                required
+                inputmode="numeric"
+                maxlength="15"
+                placeholder="900123456" /></label
+            ><label
+              >DV<input
+                name="verificationDigit"
+                required
+                inputmode="numeric"
+                maxlength="1"
+            /></label>
+          </div>
+          <p class="muted nit-hint" aria-live="polite">
+            Escribe el NIT sin puntos ni dígito de verificación.
+          </p>
+          <label
+            >Razón social o nombre completo<input
+              name="legalName"
+              required
+              maxlength="200" /></label
+          ><label
+            >Nombre comercial · opcional<input
+              name="tradeName"
+              maxlength="160" /><small class="muted"
+              >Es el nombre con que te verán los clientes.</small
+            ></label
+          >
+          <div class="legal-rep">
+            <label
+              >Representante legal<input
+                name="legalRepresentative"
+                maxlength="160" /></label
+            ><label
+              >Documento del representante<input
+                name="representativeDocument"
+                maxlength="40"
+                placeholder="CC 79123456"
+            /></label>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>Contacto</legend>
+          <label
+            >Teléfono<input name="phone" type="tel" required maxlength="20" /></label
+          ><label
+            >Dirección<input name="address" required maxlength="200" /></label
+          ><label>Ciudad<input name="city" required maxlength="100" /></label>
+        </fieldset>
+        <label class="consent"
+          ><input type="checkbox" name="consent" required /><span
+            >Entiendo que, si se acepta, mi cuenta pasa a ser de proveedor y ya
+            no podré reservar como cliente. Mis reservas anteriores se
+            conservan.</span
+          ></label
+        >
+        <p class="form-error" id="apply-error" role="alert"></p>
+        <button class="button full" id="apply-submit">Enviar solicitud →</button>
       </form>
     </dialog>
-    <dialog id="manage-dialog">
+    <dialog id="notice-dialog">
       <button class="close" aria-label="Cerrar">×</button>
-      <p class="eyebrow">DETALLES DE INVENTARIO</p>
-      <h2 id="manage-title"></h2>
-      <h3>Unidades físicas</h3>
-      <div id="unit-list"></div>
-      <form id="unit-form" class="inline-form">
-        <input
-          name="code"
-          placeholder="Código único, ej. TAL-001"
-          required
-          maxlength="80"
-          aria-label="Código de unidad"
-        /><select name="status" aria-label="Estado">
-          <option>OPERATIVA</option>
-          <option>MANTENIMIENTO</option></select
-        ><button class="button compact">Añadir</button>
-      </form>
-      <h3>Imágenes</h3>
-      <div id="image-list"></div>
-      <form id="image-form" class="inline-form">
-        <input
-          name="location"
-          type="url"
-          placeholder="https://… (JPG, PNG o WebP)"
-          required
-          maxlength="1000"
-          aria-label="Dirección HTTPS de imagen"
-        /><button class="button compact">Añadir</button>
-      </form>
-      <form id="upload-form" class="inline-form">
-        <input
-          name="file"
-          type="file"
-          accept="image/png,image/jpeg"
-          required
-          aria-label="Subir imagen PNG o JPEG"
-        /><button class="button compact">Subir</button>
-      </form>
-      <p class="muted">
-        PNG o JPEG, máximo 5 MB y 16 megapíxeles. También puedes enlazar una
-        imagen HTTPS.
-      </p>
-      <p id="manage-error" class="form-error" role="alert"></p>
+      <p class="eyebrow" id="notice-eyebrow">SOLICITUD DE PROVEEDOR</p>
+      <h2 id="notice-title"></h2>
+      <p class="muted" id="notice-text"></p>
+      <p class="badge" id="notice-reason" hidden></p>
+      <div class="notice-actions">
+        <button class="button full" id="notice-primary"></button>
+        <button class="text-button" id="notice-secondary" hidden></button>
+      </div>
     </dialog>
     <div class="toast" id="toast" role="status" hidden></div>
     <script src="carousel.js" defer></script>

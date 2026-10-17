@@ -72,6 +72,14 @@ public record Account(
     return new Account(id, name, email, passwordHash, role, false, false, at);
   }
 
+  /** Un cliente aceptado como proveedor: cambia de rol y pasa a mostrarse con su nombre comercial. */
+  public Account becomeProvider(String tradeName) {
+    if (role != Role.CLIENTE || !active || isRemoved())
+      throw new ConflictException("Solo una cuenta de cliente activa puede pasar a proveedor");
+    return new Account(
+        id, tradeName, email, passwordHash, Role.PROVEEDOR, true, mustChangePassword, null);
+  }
+
   public boolean isRemoved() {
     return removedAt != null;
   }

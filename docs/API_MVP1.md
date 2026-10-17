@@ -20,11 +20,26 @@ Base `/api/v1`, JSON excepto subida de archivos. Autenticación: `Authorization:
 | DELETE | /tools/{id}/units/{unitId} | Retirar unidad |
 | POST | /tools/{id}/images | Añadir referencia HTTPS: location |
 | POST | /tools/{id}/images/upload | multipart/form-data, campo file, PNG/JPEG hasta 5 MB/16 MP |
+| POST | /tools/{id}/images/main | multipart/form-data, campo file: reemplaza la imagen principal (la primera del catálogo) y conserva las demás |
 | DELETE | /tools/{id}/images/{imageId} | Eliminar referencia |
 
 ## Administración de proveedores
 
 Solo `ADMINISTRADOR`; otro rol recibe 403.
+
+### Solicitudes para ser proveedor
+
+| Método | Ruta | Quién | Operación |
+|---|---|---|---|
+| POST | /me/provider-application | Cliente | Envía los datos legales (mismo `profile` del alta). 409 si ya tiene una en revisión o el NIT está en uso |
+| GET | /me/provider-application | Autenticado | Su solicitud más reciente (204 si no tiene). `needsNotice` indica que aún no vio la respuesta |
+| POST | /me/provider-application/acknowledge | Autenticado | Marca la respuesta como vista |
+| GET | /me/provider-profile | Proveedor | Sus datos legales, de solo lectura |
+| GET | /admin/provider-applications | Administrador | status (PENDIENTE por defecto), page, size; las más antiguas primero |
+| POST | /admin/provider-applications/{id}/accept | Administrador | La cuenta pasa a PROVEEDOR con su nombre comercial y sus datos legales |
+| POST | /admin/provider-applications/{id}/reject | Administrador | `{"reason": "..."}` obligatorio; el solicitante lo verá |
+
+Tras aceptarse, el token anterior del solicitante todavía dice CLIENTE: la API responde 401 con `code: "ROLE_CHANGED"` (salvo `GET /me` y `POST /auth/refresh`) y la interfaz renueva el token automáticamente. El nombre de un proveedor no se cambia con `PUT /me` (403): es su nombre comercial y lo actualiza el administrador.
 
 | Método | Ruta | Operación |
 |---|---|---|

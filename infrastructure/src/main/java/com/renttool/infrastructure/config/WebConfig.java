@@ -19,10 +19,11 @@ public class WebConfig implements WebMvcConfigurer {
         .addResourceLocations(Path.of(uploadDir).toAbsolutePath().toUri().toString() + "/");
   }
 
-  /** El panel de administración es una página aparte; su acceso lo valida la API, no la ruta. */
+  /** Los paneles de administrador y proveedor son páginas aparte; el acceso lo valida la API. */
   @Override
   public void addViewControllers(ViewControllerRegistry r) {
     r.addViewController("/admin").setViewName("forward:/admin.html");
+    r.addViewController("/proveedor").setViewName("forward:/proveedor.html");
   }
 
   @Override

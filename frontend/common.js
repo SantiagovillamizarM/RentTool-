@@ -19,6 +19,100 @@ const state = {
   passwordRequired: false,
 };
 const DEFAULT_LOGO = "assets/icons/casco.png";
+// Dígito de verificación DIAN: módulo 11 con pesos primos, igual que el backend.
+function nitDigit(nit) {
+  const weights = [3, 7, 13, 17, 19, 23, 29, 37, 41, 43, 47, 53, 59, 67, 71];
+  let sum = 0;
+  for (let i = 0; i < nit.length; i++)
+    sum += Number(nit[nit.length - 1 - i]) * weights[i];
+  const r = sum % 11;
+  return r > 1 ? 11 - r : r;
+}
+const personLabel = { JURIDICA: "Persona jurídica", NATURAL: "Persona natural" };
+/** NIT y representante legal: pista del dígito de verificación y campos según el tipo. */
+function updateLegalFields(form) {
+  const legalEntity = form.elements.personType.value === "JURIDICA";
+  form.querySelector(".legal-rep").hidden = !legalEntity;
+  form.elements.legalRepresentative.required =
+    form.elements.representativeDocument.required = legalEntity;
+  const nit = form.elements.nit.value.trim();
+  const hint = form.querySelector(".nit-hint");
+  if (!/^\d{5,15}$/.test(nit)) {
+    hint.textContent = "Escribe el NIT sin puntos ni dígito de verificación.";
+    hint.className = "muted nit-hint";
+    return;
+  }
+  const expected = nitDigit(nit);
+  const typed = form.elements.verificationDigit.value.trim();
+  if (typed === "") {
+    hint.textContent = `Según la DIAN, el dígito de verificación es ${expected}.`;
+    hint.className = "muted nit-hint";
+  } else if (Number(typed) !== expected) {
+    hint.textContent = `El dígito no coincide: para este NIT debería ser ${expected}.`;
+    hint.className = "muted nit-hint warn";
+  } else {
+    hint.textContent = `NIT ${nit}-${expected} válido.`;
+    hint.className = "muted nit-hint ok";
+  }
+}
+/** Las mismas reglas que el servidor para los datos legales, para señalar el campo antes de enviar. */
+function legalProblem(form) {
+  const v = (name) => form.elements[name].value.trim();
+  if (!/^\d{5,15}$/.test(v("nit")))
+    return ["nit", "El NIT debe tener entre 5 y 15 dígitos, sin puntos ni guion."];
+  if (!/^\d$/.test(v("verificationDigit")))
+    return ["verificationDigit", "Escribe el dígito de verificación."];
+  if (Number(v("verificationDigit")) !== nitDigit(v("nit")))
+    return ["verificationDigit", `No coincide con el NIT: debería ser ${nitDigit(v("nit"))}.`];
+  if (!v("legalName")) return ["legalName", "Escribe la razón social o el nombre completo."];
+  if (form.elements.personType.value === "JURIDICA") {
+    if (!v("legalRepresentative"))
+      return ["legalRepresentative", "Una persona jurídica requiere representante legal."];
+    if (!v("representativeDocument"))
+      return ["representativeDocument", "Escribe el documento del representante."];
+  }
+  if (!/^\+?[\d ]{7,20}$/.test(v("phone")))
+    return ["phone", "El teléfono solo admite dígitos, espacios y +, mínimo 7."];
+  if (!v("address")) return ["address", "Escribe la dirección."];
+  if (!v("city")) return ["city", "Escribe la ciudad."];
+  return null;
+}
+/** Datos legales del formulario listos para enviar. */
+function legalPayload(form) {
+  const f = (name) => form.elements[name].value.trim();
+  const legalEntity = f("personType") === "JURIDICA";
+  return {
+    personType: f("personType"),
+    nit: f("nit"),
+    verificationDigit: Number(f("verificationDigit")),
+    legalName: f("legalName"),
+    tradeName: f("tradeName") || null,
+    legalRepresentative: legalEntity ? f("legalRepresentative") : null,
+    representativeDocument: legalEntity ? f("representativeDocument") : null,
+    phone: f("phone"),
+    address: f("address"),
+    city: f("city"),
+  };
+}
+/** Rol con que se emitió el token de esta pestaña (solo para decidir la interfaz). */
+function tokenRole() {
+  try {
+    const payload = state.token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(atob(payload)).role;
+  } catch {
+    return null;
+  }
+}
+/** Un cliente aceptado como proveedor conserva un token viejo: se renueva con el rol nuevo. */
+async function renewSession() {
+  const session = await api("/auth/refresh", { method: "POST", renewing: true });
+  saveSession(session);
+  state.user = session.user;
+  return session;
+}
+async function syncSessionRole() {
+  if (state.user && tokenRole() !== state.user.role) await renewSession();
+}
 const SESSION_KEYS = ["renttool.token", "renttool.expires", "renttool.activity"];
 /** Guarda el token recibido al iniciar sesión o al renovarlo. */
 function saveSession(session) {
@@ -98,6 +192,26 @@ const money = (v) =>
     currency: "COP",
     maximumFractionDigits: 0,
   }).format(v);
+// Imagen de una herramienta: su imagen principal o, si no tiene, la ilustración predeterminada.
+const toolArt = (id = 0) =>
+  `<svg viewBox="0 0 300 200" aria-hidden="true"><defs><linearGradient id="metal${id}" x2="0.7" y2="1"><stop stop-color="#929296"/><stop offset=".4" stop-color="#3e3e43"/><stop offset="1" stop-color="#19191c"/></linearGradient><linearGradient id="gold${id}" x2="0" y2="1"><stop stop-color="#ffdf21"/><stop offset="1" stop-color="#b89a00"/></linearGradient></defs><ellipse cx="147" cy="175" rx="92" ry="9" fill="#000" opacity=".35"/><g transform="rotate(-12 150 100)"><path d="M70 70h103l20 20-5 41H80l-16-15z" fill="url(#gold${id})"/><path d="M82 125l23 3-9 47H64l6-16z" fill="#202024"/><path d="M67 166h39l5 17H60z" fill="url(#gold${id})"/><path d="M156 73h44v52h-44z" fill="url(#metal${id})"/><path d="M200 84h20v30h-20z" fill="#b3b3b7"/><path d="M219 94h49v10h-49z" fill="url(#metal${id})"/><path d="M107 83h36v7h-36z M107 98h36v7h-36z" fill="#2d2b1b"/><path d="M91 127h13v14H91z" fill="#9c9ca2"/><path d="M72 75h25v41H70z" fill="#e8c710"/><circle cx="170" cy="100" r="8" fill="#333339"/></g></svg>`;
+function imageMarkup(t) {
+  const url = t.images?.[0]?.location;
+  if (url && /^(https:\/\/|\/uploads\/|\/assets\/)/.test(url))
+    return `<img src="${esc(url)}" alt="${esc(t.name)}" loading="lazy" referrerpolicy="no-referrer">`;
+  return toolArt(t.id);
+}
+function wireImages(parent) {
+  parent.querySelectorAll("img").forEach((img) =>
+    img.addEventListener(
+      "error",
+      () => {
+        img.outerHTML = toolArt("fallback");
+      },
+      { once: true },
+    ),
+  );
+}
 /** Muestra un aviso; con {label, href} añade un enlace, por ejemplo "Ver cambios". */
 function notify(message, action) {
   const toast = $("#toast");
@@ -220,6 +334,11 @@ async function api(path, options = {}) {
     try {
       error = await response.json();
     } catch {}
+    // El rol cambió (cliente aceptado como proveedor): se renueva el token y se repite una vez.
+    if (error.code === "ROLE_CHANGED" && !options.renewing && !options.retried) {
+      await renewSession();
+      return api(path, { ...options, retried: true });
+    }
     if (response.status === 401 && state.token) {
       if (state.user?.role === "ADMINISTRADOR")
         endAdminSession("Tu sesión de administrador venció. Inicia sesión de nuevo.");
@@ -319,6 +438,8 @@ async function loadReservations() {
     box.innerHTML = data.content.length
       ? data.content.map(reservationRow).join("")
       : `<p class="muted">${empty}</p>`;
+    // Avisa a la página (por ejemplo, para actualizar contadores) cada vez que la lista cambia.
+    document.dispatchEvent(new CustomEvent("reservations:loaded", { detail: data }));
     const act = async (button, request, message) => {
       button.disabled = true;
       try {
@@ -510,26 +631,49 @@ $("#password-form").onsubmit = async (e) => {
     b.disabled = false;
   }
 };
-document
-  .querySelectorAll("dialog .close")
-  .forEach((b) => (b.onclick = () => b.closest("dialog").close()));
-document.querySelectorAll("dialog").forEach((d) =>
-  d.addEventListener("cancel", (e) => {
+/** Pestañas de un panel ([data-tab] y [data-panel]) sincronizadas con el #hash de la URL. */
+function setupTabs(defaultTab) {
+  const show = () => {
+    const tab = location.hash.slice(1) || defaultTab;
+    const known = [...document.querySelectorAll("[data-panel]")].some(
+      (p) => p.dataset.panel === tab,
+    );
+    const current = known ? tab : defaultTab;
+    document
+      .querySelectorAll("[data-panel]")
+      .forEach((p) => (p.hidden = p.dataset.panel !== current));
+    document.querySelectorAll("[data-tab]").forEach((a) => {
+      const active = a.dataset.tab === current;
+      a.classList.toggle("active", active);
+      if (active) a.setAttribute("aria-current", "page");
+      else a.removeAttribute("aria-current");
+    });
+  };
+  addEventListener("hashchange", show);
+  return show;
+}
+// Cierre de diálogos delegado en el documento: sirve también para los que se insertan después.
+document.addEventListener("click", (e) => {
+  const closeButton = e.target.closest?.("dialog .close");
+  if (closeButton) {
+    closeButton.closest("dialog").close();
+    return;
+  }
+  // Clic en el fondo: el evento llega al propio diálogo, fuera de su caja.
+  const d = e.target;
+  if (d instanceof HTMLDialogElement && d.open) {
+    const r = d.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom)
+      d.close();
+  }
+});
+// "cancel" (Escape) no burbujea: se escucha en captura para cerrarlo con la animación.
+document.addEventListener(
+  "cancel",
+  (e) => {
+    if (!(e.target instanceof HTMLDialogElement)) return;
     e.preventDefault();
-    d.close();
-  }),
-);
-document.querySelectorAll("dialog").forEach((d) =>
-  d.addEventListener("click", (e) => {
-    if (e.target === d) {
-      const r = d.getBoundingClientRect();
-      if (
-        e.clientX < r.left ||
-        e.clientX > r.right ||
-        e.clientY < r.top ||
-        e.clientY > r.bottom
-      )
-        d.close();
-    }
-  }),
+    e.target.close();
+  },
+  true,
 );

@@ -139,6 +139,63 @@ class ProviderAdministrationServiceTest {
     var profiles = new ProfileService(accounts, this.profiles);
     assertThrows(ForbiddenOperationException.class, () -> profiles.rename(admin, "Otro"));
     assertEquals("Nuevo", profiles.rename(client, "Nuevo").name());
+    var provider = service.register(admin, command).account().id();
+    assertThrows(
+        ForbiddenOperationException.class,
+        () -> profiles.rename(provider, "Otro nombre"),
+        "el nombre comercial lo gestiona el administrador");
+  }
+
+  @Test
+  void clientAppliesAndAdministratorAcceptsTurningTheAccountIntoAProvider() {
+    var applications = new InMemoryApplications();
+    var flow = new ProviderApplicationService(accounts, profiles, applications, clock);
+    var applied = flow.submit(client, profile("800197268", 4));
+    assertTrue(applied.isPending());
+    assertThrows(ConflictException.class, () -> flow.submit(client, profile("890903938", 8)));
+    assertEquals(1, flow.list(admin, ProviderApplication.Status.PENDIENTE, new PageQuery(0, 10)).totalElements());
+    assertThrows(
+        ForbiddenOperationException.class,
+        () -> flow.accept(client, applied.id()),
+        "solo el administrador revisa");
+
+    var accepted = flow.accept(admin, applied.id());
+    var account = accounts.findById(client).orElseThrow();
+    assertEquals(Role.PROVEEDOR, account.role());
+    assertEquals("ObraYa", account.name(), "se muestra con su nombre comercial");
+    assertEquals("800197268", profiles.findByAccountId(client).orElseThrow().nit().number());
+    assertEquals(ProviderApplication.Status.ACEPTADA, accepted.application().status());
+    assertThrows(ConflictException.class, () -> flow.accept(admin, applied.id()));
+
+    assertTrue(flow.current(client).orElseThrow().needsNotice());
+    flow.acknowledge(client);
+    assertFalse(flow.current(client).orElseThrow().needsNotice(), "el aviso se muestra una vez");
+  }
+
+  @Test
+  void rejectedApplicantSeesTheReasonAndMayApplyAgain() {
+    var applications = new InMemoryApplications();
+    var flow = new ProviderApplicationService(accounts, profiles, applications, clock);
+    var applied = flow.submit(client, profile("800197268", 4));
+    assertThrows(InvalidInputException.class, () -> flow.reject(admin, applied.id(), " "));
+    flow.reject(admin, applied.id(), "El RUT no coincide con la razón social");
+
+    var latest = flow.current(client).orElseThrow();
+    assertEquals(ProviderApplication.Status.RECHAZADA, latest.status());
+    assertEquals("El RUT no coincide con la razón social", latest.rejectionReason());
+    assertEquals(Role.CLIENTE, accounts.findById(client).orElseThrow().role());
+    assertTrue(flow.submit(client, profile("800197268", 4)).isPending(), "puede volver a intentar");
+  }
+
+  @Test
+  void applicationsCannotReuseAnExistingProviderNit() {
+    service.register(admin, command);
+    var flow = new ProviderApplicationService(accounts, profiles, new InMemoryApplications(), clock);
+    assertThrows(ConflictException.class, () -> flow.submit(client, profile("800197268", 4)));
+    assertThrows(
+        ForbiddenOperationException.class,
+        () -> flow.submit(admin, profile("890903938", 8)),
+        "solo los clientes solicitan");
   }
 
   @Test
@@ -257,6 +314,42 @@ class ProviderAdministrationServiceTest {
                   a.mustChangePassword(), a.removedAt());
       data.put(saved.id(), saved);
       return saved;
+    }
+  }
+
+  private static class InMemoryApplications implements ProviderApplicationRepository {
+    private final Map<Long, ProviderApplication> data = new LinkedHashMap<>();
+    private long sequence = 1;
+
+    public ProviderApplication save(ProviderApplication a) {
+      var saved =
+          a.id() != null
+              ? a
+              : new ProviderApplication(
+                  sequence++, a.accountId(), a.profile(), a.status(), a.submittedAt(),
+                  a.decidedBy(), a.decidedAt(), a.rejectionReason(), a.notifiedAt());
+      data.put(saved.id(), saved);
+      return saved;
+    }
+
+    public Optional<ProviderApplication> findByIdForUpdate(Long id) {
+      return Optional.ofNullable(data.get(id));
+    }
+
+    public Optional<ProviderApplication> findLatestByAccount(Long accountId) {
+      return data.values().stream().filter(a -> a.accountId().equals(accountId)).reduce((x, y) -> y);
+    }
+
+    public boolean existsPendingWithNit(String nit) {
+      return data.values().stream()
+          .anyMatch(a -> a.isPending() && a.profile().nit().number().equals(nit));
+    }
+
+    public PageResult<ProviderApplication> findByStatus(
+        ProviderApplication.Status status, PageQuery page) {
+      var found =
+          data.values().stream().filter(a -> status == null || a.status() == status).toList();
+      return new PageResult<>(found, found.size(), 1, page.page());
     }
   }
 

@@ -21,7 +21,9 @@ class ToolImagePersistenceAdapter implements ToolImageRepository {
 
   @Override
   public List<ToolImage> findByToolId(Long toolId) {
-    return jpa.findByToolId(toolId).stream().map(ToolImagePersistenceAdapter::toDomain).toList();
+    return jpa.findByToolIdOrderByPositionAscIdAsc(toolId).stream()
+        .map(ToolImagePersistenceAdapter::toDomain)
+        .toList();
   }
 
   @Override
@@ -30,6 +32,7 @@ class ToolImagePersistenceAdapter implements ToolImageRepository {
     e.id = image.id();
     e.toolId = image.toolId();
     e.location = image.location();
+    e.position = image.position();
     return toDomain(jpa.save(e));
   }
 
@@ -39,6 +42,6 @@ class ToolImagePersistenceAdapter implements ToolImageRepository {
   }
 
   private static ToolImage toDomain(ToolImageEntity e) {
-    return new ToolImage(e.id, e.toolId, e.location);
+    return new ToolImage(e.id, e.toolId, e.location, e.position);
   }
 }

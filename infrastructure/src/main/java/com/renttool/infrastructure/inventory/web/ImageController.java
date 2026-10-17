@@ -60,6 +60,23 @@ public class ImageController {
     return ImageResponse.from(images.upload(ActorResolver.from(jwt), toolId, file.getBytes()));
   }
 
+  @PostMapping(value = "/main", consumes = "multipart/form-data")
+  @Operation(
+      summary = "Cambiar la imagen principal",
+      description =
+          "Sube un PNG o JPEG de hasta 5 MB en el campo `file` y lo pone como imagen principal"
+              + " del catálogo en lugar de la actual. Las demás imágenes se conservan.")
+  @ApiResponse(responseCode = "200", description = "Imagen principal reemplazada")
+  @ApiResponse(responseCode = "400", description = "No es una imagen válida o supera 5 MB")
+  public ImageResponse replaceMain(
+      @PathVariable Long toolId,
+      @RequestParam("file") MultipartFile file,
+      @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt)
+      throws IOException {
+    return ImageResponse.from(
+        images.replaceMain(ActorResolver.from(jwt), toolId, file.getBytes()));
+  }
+
   @DeleteMapping("/{imageId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @Operation(summary = "Quitar una imagen")

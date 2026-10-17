@@ -117,6 +117,9 @@ class ApiIntegrationTest {
         .andExpect(jsonPath("$.length()").value(4));
     mvc.perform(get("/")).andExpect(status().isOk());
     mvc.perform(get("/admin")).andExpect(status().isOk()).andExpect(forwardedUrl("/admin.html"));
+    mvc.perform(get("/proveedor"))
+        .andExpect(status().isOk())
+        .andExpect(forwardedUrl("/proveedor.html"));
   }
 
   @Test

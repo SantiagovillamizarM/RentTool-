@@ -32,10 +32,22 @@ public class ProfileService implements GetProfileUseCase, UpdateProfileUseCase {
   }
 
   @Override
+  public Optional<ProviderProfile> providerProfileOf(Long accountId) {
+    return profiles.findByAccountId(accountId);
+  }
+
+  /**
+   * Solo los clientes cambian su nombre. El del administrador es fijo y el del proveedor es su
+   * nombre comercial, que gestiona el administrador junto con sus datos legales.
+   */
+  @Override
   public Account rename(Long accountId, String name) {
     var account = getActive(accountId);
     if (account.isAdministrator())
       throw new ForbiddenOperationException("El nombre del administrador no se puede cambiar");
+    if (account.isProvider())
+      throw new ForbiddenOperationException(
+          "Tu nombre comercial lo actualiza el administrador junto con tus datos legales");
     return accounts.save(account.rename(name));
   }
 }

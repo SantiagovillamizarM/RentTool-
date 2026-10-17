@@ -36,7 +36,7 @@ public class ProviderAdministrationService implements ManageProvidersUseCase {
   public ProviderDetails register(Long adminId, RegisterCommand command) {
     ensureAdministrator(adminId);
     PasswordPolicy.check(command.temporaryPassword());
-    var profile = toProfile(null, command.profile());
+    var profile = ProviderProfiles.from(null, command.profile());
     String email = Account.normalizeEmail(command.email());
     var existing = accounts.findByEmail(email);
     if (existing.isPresent())
@@ -75,7 +75,7 @@ public class ProviderAdministrationService implements ManageProvidersUseCase {
   public ProviderDetails update(Long adminId, Long providerId, ProfileCommand command) {
     ensureAdministrator(adminId);
     var current = load(providerId);
-    var profile = toProfile(providerId, command);
+    var profile = ProviderProfiles.from(providerId, command);
     if (current.profile() != null) profile = profile.withLogo(current.profile().logoLocation());
     ensureNitIsFree(profile.nit(), providerId);
     var account = accounts.save(current.account().rename(profile.displayName()));
@@ -162,21 +162,5 @@ public class ProviderAdministrationService implements ManageProvidersUseCase {
                       ? "El NIT " + nit + " pertenece a un proveedor eliminado"
                       : "Ya existe un proveedor con el NIT " + nit);
             });
-  }
-
-  private static ProviderProfile toProfile(Long accountId, ProfileCommand c) {
-    if (c == null) throw new InvalidInputException("Los datos del proveedor son obligatorios");
-    return new ProviderProfile(
-        accountId,
-        c.personType(),
-        new Nit(c.nit(), c.verificationDigit()),
-        c.legalName(),
-        c.tradeName(),
-        c.legalRepresentative(),
-        c.representativeDocument(),
-        c.phone(),
-        c.address(),
-        c.city(),
-        null);
   }
 }

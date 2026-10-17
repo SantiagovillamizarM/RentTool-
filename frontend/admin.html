@@ -17,7 +17,8 @@
         ><span class="admin-badge">Admin</span></a
       >
       <nav class="admin-tabs" aria-label="Secciones del panel">
-        <a href="#proveedores" data-tab="proveedores">Proveedores</a
+        <a href="#proveedores" data-tab="proveedores"
+          >Proveedores<span class="tab-badge" id="tab-applications" hidden></span></a
         ><a href="#catalogo" data-tab="catalogo">Catálogo</a
         ><a href="#reservas" data-tab="reservas">Reservas</a>
       </nav>
@@ -72,6 +73,18 @@
             + Registrar proveedor
           </button>
         </div>
+        <div id="applications-box" class="applications-box" hidden>
+          <h3 class="workspace-subtitle">
+            Solicitudes por revisar
+            <span class="status-chip status-solicitada" id="applications-count"></span>
+          </h3>
+          <p class="muted">
+            Personas que pidieron ser proveedoras desde el sitio. Al aceptar, su
+            cuenta pasa a ser de proveedor y entra con su nombre comercial.
+          </p>
+          <div id="applications"></div>
+        </div>
+        <h3 class="workspace-subtitle providers-subtitle">Proveedores registrados</h3>
         <div id="providers"></div>
       </section>
       <section class="admin-panel" id="tab-catalogo" data-panel="catalogo" hidden>
@@ -229,6 +242,30 @@
         </button>
       </form>
     </dialog>
+    <dialog id="reject-dialog">
+      <button class="close" aria-label="Cerrar">×</button>
+      <p class="eyebrow">SOLICITUD DE PROVEEDOR</p>
+      <h2 id="reject-title">Rechazar solicitud.</h2>
+      <p class="muted">
+        El solicitante verá este motivo la próxima vez que entre a RentTool y
+        podrá enviar una nueva solicitud.
+      </p>
+      <form id="reject-form" novalidate>
+        <label
+          >Motivo del rechazo<textarea
+            name="reason"
+            required
+            maxlength="500"
+            rows="3"
+            placeholder="Ej.: el NIT no coincide con la razón social del RUT"
+          ></textarea></label
+        >
+        <p class="form-error" id="reject-error" role="alert"></p>
+        <button class="button full danger-button" id="reject-submit">
+          Rechazar solicitud
+        </button>
+      </form>
+    </dialog>
     <dialog id="remove-dialog" class="danger-dialog">
       <button class="close" aria-label="Cerrar">×</button>
       <p class="eyebrow danger-eyebrow">ELIMINAR PROVEEDOR</p>
@@ -312,6 +349,7 @@
     </dialog>
     <div class="toast" id="toast" role="status" hidden></div>
     <script src="common.js" defer></script>
+    <script src="tool-editor.js" defer></script>
     <script src="admin.js" defer></script>
   </body>
 </html>

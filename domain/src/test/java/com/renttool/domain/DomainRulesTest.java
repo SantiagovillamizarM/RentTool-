@@ -42,4 +42,14 @@ class DomainRulesTest {
         InvalidInputException.class, () -> ToolImage.attach(1L, "javascript:alert(1)"));
     assertDoesNotThrow(() -> ToolImage.attach(1L, "https://example.com/a.png"));
   }
+
+  @Test
+  void newMainImageGoesFirstAndNewExtraImagesGoLast() {
+    var existing =
+        java.util.List.of(
+            new ToolImage(1L, 7L, "/uploads/a.png", 0), new ToolImage(2L, 7L, "/uploads/b.png", 3));
+    assertEquals(-1, ToolImage.asMain(7L, "/uploads/c.png", existing).position());
+    assertEquals(4, ToolImage.append(7L, "/uploads/d.png", existing).position());
+    assertEquals(0, ToolImage.asMain(7L, "/uploads/e.png", java.util.List.of()).position());
+  }
 }

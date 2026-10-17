@@ -1,11 +1,12 @@
 # Modelo implementado — identidad, inventario y reservas
 
-Migraciones: `V1__identity_inventory.sql`, `V2__reservations.sql` y `V3__provider_profiles.sql`, `V4__provider_logo.sql`, `V5__reservation_events.sql` y `V6__provider_removal.sql` en `infrastructure/src/main/resources/db/migration/`.
+Migraciones: `V1__identity_inventory.sql`, `V2__reservations.sql` y `V3__provider_profiles.sql`, `V4__provider_logo.sql`, `V5__reservation_events.sql`, `V6__provider_removal.sql`, `V7__tool_image_order.sql` y `V8__provider_applications.sql` en `infrastructure/src/main/resources/db/migration/`.
 
 ```mermaid
 erDiagram
  USERS ||--o{ TOOLS : publica
  USERS ||--o| PROVIDER_PROFILES : identifica
+ USERS ||--o{ PROVIDER_APPLICATIONS : solicita
  CATEGORIES ||--o{ TOOLS : clasifica
  TOOLS ||--o{ UNITS : contiene
  TOOLS ||--o{ TOOL_IMAGES : muestra
@@ -89,6 +90,10 @@ Tarifa DECIMAL(14,2) positiva; estado de unidades restringido por CHECK; FKs pre
 Perfiles de proveedor: relación 1:1 con `users` por `account_id`, separada para no dejar columnas nulas en clientes y administradores. Claves candidatas: account_id y nit. El dígito de verificación depende funcionalmente del NIT; se guarda porque es el dato que se presenta y se comprueba al escribir, y un CHECK lo limita a 0–9. La representación legal es obligatoria solo para persona jurídica, regla que valida el dominio. `must_change_password` marca la contraseña temporal asignada por el administrador.
 
 Reservas: cada fila depende solo de su id. `daily_rate` y `total` se guardan a propósito como valores históricos pactados al solicitar, no como copia derivable de la tarifa actual. El proveedor no se duplica en la reserva: se obtiene a través de la herramienta. Las unidades asignadas son un hecho multivaluado independiente y viven en `reservation_units` con clave compuesta (reserva, unidad), en lugar de una lista dentro de una columna, para cumplir 4FN. CHECK restringen estados, cantidad (1–20), importes positivos y `end_date > start_date`. Índices cubren la búsqueda de solapamientos (herramienta, estado, fechas), las reservas por cliente, el vencimiento (estado, plazo) y las asignaciones por unidad.
+
+Solicitudes de proveedor: `provider_applications` guarda cada solicitud con su copia de los datos legales, su estado (PENDIENTE, ACEPTADA o RECHAZADA), quién la resolvió y cuándo, el motivo de rechazo y cuándo vio la respuesta el solicitante. Se conservan todas, también las rechazadas; un CHECK exige fecha de resolución salvo en las pendientes. Al aceptar, los datos se copian a `provider_profiles` y la cuenta cambia de rol en la misma transacción.
+
+Imágenes: `tool_images.position` ordena las imágenes de cada herramienta; la de menor posición es la principal del catálogo. Una imagen nueva va al final y "cambiar imagen" inserta la nueva delante y quita la anterior principal. Sin imágenes, la interfaz muestra una ilustración predeterminada.
 
 Eliminación de proveedores: `users.removed_at` marca la baja definitiva en lugar de borrar la fila, porque herramientas, reservas, eventos e informes la referencian y deben seguir diciendo quién fue. Una cuenta con `removed_at` está siempre inactiva y no aparece en el listado de proveedores.
 

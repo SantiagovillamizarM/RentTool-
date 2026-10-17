@@ -4,5 +4,5 @@ import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 interface ToolImageJpaRepository extends JpaRepository<ToolImageEntity, Long> {
-  List<ToolImageEntity> findByToolId(Long toolId);
+  List<ToolImageEntity> findByToolIdOrderByPositionAscIdAsc(Long toolId);
 }

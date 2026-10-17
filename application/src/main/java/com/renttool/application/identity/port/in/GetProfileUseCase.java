@@ -1,6 +1,7 @@
 package com.renttool.application.identity.port.in;
 
 import com.renttool.domain.identity.Account;
+import com.renttool.domain.identity.ProviderProfile;
 import java.util.Optional;
 
 public interface GetProfileUseCase {
@@ -9,4 +10,7 @@ public interface GetProfileUseCase {
 
   /** Ubicación del logo si la cuenta es un proveedor que lo tiene. */
   Optional<String> logoOf(Long accountId);
+
+  /** Datos legales del proveedor, de solo lectura para él. */
+  Optional<ProviderProfile> providerProfileOf(Long accountId);
 }

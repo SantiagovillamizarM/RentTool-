@@ -28,6 +28,17 @@ public class IdentityConfig {
   }
 
   @Bean
+  TransactionalProviderApplications providerApplicationUseCases(
+      AccountRepository accounts,
+      ProviderProfileRepository profiles,
+      ProviderApplicationRepository applications,
+      Clock clock,
+      PlatformTransactionManager transactions) {
+    return new TransactionalProviderApplications(
+        new ProviderApplicationService(accounts, profiles, applications, clock), transactions);
+  }
+
+  @Bean
   TransactionalProviders providerUseCases(
       AccountRepository accounts,
       ProviderProfileRepository profiles,

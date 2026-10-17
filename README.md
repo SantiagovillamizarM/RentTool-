@@ -9,6 +9,9 @@ Plataforma de alquiler de herramientas y equipos de construcción. Este incremen
 - Registro público de clientes, login JWT, edición del nombre y cambio de contraseña.
 - **Alta de proveedores por el administrador**: correo, contraseña temporal, tipo de persona, NIT con dígito de verificación DIAN, razón social, nombre comercial, representante legal, teléfono, dirección y ciudad. El proveedor debe cambiar la contraseña temporal antes de usar la API; el administrador puede editar sus datos, desactivarlo (pierde el acceso al instante) o asignarle una nueva clave temporal.
 - Restricciones por rol y propietario; el registro público solo crea clientes.
+- **"¿Quieres ser proveedor?"**: un cliente envía los datos de su empresa desde el sitio; el administrador acepta o rechaza con motivo. La próxima vez que entra ve la respuesta una sola vez: el motivo del rechazo (con opción de reenviar) o la bienvenida con su nombre comercial y el acceso a su panel.
+- **Panel del proveedor** en `/proveedor`, aparte del sitio: inventario (publicar, editar con imagen principal, unidades e imágenes, retirar), solicitudes de reserva y sus datos legales de solo lectura.
+- **Editar herramientas desde el panel del administrador**: nombre, categoría, descripción, tarifa e imagen principal (cambiarla o quitarla). Sin imagen se muestra una ilustración predeterminada. Las reservas ya solicitadas conservan la tarifa pactada.
 - **Eliminar proveedor** desde el panel, con aviso previo de lo que pasará y confirmación escribiendo su nombre: cierra su cuenta para siempre, retira todas sus herramientas del catálogo y cancela sus reservas que aún no empiezan (los alquileres en curso siguen). Sus datos se conservan para el historial.
 - **Historial y auditoría de reservas**: cada solicitud, aceptación, rechazo, cancelación y vencimiento queda registrado con quién lo hizo y cuándo, visible en "Historial" de cada reserva.
 - **Informes descargables (CSV para Excel)** desde el panel del administrador: reservas por rango de fechas y estado, con cliente y correo, proveedor y NIT, importes y último cambio; o el historial completo de eventos. Cada descarga queda registrada.
@@ -32,7 +35,7 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Abre **http://localhost:8088**. El frontend y la API se sirven desde el mismo origen. Al iniciar sesión como administrador se abre el panel **http://localhost:8088/admin**, separado del sitio público: proveedores, moderación del catálogo y todas las reservas. Desde ahí, "Ver sitio público" (o "Ver cambios" tras retirar una herramienta) lleva al sitio con una barra superior para volver al panel.
+Abre **http://localhost:8088**. El frontend y la API se sirven desde el mismo origen. Los proveedores trabajan en **http://localhost:8088/proveedor**. Al iniciar sesión como administrador se abre el panel **http://localhost:8088/admin**, separado del sitio público: proveedores, moderación del catálogo y todas las reservas. Desde ahí, "Ver sitio público" (o "Ver cambios" tras retirar una herramienta) lleva al sitio con una barra superior para volver al panel.
 
 La documentación interactiva de la API (Swagger) está en **http://localhost:8088/swagger-ui.html**. Para probar los endpoints protegidos, obtén un token con `/auth/login`, pulsa **Authorize** y pégalo. MySQL y las imágenes persisten en volúmenes. No abras `index.html` con `file://`: necesita la API.
 
