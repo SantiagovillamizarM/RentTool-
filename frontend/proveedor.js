@@ -61,12 +61,11 @@ async function loadInventory() {
     box.querySelectorAll("[data-retire]").forEach(
       (b) =>
         (b.onclick = async () => {
-          if (
-            !confirm(
-              `¿Retirar "${b.dataset.name}" del catálogo? Dejará de verse en el sitio; su registro se conserva.`,
-            )
-          )
-            return;
+          if (!(await confirmAction({
+            title: `¿Retirar «${b.dataset.name}»?`,
+            message: "Dejará de aparecer en el catálogo y no admitirá nuevas solicitudes. Su registro y las reservas existentes se conservan.",
+            confirmLabel: "Retirar herramienta", danger: true,
+          }))) return;
           b.disabled = true;
           try {
             await api("/tools/" + b.dataset.retire, { method: "DELETE" });
@@ -104,7 +103,7 @@ async function manageTool(id) {
       ? units
           .map(
             (u) =>
-              `<div class="manage-row"><span>${esc(u.code)}</span><select aria-label="Estado de ${esc(u.code)}" data-unit="${u.id}" data-code="${esc(u.code)}">${["OPERATIVA", "MANTENIMIENTO", "RETIRADA"].map((s) => `<option ${s === u.status ? "selected" : ""}>${s}</option>`).join("")}</select></div>`,
+              `<div class="manage-row"><span>${esc(u.code)}</span><select aria-label="Estado de ${esc(u.code)}" data-unit="${u.id}" data-code="${esc(u.code)}" data-status="${u.status}">${["OPERATIVA", "MANTENIMIENTO", "RETIRADA"].map((s) => `<option ${s === u.status ? "selected" : ""}>${s}</option>`).join("")}</select></div>`,
           )
           .join("")
       : '<p class="muted">Sin unidades registradas. Agrega al menos una operativa.</p>';
@@ -113,16 +112,27 @@ async function manageTool(id) {
       .forEach(
         (s) =>
           (s.onchange = async () => {
+            const next = s.value;
+            const previous = s.dataset.status;
+            if (next !== "OPERATIVA" && !(await confirmAction({
+              title: `¿Cambiar el estado de ${s.dataset.code}?`,
+              message: `Pasará a ${next === "RETIRADA" ? "retirada" : "mantenimiento"} y dejará de contarse como operativa para nuevas asignaciones. Las reservas existentes no se cancelan automáticamente.`,
+              confirmLabel: "Cambiar estado", danger: next === "RETIRADA",
+            }))) { s.value = previous; return; }
+            s.disabled = true;
             try {
               await api(`/tools/${id}/units/${s.dataset.unit}`, {
                 method: "PUT",
-                body: JSON.stringify({ code: s.dataset.code, status: s.value }),
+                body: JSON.stringify({ code: s.dataset.code, status: next }),
               });
+              s.dataset.status = next;
               notify("Unidad actualizada.");
               loadInventory();
             } catch (e) {
               await manageTool(id);
               $("#manage-error").textContent = e.message;
+            } finally {
+              s.disabled = false;
             }
           }),
       );
@@ -139,12 +149,19 @@ async function manageTool(id) {
       .forEach(
         (b) =>
           (b.onclick = async () => {
+            if (!(await confirmAction({
+              title: `¿Eliminar esta imagen de «${t.name}»?`,
+              message: "La imagen dejará de mostrarse en la publicación. Si era la principal, se mostrará la siguiente imagen o la ilustración predeterminada.",
+              confirmLabel: "Eliminar imagen", danger: true,
+            }))) return;
+            b.disabled = true;
             try {
               await api(`/tools/${id}/images/${b.dataset.removeImage}`, { method: "DELETE" });
               await manageTool(id);
               loadInventory();
             } catch (e) {
               $("#manage-error").textContent = e.message;
+              b.disabled = false;
             }
           }),
       );

@@ -49,13 +49,13 @@ async function loadProviders() {
       (b) =>
         (b.onclick = async () => {
           const activate = b.dataset.active !== "true";
-          if (
-            !activate &&
-            !confirm(
-              "¿Desactivar este proveedor? No podrá entrar y su sesión actual se cerrará.",
-            )
-          )
-            return;
+          if (!(await confirmAction({
+            title: `¿${activate ? "Activar" : "Desactivar"} a ${state.providers[b.dataset.toggleProvider].name}?`,
+            message: activate
+              ? "El proveedor podrá volver a iniciar sesión y gestionar su inventario."
+              : "El proveedor no podrá iniciar sesión y sus peticiones autenticadas serán rechazadas. Esta acción no elimina su cuenta ni cancela sus reservas.",
+            confirmLabel: activate ? "Activar proveedor" : "Desactivar proveedor", danger: !activate,
+          }))) return;
           b.disabled = true;
           try {
             await api(`/admin/providers/${b.dataset.toggleProvider}/status`, {
@@ -80,6 +80,12 @@ async function loadProviders() {
             "",
           );
           if (password === null) return;
+          if (!(await confirmAction({
+            title: "¿Asignar una nueva contraseña temporal?",
+            message: `Se reemplazará la contraseña de ${state.providers[b.dataset.resetProvider].name}. Deberá utilizar la nueva contraseña y cambiarla al entrar.`,
+            confirmLabel: "Asignar contraseña",
+          }))) return;
+          b.disabled = true;
           try {
             await api(`/admin/providers/${b.dataset.resetProvider}/password`, {
               method: "PUT",
@@ -89,6 +95,8 @@ async function loadProviders() {
             loadProviders();
           } catch (e) {
             notify(e.message);
+          } finally {
+            b.disabled = false;
           }
         }),
     );
@@ -278,12 +286,11 @@ async function loadApplications() {
       .forEach(
         (b) =>
           (b.onclick = async () => {
-            if (
-              !confirm(
-                `¿Aceptar a ${b.dataset.name} como proveedor? Su cuenta pasará a ser de proveedor y podrá publicar herramientas.`,
-              )
-            )
-              return;
+            if (!(await confirmAction({
+              title: `¿Aceptar a ${b.dataset.name} como proveedor?`,
+              message: "Su cuenta pasará a ser de proveedor y podrá publicar herramientas. Verá el resultado al entrar en RentTool.",
+              confirmLabel: "Aceptar proveedor",
+            }))) return;
             b.disabled = true;
             try {
               await api(`/admin/provider-applications/${b.dataset.acceptApplication}/accept`, {
@@ -385,12 +392,11 @@ async function loadCatalog() {
     box.querySelectorAll("[data-retire]").forEach(
       (b) =>
         (b.onclick = async () => {
-          if (
-            !confirm(
-              `¿Retirar "${b.dataset.name}" del catálogo? Dejará de verse en el sitio público; su registro se conserva.`,
-            )
-          )
-            return;
+          if (!(await confirmAction({
+            title: `¿Retirar «${b.dataset.name}»?`,
+            message: "Dejará de aparecer en el catálogo y no admitirá nuevas solicitudes. Su registro y las reservas existentes se conservan.",
+            confirmLabel: "Retirar herramienta", danger: true,
+          }))) return;
           b.disabled = true;
           try {
             await api("/tools/" + b.dataset.retire, { method: "DELETE" });

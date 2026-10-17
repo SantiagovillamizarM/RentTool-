@@ -255,6 +255,48 @@ HTMLDialogElement.prototype.showModal = function () {
   }
   nativeShowModal.call(this);
 };
+// Una sola confirmación a la vez. Cerrar o pulsar Escape nunca ejecuta la acción.
+let confirmationOpen = false;
+function confirmAction({ title, message, confirmLabel, danger = false, reason = false }) {
+  if (confirmationOpen) return Promise.resolve(null);
+  confirmationOpen = true;
+  const previousFocus = document.activeElement;
+  const dialog = document.createElement("dialog");
+  dialog.className = "action-confirmation";
+  dialog.setAttribute("aria-labelledby", "confirmation-title");
+  dialog.setAttribute("aria-describedby", "confirmation-message");
+  dialog.innerHTML = `<h2 id="confirmation-title">${esc(title)}</h2>
+    <p id="confirmation-message" class="muted"></p>
+    <form>
+      ${reason ? '<label>Motivo del rechazo (opcional)<textarea name="reason" maxlength="500" rows="3"></textarea></label>' : ""}
+      <div class="confirmation-actions">
+        <button type="button" class="outline-button" data-cancel autofocus>Volver sin cambios</button>
+        <button type="submit" class="button ${danger ? "danger-button" : ""}">${esc(confirmLabel)}</button>
+      </div>
+    </form>`;
+  dialog.querySelector("#confirmation-message").textContent = message;
+  document.body.append(dialog);
+  return new Promise((resolve) => {
+    let result = null;
+    let submitted = false;
+    dialog.querySelector("[data-cancel]").onclick = () => dialog.close();
+    dialog.querySelector("form").onsubmit = (event) => {
+      event.preventDefault();
+      if (submitted || dialog.classList.contains("closing")) return;
+      submitted = true;
+      result = { reason: reason ? event.target.elements.reason.value.trim() || null : null };
+      dialog.querySelector('button[type="submit"]').disabled = true;
+      dialog.close();
+    };
+    dialog.addEventListener("close", () => {
+      dialog.remove();
+      confirmationOpen = false;
+      if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
+      resolve(result);
+    }, { once: true });
+    dialog.showModal();
+  });
+}
 // Marca un campo con error: desplaza solo su contenedor desplazable hasta él y lo ilumina.
 function fieldError(form, name, message) {
   const input = form.elements[name];
@@ -506,7 +548,13 @@ async function loadReservations() {
       .forEach((b) => (b.onclick = () => openHistory(b.dataset.history)));
     box.querySelectorAll("[data-accept]").forEach(
       (b) =>
-        (b.onclick = () =>
+        (b.onclick = async () => {
+          const r = data.content.find((r) => String(r.id) === b.dataset.accept);
+          if (!(await confirmAction({
+            title: `¿Aceptar la reserva #${r.id}?`,
+            message: `${r.toolName} · ${r.quantity} unidades · ${shortDate(r.start)} → ${shortDate(r.end)}.\nSe asignarán unidades concretas y quedarán ocupadas durante esas fechas. Total: ${money(r.total)}.`,
+            confirmLabel: "Aceptar reserva",
+          }))) return;
           act(
             b,
             () =>
@@ -514,19 +562,25 @@ async function loadReservations() {
                 method: "POST",
               }),
             "Reserva aceptada. Las unidades quedaron asignadas.",
-          )),
+          );
+        }),
     );
     box.querySelectorAll("[data-reject]").forEach(
       (b) =>
-        (b.onclick = () => {
-          const reason = prompt("Motivo del rechazo (opcional):", "");
-          if (reason === null) return;
+        (b.onclick = async () => {
+          const r = data.content.find((r) => String(r.id) === b.dataset.reject);
+          const confirmation = await confirmAction({
+            title: `¿Rechazar la reserva #${r.id}?`,
+            message: `${r.toolName} · ${shortDate(r.start)} → ${shortDate(r.end)}.\nLa solicitud quedará rechazada. El cliente podrá consultar el motivo. Esta solicitud todavía no ocupa unidades.`,
+            confirmLabel: "Rechazar solicitud", danger: true, reason: true,
+          });
+          if (!confirmation) return;
           act(
             b,
             () =>
               api(`/reservations/${b.dataset.reject}/reject`, {
                 method: "POST",
-                body: JSON.stringify({ reason: reason.trim() || null }),
+                body: JSON.stringify({ reason: confirmation.reason }),
               }),
             "Solicitud rechazada.",
           );
@@ -534,9 +588,13 @@ async function loadReservations() {
     );
     box.querySelectorAll("[data-cancel]").forEach(
       (b) =>
-        (b.onclick = () => {
-          if (!confirm("¿Cancelar esta reserva? Las unidades quedarán libres."))
-            return;
+        (b.onclick = async () => {
+          const r = data.content.find((r) => String(r.id) === b.dataset.cancel);
+          if (!(await confirmAction({
+            title: `¿Cancelar la reserva #${r.id}?`,
+            message: `${r.toolName} · ${r.quantity} unidades · ${shortDate(r.start)} → ${shortDate(r.end)}.\n${r.status === "ACEPTADA" ? "Las unidades asignadas quedarán libres para otras reservas." : "La solicitud dejará de estar pendiente; todavía no tiene unidades asignadas."} Para reservar de nuevo tendrás que enviar otra solicitud.`,
+            confirmLabel: "Cancelar reserva", danger: true,
+          }))) return;
           act(
             b,
             () =>

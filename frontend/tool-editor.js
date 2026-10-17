@@ -133,6 +133,11 @@ $("#tool-edit-form").onsubmit = async (e) => {
     return;
   }
   const button = $("#tool-edit-submit");
+  if (toolEditor.imageAction === "remove" && !(await confirmAction({
+    title: "¿Guardar y quitar la imagen principal?",
+    message: "Se guardarán los datos de la herramienta y se quitará su imagen principal. El catálogo mostrará la siguiente imagen o la ilustración predeterminada.",
+    confirmLabel: "Guardar y quitar imagen", danger: true,
+  }))) return;
   button.disabled = true;
   const created = !toolEditor.id;
   try {

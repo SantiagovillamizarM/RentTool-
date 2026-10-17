@@ -930,6 +930,19 @@ textarea {
   align-items: center;
   gap: 8px;
 }
+.action-confirmation {
+  max-width: 540px;
+}
+.action-confirmation #confirmation-message {
+  white-space: pre-line;
+  margin: 18px 0 24px;
+}
+.confirmation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px;
+}
 .inline-form .field-wrapper {
   flex: 1;
   min-width: 0;
