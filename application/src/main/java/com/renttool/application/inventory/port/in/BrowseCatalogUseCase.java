@@ -16,5 +16,7 @@ public interface BrowseCatalogUseCase {
   boolean isInventoryEmpty();
 
   /** onlyMine limita la búsqueda a las publicaciones del actor, que debe ser proveedor. */
-  record Query(String text, Long categoryId, boolean onlyMine, Actor actor, PageQuery page) {}
+  record Query(
+      String text, Long categoryId, boolean onlyMine, Actor actor, PageQuery page,
+      CatalogOrder order) {}
 }

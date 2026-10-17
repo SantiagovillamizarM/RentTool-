@@ -10,7 +10,7 @@ Base `/api/v1`, JSON excepto subida de archivos. Autenticación: `Authorization:
 | GET/PUT | /me | Perfil propio (incluye `mustChangePassword` y, para proveedores, `logoUrl`); PUT modifica name, salvo el del administrador, que es fijo (403) |
 | PUT | /me/password | currentPassword, newPassword (10–64); reemplaza la contraseña y libera la temporal |
 | GET | /categories | Categorías públicas |
-| GET | /tools | q, categoryId, page (desde 0), size (1–100), mine |
+| GET | /tools | q, categoryId, page (desde 0), size (1–100), mine, sort (`RECENT` por defecto, `PRICE_ASC`, `PRICE_DESC`) |
 | GET | /tools/{id} | Detalle de publicación activa |
 | POST | /tools | Crear: categoryId, name, description, dailyRate |
 | PUT | /tools/{id} | Editar los mismos campos, propietario o administrador |

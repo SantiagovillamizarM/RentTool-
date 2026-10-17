@@ -46,6 +46,7 @@ async function loadTools() {
       q: $("#search").value,
       page: state.page,
       size: 6,
+      sort: $("#sort-order").value,
     });
     if ($("#category-filter").value)
       params.set("categoryId", $("#category-filter").value);
@@ -469,6 +470,10 @@ $("#search-form").onsubmit = (e) => {
   loadTools();
 };
 $("#category-filter").onchange = () => {
+  state.page = 0;
+  loadTools();
+};
+$("#sort-order").onchange = () => {
   state.page = 0;
   loadTools();
 };

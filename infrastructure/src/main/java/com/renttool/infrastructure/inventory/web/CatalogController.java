@@ -3,6 +3,7 @@ package com.renttool.infrastructure.inventory.web;
 import static com.renttool.infrastructure.config.OpenApiConfig.BEARER;
 
 import com.renttool.application.inventory.port.in.BrowseCatalogUseCase;
+import com.renttool.application.inventory.port.in.CatalogOrder;
 import com.renttool.infrastructure.inventory.web.InventoryDtos.*;
 import com.renttool.application.shared.PageQuery;
 import io.swagger.v3.oas.annotations.Operation;
@@ -56,10 +57,12 @@ public class CatalogController {
       @Parameter(description = "Tamaño de página, máximo " + PageQuery.MAX_SIZE)
           @RequestParam(defaultValue = "12")
           int size,
+      @Parameter(description = "Orden: RECENT, PRICE_ASC o PRICE_DESC")
+          @RequestParam(defaultValue = "RECENT") CatalogOrder sort,
       @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
     var query =
         new BrowseCatalogUseCase.Query(
-            q, categoryId, mine, ActorResolver.from(jwt), new PageQuery(page, size));
+            q, categoryId, mine, ActorResolver.from(jwt), new PageQuery(page, size), sort);
     return PageResponse.from(catalog.search(query).map(ToolDetailsResponse::from));
   }
 

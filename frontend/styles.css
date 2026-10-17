@@ -538,6 +538,7 @@ h2 {
 }
 .filters {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   padding: 12px;
   background: #ffffff03;
@@ -548,6 +549,7 @@ h2 {
   display: flex;
   align-items: center;
   flex: 1;
+  min-width: 180px;
   gap: 14px;
   padding: 0 14px;
 }

@@ -208,4 +208,44 @@ class ApiIntegrationTest {
     mvc.perform(get("/api/v1/me").header("Authorization", "Bearer " + client))
         .andExpect(status().isUnauthorized());
   }
+
+  @Test
+  @Order(7)
+  void catalogSortsBeforePaginationWithFilters() throws Exception {
+    var accounts = context.getBean(com.renttool.application.identity.port.out.AccountRepository.class);
+    var tools = context.getBean(com.renttool.application.inventory.port.out.ToolRepository.class);
+    Long owner = accounts.findByEmail("provider@test.example").orElseThrow().id();
+    var ids = new java.util.ArrayList<Long>();
+    for (int price : new int[] {30, 10, 20, 10}) {
+      ids.add(tools.save(new com.renttool.domain.inventory.Tool(
+          null, owner, 1L, "Sort QA " + price, "Sorting test",
+          java.math.BigDecimal.valueOf(price), true)).id());
+    }
+    tools.save(new com.renttool.domain.inventory.Tool(
+        null, owner, 2L, "Sort QA other", "Excluded category",
+        java.math.BigDecimal.ONE, true));
+    tools.save(new com.renttool.domain.inventory.Tool(
+        null, owner, 1L, "Sort QA retired", "Excluded retired",
+        java.math.BigDecimal.ONE, false));
+    mvc.perform(get("/api/v1/tools").param("q", "Sort QA").param("categoryId", "1")
+            .param("sort", "PRICE_ASC").param("size", "2"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("totalElements").value(4))
+        .andExpect(jsonPath("content[0].id").value(ids.get(3).intValue()))
+        .andExpect(jsonPath("content[1].id").value(ids.get(1).intValue()));
+    mvc.perform(get("/api/v1/tools").param("q", "Sort QA").param("categoryId", "1")
+            .param("sort", "PRICE_ASC").param("size", "2").param("page", "1"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("content[0].id").value(ids.get(2).intValue()))
+        .andExpect(jsonPath("content[1].id").value(ids.get(0).intValue()));
+    mvc.perform(get("/api/v1/tools").param("q", "Sort QA").param("categoryId", "1")
+            .param("sort", "PRICE_DESC"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("content[0].id").value(ids.get(0).intValue()));
+    mvc.perform(get("/api/v1/tools").param("q", "Sort QA").param("categoryId", "1"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("content[0].id").value(ids.get(3).intValue()));
+    mvc.perform(get("/api/v1/tools").param("sort", "INVALID"))
+        .andExpect(status().isBadRequest());
+  }
 }

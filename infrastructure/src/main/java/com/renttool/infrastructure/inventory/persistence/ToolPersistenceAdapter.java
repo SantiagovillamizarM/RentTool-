@@ -57,8 +57,12 @@ class ToolPersistenceAdapter implements ToolRepository {
             predicates.add(cb.equal(root.get("providerId"), criteria.providerId()));
           return cb.and(predicates.toArray(Predicate[]::new));
         };
-    var result =
-        jpa.findAll(spec, PageRequest.of(page.page(), page.size(), Sort.by("id").descending()));
+    Sort order = switch (criteria.order()) {
+      case RECENT -> Sort.by("id").descending();
+      case PRICE_ASC -> Sort.by("dailyRate").ascending().and(Sort.by("id").descending());
+      case PRICE_DESC -> Sort.by("dailyRate").descending().and(Sort.by("id").descending());
+    };
+    var result = jpa.findAll(spec, PageRequest.of(page.page(), page.size(), order));
     return new PageResult<>(
         result.getContent().stream().map(ToolPersistenceAdapter::toDomain).toList(),
         result.getTotalElements(),

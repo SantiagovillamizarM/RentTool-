@@ -34,7 +34,7 @@ public class CatalogService implements BrowseCatalogUseCase {
     String text = query.text() == null || query.text().isBlank() ? null : query.text();
     return tools
         .searchActive(
-            new ToolRepository.SearchCriteria(text, query.categoryId(), owner), query.page())
+            new ToolRepository.SearchCriteria(text, query.categoryId(), owner, query.order()), query.page())
         .map(this::details);
   }
 

@@ -177,7 +177,11 @@
               aria-label="Buscar herramienta" /></label
           ><select id="category-filter" aria-label="Filtrar categoría">
             <option value="">Todas las categorías</option></select
-          ><button class="button compact">Buscar <span>→</span></button>
+          ><select id="sort-order" aria-label="Ordenar catálogo">
+            <option value="RECENT">Más recientes</option>
+            <option value="PRICE_ASC">Precio: menor a mayor</option>
+            <option value="PRICE_DESC">Precio: mayor a menor</option>
+          </select><button class="button compact">Buscar <span>→</span></button>
         </form>
         <div class="catalog-meta">
           <span id="result-count">Consultando inventario…</span
