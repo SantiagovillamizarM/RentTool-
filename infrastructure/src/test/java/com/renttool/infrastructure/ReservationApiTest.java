@@ -56,7 +56,7 @@ class ReservationApiTest {
                             .header("Authorization", "Bearer " + token)
                             .contentType("application/json")
                             .content(
-                                "{\"name\":\"Andamio\",\"categoryId\":4,\"description\":\"Prueba\","
+                                "{\"name\":\"Andamio\",\"categoryId\":3,\"description\":\"Prueba\","
                                     + "\"dailyRate\":40000}"))
                     .andExpect(status().isCreated()))
             .get("id")

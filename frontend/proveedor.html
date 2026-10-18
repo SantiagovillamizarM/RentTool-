@@ -88,10 +88,11 @@
           <div>
             <h2>Mi empresa</h2>
             <p class="muted">
-              Datos con que RentTool te identifica. Para cambiarlos, escribe al
-              administrador de la plataforma.
+              Datos con que RentTool te identifica ante los clientes. El NIT y
+              el tipo de persona solo los corrige el administrador.
             </p>
           </div>
+          <button class="button compact" id="edit-company" hidden>Editar datos</button>
         </div>
         <dl class="company-data" id="company-data"></dl>
       </section>
@@ -100,49 +101,133 @@
       <button class="close" aria-label="Cerrar">×</button>
       <p class="eyebrow">UNIDADES E IMÁGENES</p>
       <h2 id="manage-title"></h2>
-      <h3>Unidades físicas</h3>
-      <div id="unit-list"></div>
-      <form id="unit-form" class="inline-form">
-        <input
-          name="code"
-          placeholder="Código único, ej. TAL-001"
-          required
-          maxlength="80"
-          aria-label="Código de unidad"
-        /><select name="status" aria-label="Estado">
-          <option>OPERATIVA</option>
-          <option>MANTENIMIENTO</option></select
-        ><button class="button compact">Añadir</button>
-      </form>
-      <h3>Imágenes</h3>
-      <p class="muted">
-        La primera es la principal del catálogo; cámbiala desde "Editar".
-      </p>
-      <div id="image-list"></div>
-      <form id="image-form" class="inline-form">
-        <input
-          name="location"
-          type="url"
-          placeholder="https://… (JPG, PNG o WebP)"
-          required
-          maxlength="1000"
-          aria-label="Dirección HTTPS de imagen"
-        /><button class="button compact">Añadir</button>
-      </form>
-      <form id="upload-form" class="inline-form">
-        <input
-          name="file"
-          type="file"
-          accept="image/png,image/jpeg"
-          required
-          aria-label="Subir imagen PNG o JPEG"
-        /><button class="button compact">Subir</button>
-      </form>
-      <p class="muted">
-        PNG o JPEG, máximo 5 MB y 16 megapíxeles. También puedes enlazar una
-        imagen HTTPS.
-      </p>
+      <section class="manage-section">
+        <div class="manage-head">
+          <h3>Unidades físicas</h3>
+          <p class="manage-summary" id="unit-summary"></p>
+        </div>
+        <p class="muted manage-hint">
+          Marca cada unidad como operativa, en mantenimiento o retirada. Para
+          cambiar cuántas tienes, usa «Editar».
+        </p>
+        <div id="unit-list"></div>
+        <form id="unit-form" class="inline-form add-row">
+          <input
+            name="code"
+            placeholder="Código propio, ej. TAL-10"
+            required
+            maxlength="80"
+            aria-label="Código de unidad"
+          /><select name="status" aria-label="Estado">
+            <option value="OPERATIVA">Operativa</option>
+            <option value="MANTENIMIENTO">Mantenimiento</option></select
+          ><button class="button compact">+ Añadir</button>
+        </form>
+      </section>
+      <section class="manage-section">
+        <div class="manage-head">
+          <h3>Imágenes</h3>
+          <p class="manage-summary" id="image-summary"></p>
+        </div>
+        <p class="muted manage-hint">
+          La primera es la principal del catálogo; cámbiala desde «Editar».
+        </p>
+        <div id="image-list"></div>
+        <form id="upload-form" class="upload-drop">
+          <label class="upload-pick"
+            ><input
+              name="file"
+              type="file"
+              accept="image/png,image/jpeg"
+              required
+              class="visually-hidden"
+              aria-label="Subir imagen PNG o JPEG" /><span
+              class="upload-icon"
+              aria-hidden="true"
+              >↑</span
+            ><span class="upload-text"
+              ><strong id="upload-name">Elegir una imagen</strong
+              ><small>PNG o JPEG · máximo 5 MB y 16 megapíxeles</small></span
+            ></label
+          ><button class="button compact">Subir</button>
+        </form>
+        <form id="image-form" class="inline-form">
+          <input
+            name="location"
+            type="url"
+            placeholder="O pega un enlace https://… (JPG, PNG o WebP)"
+            required
+            maxlength="1000"
+            aria-label="Dirección HTTPS de imagen"
+          /><button class="outline-button">Enlazar</button>
+        </form>
+      </section>
       <p id="manage-error" class="form-error" role="alert"></p>
+    </dialog>
+    <dialog id="company-dialog">
+      <button class="close" aria-label="Cerrar">×</button>
+      <p class="eyebrow">MI EMPRESA</p>
+      <h2>Actualiza tus datos.</h2>
+      <p class="muted" id="company-identity"></p>
+      <form id="company-form" novalidate>
+        <div class="logo-picker">
+          <span class="avatar avatar-large"
+            ><img id="company-logo" src="assets/icons/casco.png" alt="Logo de tu empresa"
+          /></span>
+          <div>
+            <p class="logo-title">Logo · opcional</p>
+            <p class="muted">PNG o JPEG hasta 2 MB. Sin logo se usa el predeterminado.</p>
+            <label class="logo-field"
+              ><span class="outline-button">Elegir logo</span
+              ><input
+                name="logo"
+                type="file"
+                accept="image/png,image/jpeg"
+                class="visually-hidden" /></label
+            ><button type="button" class="text-button" id="company-logo-remove" hidden>
+              Quitar logo
+            </button>
+          </div>
+        </div>
+        <fieldset>
+          <legend>Nombre</legend>
+          <label
+            >Razón social o nombre completo<input
+              name="legalName"
+              required
+              maxlength="200" /></label
+          ><label
+            >Nombre comercial · opcional<input name="tradeName" maxlength="160"
+          /></label>
+          <p class="muted">Los clientes te ven con el nombre comercial, o con la razón social si no tienes.</p>
+          <div class="legal-rep">
+            <label
+              >Representante legal<input
+                name="legalRepresentative"
+                maxlength="160" /></label
+            ><label
+              >Documento del representante<input
+                name="representativeDocument"
+                maxlength="40"
+                placeholder="CC 79123456"
+            /></label>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>Contacto</legend>
+          <label
+            >Teléfono<input
+              name="phone"
+              type="tel"
+              required
+              maxlength="20" /></label
+          ><label
+            >Dirección<input name="address" required maxlength="200" /></label
+          ><label>Ciudad<input name="city" required maxlength="100" /></label>
+        </fieldset>
+        <p class="form-error" id="company-error" role="alert"></p>
+        <button class="button full" id="company-submit">Guardar datos →</button>
+      </form>
     </dialog>
     <div class="toast" id="toast" role="status" hidden></div>
     <script src="common.js" defer></script>

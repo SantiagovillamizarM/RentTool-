@@ -15,8 +15,16 @@ public interface BrowseCatalogUseCase {
 
   boolean isInventoryEmpty();
 
-  /** onlyMine limita la búsqueda a las publicaciones del actor, que debe ser proveedor. */
+  /**
+   * onlyMine limita la búsqueda a las publicaciones del actor, que debe ser proveedor. providerId
+   * filtra por un proveedor concreto (público); null incluye a todos.
+   */
   record Query(
-      String text, Long categoryId, boolean onlyMine, Actor actor, PageQuery page,
+      String text,
+      Long categoryId,
+      Long providerId,
+      boolean onlyMine,
+      Actor actor,
+      PageQuery page,
       CatalogOrder order) {}
 }

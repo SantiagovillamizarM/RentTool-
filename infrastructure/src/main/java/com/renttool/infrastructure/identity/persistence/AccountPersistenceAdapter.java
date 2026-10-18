@@ -56,7 +56,8 @@ class AccountPersistenceAdapter implements AccountRepository {
         Role.valueOf(e.role),
         e.active,
         e.mustChangePassword,
-        e.removedAt == null ? null : e.removedAt.toInstant(ZoneOffset.UTC));
+        e.removedAt == null ? null : e.removedAt.toInstant(ZoneOffset.UTC),
+        e.phone);
   }
 
   private AccountEntity toEntity(Account a) {
@@ -70,6 +71,7 @@ class AccountPersistenceAdapter implements AccountRepository {
     e.mustChangePassword = a.mustChangePassword();
     e.removedAt =
         a.removedAt() == null ? null : LocalDateTime.ofInstant(a.removedAt(), ZoneOffset.UTC);
+    e.phone = a.phone();
     return e;
   }
 }

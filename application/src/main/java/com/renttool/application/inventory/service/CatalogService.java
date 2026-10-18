@@ -26,7 +26,7 @@ public class CatalogService implements BrowseCatalogUseCase {
 
   @Override
   public PageResult<ToolDetails> search(Query query) {
-    Long owner = null;
+    Long owner = query.providerId();
     if (query.onlyMine()) {
       query.actor().ensureCanManageInventory();
       owner = query.actor().id();

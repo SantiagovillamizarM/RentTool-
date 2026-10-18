@@ -51,6 +51,7 @@ async function loadInventory() {
         (b) =>
           (b.onclick = () =>
             openToolEditor(b.dataset.edit, b, {
+              units: true,
               onSaved: () => {
                 notify("Herramienta actualizada.", SEE_CATALOG);
                 loadInventory();
@@ -83,30 +84,45 @@ async function loadInventory() {
 }
 $("#new-tool").onclick = (e) =>
   openToolEditor(null, e.currentTarget, {
-    onSaved: (tool, created) => {
+    units: true,
+    onSaved: () => {
       loadInventory();
-      if (created) {
-        notify("Herramienta publicada. Agrega sus unidades para que se pueda reservar.", SEE_CATALOG);
-        manageTool(tool.id);
-      }
+      notify("Herramienta publicada.", SEE_CATALOG);
     },
   });
 
 // Unidades físicas e imágenes adicionales de una herramienta.
+const UNIT_STATUS = { OPERATIVA: "Operativa", MANTENIMIENTO: "Mantenimiento", RETIRADA: "Retirada" };
+function unitCard(u) {
+  const options = Object.entries(UNIT_STATUS)
+    .map(([value, label]) => `<option value="${value}" ${value === u.status ? "selected" : ""}>${label}</option>`)
+    .join("");
+  return `<div class="unit-card is-${u.status.toLowerCase()}"><span class="unit-code"><span class="unit-dot is-${u.status.toLowerCase()}"></span>${esc(u.code)}</span><select aria-label="Estado de ${esc(u.code)}" data-unit="${u.id}" data-code="${esc(u.code)}" data-status="${u.status}">${options}</select></div>`;
+}
+const UPLOAD_PROMPT = "Elegir una imagen";
+$("#upload-form").elements.file.addEventListener("change", (e) => {
+  $("#upload-name").textContent = e.target.files[0]?.name || UPLOAD_PROMPT;
+});
 async function manageTool(id) {
   state.managing = id;
   $("#manage-error").textContent = "";
   try {
     const [t, units] = await Promise.all([api("/tools/" + id), api("/tools/" + id + "/units")]);
     $("#manage-title").textContent = t.name;
-    $("#unit-list").innerHTML = units.length
-      ? units
-          .map(
-            (u) =>
-              `<div class="manage-row"><span>${esc(u.code)}</span><select aria-label="Estado de ${esc(u.code)}" data-unit="${u.id}" data-code="${esc(u.code)}" data-status="${u.status}">${["OPERATIVA", "MANTENIMIENTO", "RETIRADA"].map((s) => `<option ${s === u.status ? "selected" : ""}>${s}</option>`).join("")}</select></div>`,
-          )
-          .join("")
-      : '<p class="muted">Sin unidades registradas. Agrega al menos una operativa.</p>';
+    const current = units.filter((u) => u.status !== "RETIRADA");
+    const retired = units.filter((u) => u.status === "RETIRADA");
+    const working = current.filter((u) => u.status === "OPERATIVA").length;
+    const repairing = current.length - working;
+    $("#unit-summary").innerHTML =
+      `<span class="unit-dot is-operativa"></span>${working} ${working === 1 ? "operativa" : "operativas"}` +
+      (repairing ? `<span class="unit-dot is-mantenimiento"></span>${repairing} en mantenimiento` : "");
+    $("#unit-list").innerHTML =
+      (current.length
+        ? `<div class="unit-grid">${current.map(unitCard).join("")}</div>`
+        : '<p class="manage-empty">Sin unidades: nadie puede reservarla. Agrega al menos una operativa.</p>') +
+      (retired.length
+        ? `<details class="unit-retired"><summary>${retired.length} ${retired.length === 1 ? "retirada" : "retiradas"}</summary><div class="unit-grid">${retired.map(unitCard).join("")}</div></details>`
+        : "");
     $("#unit-list")
       .querySelectorAll("select")
       .forEach(
@@ -136,14 +152,15 @@ async function manageTool(id) {
             }
           }),
       );
+    $("#image-summary").textContent = `${t.images.length} ${t.images.length === 1 ? "imagen" : "imágenes"}`;
     $("#image-list").innerHTML = t.images.length
-      ? t.images
+      ? `<div class="image-grid">${t.images
           .map(
             (i, n) =>
-              `<div class="manage-row"><img src="${esc(i.location)}" alt="Imagen ${n + 1}" referrerpolicy="no-referrer"><span>${n === 0 ? '<span class="status-chip status-aceptada">Principal</span>' : `Imagen ${n + 1}`}</span><button data-remove-image="${i.id}">Eliminar ×</button></div>`,
+              `<figure class="image-card"><img src="${esc(i.location)}" alt="Imagen ${n + 1}" referrerpolicy="no-referrer"><figcaption>${n === 0 ? '<span class="image-main">Principal</span>' : `Imagen ${n + 1}`}</figcaption><button type="button" class="image-remove" data-remove-image="${i.id}" aria-label="Eliminar imagen ${n + 1}" title="Eliminar">×</button></figure>`,
           )
-          .join("")
-      : '<p class="muted">Sin imágenes: el catálogo muestra la ilustración predeterminada.</p>';
+          .join("")}</div>`
+      : '<p class="manage-empty">Sin imágenes: el catálogo muestra la ilustración predeterminada.</p>';
     $("#image-list")
       .querySelectorAll("button")
       .forEach(
@@ -199,6 +216,7 @@ $("#upload-form").onsubmit = async (e) => {
       body: new FormData(e.target),
     });
     e.target.reset();
+    $("#upload-name").textContent = UPLOAD_PROMPT;
     await manageTool(state.managing);
     loadInventory();
     notify("Imagen subida.");
@@ -220,11 +238,16 @@ document.addEventListener("reservations:loaded", (e) => {
   $("#tab-pending").textContent = pending;
 });
 
-// Mi empresa: datos legales de solo lectura.
+// Mi empresa: el proveedor actualiza sus datos y su logo; NIT y tipo de persona son del administrador.
+const MAX_LOGO_BYTES = 2 * 1024 * 1024;
+const company = { profile: null, logoAction: null, preview: null };
 async function loadCompany() {
   const box = $("#company-data");
+  $("#edit-company").hidden = true;
   try {
     const p = await api("/me/provider-profile");
+    company.profile = p;
+    $("#edit-company").hidden = false;
     const rows = [
       ["Nombre comercial", p.tradeName || p.legalName],
       ["Razón social o nombre", p.legalName],
@@ -241,6 +264,107 @@ async function loadCompany() {
     box.innerHTML = `<p class="muted">${e.status === 404 ? "Tus datos legales aún no están registrados. El administrador los completará." : esc(e.message)}</p>`;
   }
 }
+
+function showCompanyLogo(url) {
+  $("#company-logo").src = url || DEFAULT_LOGO;
+  $("#company-logo").classList.toggle("photo", Boolean(url));
+  $("#company-logo-remove").hidden = !url;
+}
+function openCompany() {
+  const form = $("#company-form");
+  const p = company.profile;
+  form.reset();
+  clearFieldErrors(form);
+  $("#company-error").textContent = "";
+  for (const field of ["legalName", "tradeName", "legalRepresentative", "representativeDocument", "phone", "address", "city"])
+    form.elements[field].value = p[field] ?? "";
+  $("#company-identity").textContent = `${personLabel[p.personType]} · NIT ${p.nit}-${p.verificationDigit}`;
+  form.querySelector(".legal-rep").hidden = p.personType !== "JURIDICA";
+  if (company.preview) URL.revokeObjectURL(company.preview);
+  company.preview = company.logoAction = null;
+  showCompanyLogo(state.user.logoUrl);
+  $("#company-dialog").showModal();
+}
+$("#edit-company").onclick = openCompany;
+$("#company-form").elements.logo.addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (!["image/png", "image/jpeg"].includes(file.type) || file.size > MAX_LOGO_BYTES) {
+    e.target.value = "";
+    fieldError($("#company-form"), "logo", "El logo debe ser PNG o JPEG de hasta 2 MB.");
+    return;
+  }
+  if (company.preview) URL.revokeObjectURL(company.preview);
+  company.preview = URL.createObjectURL(file);
+  company.logoAction = "upload";
+  showCompanyLogo(company.preview);
+});
+$("#company-logo-remove").onclick = () => {
+  $("#company-form").elements.logo.value = "";
+  if (company.preview) URL.revokeObjectURL(company.preview);
+  company.preview = null;
+  company.logoAction = state.user.logoUrl ? "remove" : null;
+  showCompanyLogo(null);
+};
+function companyProblem(form) {
+  const v = (name) => form.elements[name].value.trim();
+  if (!v("legalName")) return ["legalName", "Escribe la razón social o el nombre completo."];
+  if (company.profile.personType === "JURIDICA") {
+    if (!v("legalRepresentative"))
+      return ["legalRepresentative", "Una persona jurídica requiere representante legal."];
+    if (!v("representativeDocument"))
+      return ["representativeDocument", "Escribe el documento del representante."];
+  }
+  if (!/^\+?[\d ]{7,20}$/.test(v("phone")))
+    return ["phone", "El teléfono solo admite dígitos, espacios y +, mínimo 7."];
+  if (!v("address")) return ["address", "Escribe la dirección."];
+  if (!v("city")) return ["city", "Escribe la ciudad."];
+  return null;
+}
+$("#company-form").onsubmit = async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  clearFieldErrors(form);
+  $("#company-error").textContent = "";
+  const problem = companyProblem(form);
+  if (problem) {
+    fieldError(form, ...problem);
+    return;
+  }
+  const f = (name) => form.elements[name].value.trim();
+  const legalEntity = company.profile.personType === "JURIDICA";
+  const b = $("#company-submit");
+  b.disabled = true;
+  try {
+    await api("/me/provider-profile", {
+      method: "PUT",
+      body: JSON.stringify({
+        legalName: f("legalName"),
+        tradeName: f("tradeName") || null,
+        legalRepresentative: legalEntity ? f("legalRepresentative") : null,
+        representativeDocument: legalEntity ? f("representativeDocument") : null,
+        phone: f("phone"),
+        address: f("address"),
+        city: f("city"),
+      }),
+    });
+    if (company.logoAction === "upload") {
+      const body = new FormData();
+      body.append("file", form.elements.logo.files[0]);
+      await api("/me/provider-profile/logo", { method: "POST", body });
+    } else if (company.logoAction === "remove") {
+      await api("/me/provider-profile/logo", { method: "DELETE" });
+    }
+    $("#company-dialog").close();
+    state.user = await api("/me");
+    renderAccount();
+    notify("Datos de tu empresa actualizados.", SEE_CATALOG);
+  } catch (error) {
+    showFormError(form, error, $("#company-error"), /logo|imagen/i.test(error.message) ? "logo" : null);
+  } finally {
+    b.disabled = false;
+  }
+};
 
 // Solo el proveedor entra aquí; cualquier otra sesión vuelve al sitio público.
 (async () => {

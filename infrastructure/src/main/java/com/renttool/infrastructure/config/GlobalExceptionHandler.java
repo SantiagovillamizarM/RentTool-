@@ -42,7 +42,7 @@ public class GlobalExceptionHandler {
       Map.entry("dailyRate", "Tarifa diaria"), Map.entry("code", "Código de unidad"),
       Map.entry("status", "Estado"), Map.entry("location", "Dirección de imagen"),
       Map.entry("start", "Fecha de entrega"), Map.entry("end", "Fecha de devolución"),
-      Map.entry("quantity", "Cantidad"), Map.entry("toolId", "Herramienta"),
+      Map.entry("quantity", "Cantidad"), Map.entry("count", "Unidades"), Map.entry("toolId", "Herramienta"),
       Map.entry("role", "Rol"), Map.entry("reason", "Motivo"),
       Map.entry("personType", "Tipo de persona"), Map.entry("nit", "NIT"),
       Map.entry("verificationDigit", "Dígito de verificación"), Map.entry("legalName", "Razón social o nombre completo"),

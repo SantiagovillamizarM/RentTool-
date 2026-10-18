@@ -135,6 +135,42 @@ class ProviderAdministrationServiceTest {
   }
 
   @Test
+  void providerEditsItsCompanyButNotItsNit() {
+    var id = service.register(admin, command).account().id();
+    var updated =
+        service.updateOwn(
+            id,
+            new ManageOwnCompanyUseCase.CompanyCommand(
+                "Obras y Equipos del Norte SAS", "ObraYa Norte", "Lucía Gómez", "CC 1020304050",
+                "+57 607 600 0000", "Calle 45 # 20-10", "Bucaramanga"));
+    assertEquals("ObraYa Norte", updated.account().name(), "se muestra con el nombre nuevo");
+    assertEquals("Lucía Gómez", updated.profile().legalRepresentative());
+    assertEquals("800197268", updated.profile().nit().number(), "el NIT no cambia");
+    assertEquals(PersonType.JURIDICA, updated.profile().personType());
+    assertThrows(
+        InvalidInputException.class,
+        () ->
+            service.updateOwn(
+                id,
+                new ManageOwnCompanyUseCase.CompanyCommand(
+                    "X SAS", null, null, null, "3001234567", "Calle 1", "Cali")),
+        "una persona jurídica sigue necesitando representante legal");
+  }
+
+  @Test
+  void onlyActiveProvidersAreListedForClients() {
+    var shown = service.register(admin, command).account().id();
+    var hidden =
+        service
+            .register(admin, new RegisterCommand("b@x.co", "temporal-123", profile("890903938", 8)))
+            .account()
+            .id();
+    service.setActive(admin, hidden, false);
+    var listed = service.publicProviders();
+    assertEquals(List.of(shown), listed.stream().map(p -> p.id()).toList());
+  }
+
+  @Test
   void administratorNameIsFixed() {
     var profiles = new ProfileService(accounts, this.profiles);
     assertThrows(ForbiddenOperationException.class, () -> profiles.rename(admin, "Otro"));
@@ -204,10 +240,15 @@ class ProviderAdministrationServiceTest {
         ForbiddenOperationException.class,
         () ->
             auth.register(
-                new RegisterAccountUseCase.Command("P", "p@x.co", "clave-larga-1", Role.PROVEEDOR)));
+                new RegisterAccountUseCase.Command("P", "p@x.co", "clave-larga-1", Role.PROVEEDOR, "3001234567")));
     var session =
-        auth.register(new RegisterAccountUseCase.Command("C", "n@x.co", "clave-larga-1", null));
+        auth.register(new RegisterAccountUseCase.Command("C", "n@x.co", "clave-larga-1", null, "3001234567"));
     assertEquals(Role.CLIENTE, session.account().role());
+    assertEquals("3001234567", session.account().phone());
+    assertThrows(
+        InvalidInputException.class,
+        () -> auth.register(new RegisterAccountUseCase.Command("C", "s@x.co", "clave-larga-1", null, " ")),
+        "el teléfono es obligatorio al registrarse");
   }
 
   private static class PlainHasher implements PasswordHasher {
@@ -228,7 +269,7 @@ class ProviderAdministrationServiceTest {
     assertEquals(start.plus(java.time.Duration.ofMinutes(10)), session.expiresAt());
     assertEquals(
         start.plus(java.time.Duration.ofHours(1)),
-        auth.register(new RegisterAccountUseCase.Command("C", "c2@x.co", "clave-larga-1", null))
+        auth.register(new RegisterAccountUseCase.Command("C", "c2@x.co", "clave-larga-1", null, "3001234567"))
             .expiresAt(),
         "los demás roles conservan una hora");
 
@@ -311,7 +352,7 @@ class ProviderAdministrationServiceTest {
               ? a
               : new Account(
                   sequence++, a.name(), a.email(), a.passwordHash(), a.role(), a.active(),
-                  a.mustChangePassword(), a.removedAt());
+                  a.mustChangePassword(), a.removedAt(), a.phone());
       data.put(saved.id(), saved);
       return saved;
     }

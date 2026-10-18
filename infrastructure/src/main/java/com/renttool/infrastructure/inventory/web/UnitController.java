@@ -2,6 +2,7 @@ package com.renttool.infrastructure.inventory.web;
 
 import static com.renttool.infrastructure.config.OpenApiConfig.BEARER;
 
+import com.renttool.application.fleet.port.in.SetUnitCountUseCase;
 import com.renttool.application.inventory.port.in.ManageUnitsUseCase;
 import com.renttool.infrastructure.inventory.web.InventoryDtos.*;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,9 +28,32 @@ import org.springframework.web.bind.annotation.*;
 @ApiResponse(responseCode = "404", description = "La herramienta o la unidad no existe")
 public class UnitController {
   private final ManageUnitsUseCase units;
+  private final SetUnitCountUseCase count;
 
-  public UnitController(ManageUnitsUseCase units) {
+  public UnitController(ManageUnitsUseCase units, SetUnitCountUseCase count) {
     this.units = units;
+    this.count = count;
+  }
+
+  @PutMapping("/count")
+  @Operation(
+      summary = "Fijar cuántas unidades tiene",
+      description =
+          "Crea unidades OPERATIVA con código automático o retira las que sobran (primero las de"
+              + " mantenimiento). Nunca retira una unidad asignada a una reserva aceptada que no"
+              + " ha terminado. Devuelve todas las unidades, retiradas incluidas.")
+  @ApiResponse(responseCode = "200", description = "Unidades tras el ajuste")
+  @ApiResponse(responseCode = "400", description = "Cantidad fuera de 0 a 200")
+  @ApiResponse(
+      responseCode = "409",
+      description = "No se puede bajar tanto: hay unidades comprometidas en reservas")
+  public List<UnitResponse> setCount(
+      @PathVariable Long toolId,
+      @Valid @RequestBody UnitCountRequest r,
+      @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
+    return count.setCount(ActorResolver.from(jwt), toolId, r.count()).stream()
+        .map(UnitResponse::from)
+        .toList();
   }
 
   @GetMapping

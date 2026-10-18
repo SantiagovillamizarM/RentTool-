@@ -79,6 +79,10 @@ public final class ReservationDtos {
       @Schema(example = "4") Long providerId,
       @Schema(example = "7") Long clientId,
       @Schema(example = "Laura Gómez") String clientName,
+      @Schema(example = "laura@correo.co", description = "Para que el proveedor la contacte")
+          String clientEmail,
+      @Schema(example = "+57 300 123 4567", description = "Para coordinar el pago y la entrega")
+          String clientPhone,
       @Schema(example = "2026-10-20") LocalDate start,
       @Schema(example = "2026-10-23") LocalDate end,
       @Schema(example = "3") long days,
@@ -103,6 +107,8 @@ public final class ReservationDtos {
           d.providerId(),
           r.clientId(),
           d.clientName(),
+          d.clientEmail(),
+          d.clientPhone(),
           r.period().start(),
           r.period().end(),
           r.period().days(),

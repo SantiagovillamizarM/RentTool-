@@ -1,5 +1,7 @@
 package com.renttool.infrastructure.identity.web;
 
+import com.renttool.application.identity.port.in.ManageOwnCompanyUseCase.CompanyCommand;
+import com.renttool.application.identity.port.in.ManageOwnCompanyUseCase.PublicProvider;
 import com.renttool.application.identity.port.in.ManageProvidersUseCase.*;
 import com.renttool.application.identity.port.in.ProviderDetails;
 import com.renttool.application.offboarding.port.in.RemoveProviderUseCase;
@@ -11,7 +13,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import java.util.List;
 
-/** Contratos HTTP del alta de proveedores por el administrador. */
+/** Contratos HTTP de los proveedores: alta por el administrador y datos de su propia empresa. */
 public final class ProviderDtos {
   private ProviderDtos() {}
 
@@ -51,6 +53,44 @@ public final class ProviderDtos {
           phone,
           address,
           city);
+    }
+  }
+
+  /** Lo que el proveedor puede cambiar de su empresa: todo salvo el NIT y el tipo de persona. */
+  public record CompanyRequest(
+      @Schema(example = "Obras y Equipos SAS", description = "Razón social o nombre completo")
+          @NotBlank
+          @Size(max = 200)
+          String legalName,
+      @Schema(example = "ObraYa", description = "Nombre comercial, opcional") @Size(max = 160)
+          String tradeName,
+      @Schema(example = "Carlos Pérez", description = "Obligatorio para persona jurídica")
+          @Size(max = 160)
+          String legalRepresentative,
+      @Schema(example = "CC 79123456", description = "Obligatorio para persona jurídica")
+          @Size(max = 40)
+          String representativeDocument,
+      @Schema(example = "+57 601 555 1234") @NotBlank @Size(max = 20) String phone,
+      @Schema(example = "Calle 80 # 10-20") @NotBlank @Size(max = 200) String address,
+      @Schema(example = "Bogotá") @NotBlank @Size(max = 100) String city) {
+    CompanyCommand toCommand() {
+      return new CompanyCommand(
+          legalName,
+          tradeName,
+          legalRepresentative,
+          representativeDocument,
+          phone,
+          address,
+          city);
+    }
+  }
+
+  public record PublicProviderResponse(
+      @Schema(example = "12") Long id,
+      @Schema(example = "Midnight") String name,
+      @Schema(example = "/uploads/3f2c.png", description = "Null si no tiene logo") String logoUrl) {
+    static PublicProviderResponse from(PublicProvider p) {
+      return new PublicProviderResponse(p.id(), p.name(), p.logoUrl());
     }
   }
 

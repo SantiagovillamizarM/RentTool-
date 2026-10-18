@@ -23,6 +23,9 @@ public interface ToolRepository {
 
   boolean isEmpty();
 
-  /** Filtros opcionales: un valor null no restringe. text busca de forma literal en el nombre. */
+  /**
+   * Filtros opcionales: un valor null no restringe. text busca de forma literal en el nombre y la
+   * descripción.
+   */
   record SearchCriteria(String text, Long categoryId, Long providerId, CatalogOrder order) {}
 }

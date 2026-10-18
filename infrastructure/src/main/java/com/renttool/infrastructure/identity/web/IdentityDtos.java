@@ -21,14 +21,23 @@ public final class IdentityDtos {
       @Schema(
               example = "CLIENTE",
               description = "Opcional; solo se admite CLIENTE. Los proveedores los crea el administrador")
-          Role role) {}
+          Role role,
+      @Schema(
+              example = "+57 300 123 4567",
+              description = "Obligatorio: el proveedor lo usa para coordinar pago y entrega")
+          @NotBlank
+          @Pattern(regexp = "\\+?[\\d ]{7,20}", message = "solo admite dígitos, espacios y +, mínimo 7")
+          String phone) {}
 
   public record LoginRequest(
       @Schema(example = "laura@ejemplo.com") @NotBlank @Email String email,
       @Schema(example = "una-clave-segura-123") @NotBlank String password) {}
 
   public record ProfileRequest(
-      @Schema(example = "Laura Gómez Ruiz") @NotBlank @Size(max = 120) String name) {}
+      @Schema(example = "Laura Gómez Ruiz") @NotBlank @Size(max = 120) String name,
+      @Schema(example = "+57 300 123 4567", description = "Opcional; solo para clientes")
+          @Pattern(regexp = "\\+?[\\d ]{7,20}", message = "solo admite dígitos, espacios y +, mínimo 7")
+          String phone) {}
 
   public record PasswordChangeRequest(
       @Schema(example = "temporal-2026") @NotBlank String currentPassword,
@@ -48,10 +57,12 @@ public final class IdentityDtos {
                       + " /me/password")
           boolean mustChangePassword,
       @Schema(description = "Logo del proveedor; null para otros roles o si no tiene")
-          String logoUrl) {
+          String logoUrl,
+      @Schema(example = "+57 300 123 4567", description = "Teléfono del cliente; puede faltar")
+          String phone) {
     public static UserResponse from(Account a, String logoUrl) {
       return new UserResponse(
-          a.id(), a.name(), a.email(), a.role(), a.mustChangePassword(), logoUrl);
+          a.id(), a.name(), a.email(), a.role(), a.mustChangePassword(), logoUrl, a.phone());
     }
   }
 

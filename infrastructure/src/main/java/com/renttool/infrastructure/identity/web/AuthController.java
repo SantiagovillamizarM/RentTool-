@@ -56,7 +56,8 @@ public class AuthController {
   public SessionResponse register(@Valid @RequestBody RegistrationRequest r) {
     return session(
         register.register(
-            new RegisterAccountUseCase.Command(r.name(), r.email(), r.password(), r.role())));
+            new RegisterAccountUseCase.Command(
+                r.name(), r.email(), r.password(), r.role(), r.phone())));
   }
 
   @PostMapping("/auth/login")
@@ -99,15 +100,20 @@ public class AuthController {
 
   @PutMapping("/me")
   @Operation(
-      summary = "Cambiar mi nombre",
-      description = "El nombre del ADMINISTRADOR es fijo.",
+      summary = "Actualizar mi perfil",
+      description =
+          "Nombre y, para clientes, teléfono de contacto. El nombre del ADMINISTRADOR es fijo y el"
+              + " del PROVEEDOR se cambia en sus datos de empresa (PUT /me/provider-profile).",
       security = @SecurityRequirement(name = BEARER))
   @ApiResponse(responseCode = "200", description = "Perfil actualizado")
   @ApiResponse(responseCode = "400", description = "Nombre vacío o demasiado largo")
   @ApiResponse(responseCode = "401", description = "Sin token, token vencido o cuenta inactiva")
   @ApiResponse(responseCode = "403", description = "Quien llama es el ADMINISTRADOR")
   public UserResponse update(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody ProfileRequest p) {
-    return user(updateProfile.rename(Long.valueOf(jwt.getSubject()), p.name()));
+    Long id = Long.valueOf(jwt.getSubject());
+    var account = updateProfile.rename(id, p.name());
+    if (p.phone() != null && !p.phone().isBlank()) account = updateProfile.changePhone(id, p.phone());
+    return user(account);
   }
 
   @PutMapping("/me/password")

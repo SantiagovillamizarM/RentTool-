@@ -5,8 +5,10 @@ import com.renttool.application.identity.port.out.AccountRepository;
 import com.renttool.application.identity.port.out.ProviderProfileRepository;
 import com.renttool.domain.identity.Account;
 import com.renttool.domain.identity.ProviderProfile;
+import com.renttool.domain.identity.Role;
 import com.renttool.domain.shared.exception.AuthenticationFailedException;
 import com.renttool.domain.shared.exception.ForbiddenOperationException;
+import com.renttool.domain.shared.exception.InvalidInputException;
 import java.util.Optional;
 
 public class ProfileService implements GetProfileUseCase, UpdateProfileUseCase {
@@ -49,5 +51,16 @@ public class ProfileService implements GetProfileUseCase, UpdateProfileUseCase {
       throw new ForbiddenOperationException(
           "Tu nombre comercial lo actualiza el administrador junto con tus datos legales");
     return accounts.save(account.rename(name));
+  }
+
+  @Override
+  public Account changePhone(Long accountId, String phone) {
+    var account = getActive(accountId);
+    if (account.role() != Role.CLIENTE)
+      throw new ForbiddenOperationException(
+          "El teléfono de proveedores y administrador se gestiona en sus datos de empresa");
+    if (phone == null || phone.isBlank())
+      throw new InvalidInputException("El teléfono es obligatorio");
+    return accounts.save(account.withPhone(phone));
   }
 }

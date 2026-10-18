@@ -31,8 +31,9 @@ class AccountParticipantDirectory implements ParticipantDirectory {
                             .findByAccountId(a.id())
                             .map(p -> p.nit().toString())
                             .orElse(null)
-                        : null))
-        .orElse(new Card("Usuario " + participantId, null, null));
+                        : null,
+                    a.phone()))
+        .orElse(new Card("Usuario " + participantId, null, null, null));
   }
 
   @Override

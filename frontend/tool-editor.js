@@ -1,6 +1,7 @@
 "use strict";
 // Editor de herramientas compartido por el panel del administrador y el del proveedor: datos,
-// tarifa e imagen principal. Sin id crea una herramienta nueva (solo el proveedor publica).
+// tarifa e imagen principal. Sin id crea una herramienta nueva (solo el proveedor publica). Con
+// options.units el proveedor elige además cuántas unidades tiene.
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const toolEditor = {
   id: null,
@@ -9,6 +10,7 @@ const toolEditor = {
   imageAction: null,
   onSaved: null,
   categories: null,
+  units: null,
 };
 document.body.insertAdjacentHTML(
   "beforeend",
@@ -29,7 +31,8 @@ document.body.insertAdjacentHTML(
         <label>Nombre<input name="name" required maxlength="160" /></label
         ><label>Categoría<select name="categoryId" required></select></label
         ><label>Descripción<textarea name="description" required maxlength="3000" rows="3"></textarea></label
-        ><label>Tarifa diaria · COP<input name="dailyRate" type="number" min="1" max="999999999999.99" step="0.01" required /></label>
+        ><label>Tarifa diaria · COP<input name="dailyRate" type="number" min="1" max="999999999999.99" step="0.01" required /></label
+        ><label id="tool-units-field">Unidades que tienes<input name="units" type="number" min="0" max="200" step="1" inputmode="numeric" /><small class="muted">Se crean o retiran solas. Al bajar nunca se retiran las asignadas a reservas aceptadas.</small></label>
         <p class="muted price-note" id="tool-price-note">Las reservas ya solicitadas conservan la tarifa con que se pidieron; el precio nuevo aplica a las siguientes.</p>
         <p class="form-error" id="tool-edit-error" role="alert"></p>
         <button class="button full" id="tool-edit-submit">Guardar cambios →</button>
@@ -57,9 +60,10 @@ function showToolPreview(url) {
 async function openToolEditor(id, button, options = {}) {
   if (button) button.disabled = true;
   try {
-    const [t, categories] = await Promise.all([
+    const [t, categories, units] = await Promise.all([
       id ? api("/tools/" + id) : null,
       categoryOptions(),
+      id && options.units ? api(`/tools/${id}/units`) : [],
     ]);
     const form = $("#tool-edit-form");
     form.reset();
@@ -76,7 +80,11 @@ async function openToolEditor(id, button, options = {}) {
       preview: null,
       imageAction: null,
       onSaved: options.onSaved || null,
+      // Unidades que tiene: todas salvo las retiradas. Null si este panel no las maneja.
+      units: options.units ? units.filter((u) => u.status !== "RETIRADA").length : null,
     });
+    $("#tool-units-field").hidden = toolEditor.units === null;
+    form.elements.units.value = t ? (toolEditor.units ?? "") : 1;
     showToolPreview(t?.images[0]?.location);
     $("#tool-edit-eyebrow").textContent = t ? "EDITAR HERRAMIENTA" : "NUEVA HERRAMIENTA";
     $("#tool-edit-title").textContent = t ? t.name : "Publica tu equipo.";
@@ -120,6 +128,8 @@ function toolProblem(form) {
   const rate = Number(v("dailyRate"));
   if (!v("dailyRate") || !(rate > 0)) return ["dailyRate", "La tarifa debe ser mayor que cero."];
   if (rate > 999999999999.99) return ["dailyRate", "La tarifa es demasiado alta."];
+  if (toolEditor.units !== null && !(/^\d{1,3}$/.test(v("units")) && Number(v("units")) <= 200))
+    return ["units", "Escribe cuántas unidades tienes, de 0 a 200."];
   return null;
 }
 $("#tool-edit-form").onsubmit = async (e) => {
@@ -159,11 +169,19 @@ $("#tool-edit-form").onsubmit = async (e) => {
     } else if (toolEditor.imageAction === "remove") {
       await api(`/tools/${saved.id}/images/${toolEditor.mainImage.id}`, { method: "DELETE" });
     }
+    const units = Number(form.elements.units.value);
+    if (toolEditor.units !== null && (created || units !== toolEditor.units)) {
+      const now = await api(`/tools/${saved.id}/units/count`, {
+        method: "PUT",
+        body: JSON.stringify({ count: units }),
+      });
+      toolEditor.units = now.length;
+    }
     $("#tool-edit-dialog").close();
     toolEditor.onSaved?.(saved, created);
   } catch (error) {
     showFormError(form, error, $("#tool-edit-error"),
-      /imagen/i.test(error.message) ? "image" : null);
+      /imagen/i.test(error.message) ? "image" : /unidad/i.test(error.message) ? "units" : null);
   } finally {
     button.disabled = false;
   }

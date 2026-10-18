@@ -50,6 +50,9 @@ public class CatalogController {
       @Parameter(description = "Filtra por categoría", example = "1")
           @RequestParam(required = false)
           Long categoryId,
+      @Parameter(description = "Filtra por proveedor (ver GET /providers)", example = "4")
+          @RequestParam(required = false)
+          Long providerId,
       @Parameter(description = "Solo las publicaciones del proveedor del token")
           @RequestParam(defaultValue = "false")
           boolean mine,
@@ -62,7 +65,13 @@ public class CatalogController {
       @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
     var query =
         new BrowseCatalogUseCase.Query(
-            q, categoryId, mine, ActorResolver.from(jwt), new PageQuery(page, size), sort);
+            q,
+            categoryId,
+            providerId,
+            mine,
+            ActorResolver.from(jwt),
+            new PageQuery(page, size),
+            sort);
     return PageResponse.from(catalog.search(query).map(ToolDetailsResponse::from));
   }
 

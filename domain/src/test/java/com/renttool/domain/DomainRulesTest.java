@@ -52,4 +52,12 @@ class DomainRulesTest {
     assertEquals(4, ToolImage.append(7L, "/uploads/d.png", existing).position());
     assertEquals(0, ToolImage.asMain(7L, "/uploads/e.png", java.util.List.of()).position());
   }
+
+  @Test
+  void unitCodesComeFromTheToolNameAndSkipTakenOnes() {
+    assertEquals("TAL-01", Unit.nextCode("Taladro percutor", java.util.Set.of()));
+    assertEquals("CAU-03", Unit.nextCode("Cautín", java.util.Set.of("CAU-01", "CAU-02")));
+    assertEquals("NIV-01", Unit.nextCode("Nivel láser", java.util.Set.of()), "sin tildes");
+    assertEquals("UNI-01", Unit.nextCode("X1", java.util.Set.of()), "nombre muy corto");
+  }
 }

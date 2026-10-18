@@ -85,10 +85,10 @@
       </button>
       <nav aria-label="Principal">
         <a class="active" href="#inicio">Inicio</a
-        ><a href="#catalogo">Catálogo</a
         ><a href="#como-funciona">Cómo funciona</a
-        ><a href="#preguntas">Preguntas frecuentes</a
-        ><a href="#proveedores">Sé proveedor</a>
+        ><a href="#catalogo">Catálogo</a
+        ><a href="#proveedores">Sé proveedor</a
+        ><a href="#preguntas">Preguntas frecuentes</a>
       </nav>
       <div class="header-actions" id="account-actions">
         <button class="text-button" data-auth="login">Iniciar sesión</button
@@ -144,17 +144,38 @@
           </div>
         </div>
       </section>
-      <section class="categories section" aria-labelledby="category-title">
-        <div class="section-intro">
-          <p class="eyebrow"><span></span> EL EQUIPO QUE BUSCAS</p>
-          <h2>Cada trabajo.<br /><em>Su herramienta.</em></h2>
-          <p>
-            Desde el primer plano hasta el último detalle. Explora nuestras
-            categorías.
-          </p>
+      <section class="how section" id="como-funciona">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow"><span></span> SIMPLE DESDE EL PRINCIPIO</p>
+            <h2>Menos vueltas.<br /><em>Más manos a la obra.</em></h2>
+          </div>
         </div>
-        <div class="category-grid" id="category-grid">
-          <p class="muted">Cargando categorías…</p>
+        <div class="steps">
+          <article>
+            <span>01 /</span>
+            <h3>Encuentra tu herramienta</h3>
+            <p>
+              Recorre las secciones Eléctricas, Iluminación y Manuales,
+              consulta las características y compara las tarifas diarias.
+            </p>
+          </article>
+          <article>
+            <span>02 /</span>
+            <h3>Crea tu cuenta</h3>
+            <p>
+              Regístrate como cliente. Si tienes equipo para alquilar,
+              solicita ser proveedor con los datos de tu empresa.
+            </p>
+          </article>
+          <article>
+            <span>03 /</span>
+            <h3>Reserva por fechas</h3>
+            <p>
+              Elige el día de entrega y de devolución, consulta cuántas unidades
+              quedan libres y envía tu solicitud al proveedor.
+            </p>
+          </article>
         </div>
       </section>
       <section class="catalog section" id="catalogo">
@@ -177,6 +198,8 @@
               aria-label="Buscar herramienta" /></label
           ><select id="category-filter" aria-label="Filtrar categoría">
             <option value="">Todas las categorías</option></select
+          ><select id="provider-filter" aria-label="Elegir el proveedor">
+            <option value="">Todos los proveedores</option></select
           ><select id="sort-order" aria-label="Ordenar catálogo">
             <option value="RECENT">Más recientes</option>
             <option value="PRICE_ASC">Precio: menor a mayor</option>
@@ -187,45 +210,12 @@
           <span id="result-count">Consultando inventario…</span
           ><span>TARIFAS EN COP / DÍA</span>
         </div>
+        <div class="catalog-sections" id="catalog-sections" aria-live="polite" hidden></div>
         <div class="products" id="products" aria-live="polite"></div>
         <div class="pagination">
           <button class="outline-button" id="prev">← Anterior</button
           ><span id="page-label"></span
           ><button class="outline-button" id="next">Siguiente →</button>
-        </div>
-      </section>
-      <section class="how section" id="como-funciona">
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow"><span></span> SIMPLE DESDE EL PRINCIPIO</p>
-            <h2>Menos vueltas.<br /><em>Más manos a la obra.</em></h2>
-          </div>
-        </div>
-        <div class="steps">
-          <article>
-            <span>01 /</span>
-            <h3>Encuentra tu herramienta</h3>
-            <p>
-              Explora categorías, consulta las características y compara las
-              tarifas diarias.
-            </p>
-          </article>
-          <article>
-            <span>02 /</span>
-            <h3>Crea tu cuenta</h3>
-            <p>
-              Regístrate como cliente. Si tienes equipo para alquilar,
-              solicita ser proveedor con los datos de tu empresa.
-            </p>
-          </article>
-          <article>
-            <span>03 /</span>
-            <h3>Reserva por fechas</h3>
-            <p>
-              Elige el día de entrega y de devolución, consulta cuántas unidades
-              quedan libres y envía tu solicitud al proveedor.
-            </p>
-          </article>
         </div>
       </section>
       <section class="workspace section" id="workspace" hidden>
@@ -244,6 +234,15 @@
           /></span>
           <form id="profile-form" class="profile-form">
             <label>Tu nombre<input name="name" required maxlength="120" /></label
+            ><label
+              >Teléfono<input
+                name="phone"
+                type="tel"
+                autocomplete="tel"
+                required
+                maxlength="20"
+                pattern="\+?[\d ]{7,20}"
+                placeholder="300 123 4567" /></label
             ><button class="outline-button" id="save-profile">
               Guardar perfil</button
             ><button type="button" class="outline-button" id="change-password">
@@ -265,49 +264,6 @@
           <button class="outline-button" data-apply>¿Quieres ser proveedor? ↗</button>
         </aside>
       </section>
-      <section class="faq section" id="preguntas">
-        <div>
-          <p class="eyebrow"><span></span> TODO CLARO ANTES DE EMPEZAR</p>
-          <h2>Buenas preguntas.<br /><em>Respuestas claras.</em></h2>
-        </div>
-        <div>
-          <details>
-            <summary>¿Puedo publicar mis herramientas?<span>+</span></summary>
-            <p>
-              Sí. Pulsa “¿Quieres ser proveedor?”, completa los datos de tu
-              empresa y el equipo de RentTool revisa tu solicitud. Al
-              aceptarla, entras a tu panel para administrar publicaciones,
-              tarifas, imágenes y unidades.
-            </p>
-          </details>
-          <details>
-            <summary>¿Cómo se calcula el precio?<span>+</span></summary>
-            <p>
-              Tarifa diaria × días × unidades. El día de devolución no se
-              cobra: un alquiler del 10 al 12 son dos días. La tarifa queda
-              fija desde que envías la solicitud.
-            </p>
-          </details>
-          <details>
-            <summary>¿Ya puedo reservar y pagar?<span>+</span></summary>
-            <p>
-              Sí puedes reservar: con una cuenta de cliente eliges fechas y el
-              proveedor tiene 24 horas para aceptar. Los pagos en línea se
-              incorporarán próximamente.
-            </p>
-          </details>
-          <details>
-            <summary>
-              ¿Qué significa “unidades operativas”?<span>+</span>
-            </summary>
-            <p>
-              Son los equipos que el proveedor mantiene en condición de uso.
-              Para saber cuántos están libres en unas fechas concretas, elígelas
-              en el detalle de la herramienta.
-            </p>
-          </details>
-        </div>
-      </section>
       <section class="contact section" id="proveedores">
         <p class="eyebrow"><span></span> SÉ PROVEEDOR</p>
         <h2>
@@ -322,6 +278,81 @@
             ¿Quieres ser proveedor? <span>↗</span>
           </button>
           <button class="text-button" data-auth="login">Ya soy proveedor</button>
+        </div>
+      </section>
+      <section class="faq section" id="preguntas">
+        <div class="faq-intro">
+          <p class="eyebrow"><span></span> TODO CLARO ANTES DE EMPEZAR</p>
+          <h2>Buenas preguntas.<br /><em>Respuestas claras.</em></h2>
+          <p class="muted">
+            Lo esencial para reservar, cuidar el presupuesto y publicar tu
+            equipo. Si te falta algo, empieza por el catálogo: cada herramienta
+            muestra su tarifa y su disponibilidad por fechas.
+          </p>
+          <div class="faq-actions">
+            <a class="button compact" href="#catalogo">Explorar catálogo <span>→</span></a
+            ><button class="outline-button" data-apply>Sé proveedor ↗</button>
+          </div>
+        </div>
+        <div class="faq-list">
+          <details name="faq" open>
+            <summary><span class="faq-number">01</span><span class="faq-question">¿Cómo reservo una herramienta?</span><span class="faq-toggle" aria-hidden="true"></span></summary>
+            <p>
+              Abre la herramienta en el catálogo, elige el día de entrega, el de
+              devolución y cuántas unidades necesitas. Verás el precio y la
+              disponibilidad antes de enviar la solicitud; necesitas una cuenta
+              de cliente.
+            </p>
+          </details>
+          <details name="faq">
+            <summary><span class="faq-number">02</span><span class="faq-question">¿Cómo se calcula el precio?</span><span class="faq-toggle" aria-hidden="true"></span></summary>
+            <p>
+              Tarifa diaria × días × unidades. El día de devolución no se
+              cobra: un alquiler del 10 al 12 son dos días. La tarifa queda
+              fija desde que envías la solicitud, aunque el proveedor la cambie
+              después.
+            </p>
+          </details>
+          <details name="faq">
+            <summary><span class="faq-number">03</span><span class="faq-question">¿Qué pasa si el proveedor no responde?</span><span class="faq-toggle" aria-hidden="true"></span></summary>
+            <p>
+              Tiene 24 horas para aceptar o rechazar, o hasta que termine el día
+              de inicio si es antes. Si no responde, la solicitud vence sola y
+              puedes pedir la misma herramienta a otro proveedor o en otras
+              fechas.
+            </p>
+          </details>
+          <details name="faq">
+            <summary><span class="faq-number">04</span><span class="faq-question">¿Puedo cancelar una reserva?</span><span class="faq-toggle" aria-hidden="true"></span></summary>
+            <p>
+              Sí: una solicitud pendiente en cualquier momento, y una reserva
+              aceptada mientras no haya llegado el día de inicio. Las unidades
+              quedan libres para otros clientes.
+            </p>
+          </details>
+          <details name="faq">
+            <summary><span class="faq-number">05</span><span class="faq-question">¿Qué significa “unidades operativas”?</span><span class="faq-toggle" aria-hidden="true"></span></summary>
+            <p>
+              Son los equipos que el proveedor mantiene en condición de uso.
+              Para saber cuántos están libres en unas fechas concretas, elígelas
+              en el detalle de la herramienta.
+            </p>
+          </details>
+          <details name="faq">
+            <summary><span class="faq-number">06</span><span class="faq-question">¿Cómo publico mis herramientas?</span><span class="faq-toggle" aria-hidden="true"></span></summary>
+            <p>
+              Pulsa “Sé proveedor”, completa los datos de tu empresa con su NIT
+              y el equipo de RentTool revisa tu solicitud. Al aceptarla, entras
+              a tu panel para publicar herramientas, imágenes y unidades.
+            </p>
+          </details>
+          <details name="faq">
+            <summary><span class="faq-number">07</span><span class="faq-question">¿Ya puedo pagar en línea?</span><span class="faq-toggle" aria-hidden="true"></span></summary>
+            <p>
+              Todavía no: hoy reservas y coordinas con el proveedor. Los pagos en
+              línea y las facturas se incorporarán próximamente.
+            </p>
+          </details>
         </div>
       </section>
     </main>
@@ -344,6 +375,14 @@
             name="name"
             autocomplete="name"
             maxlength="120" /></label
+        ><label id="phone-field" hidden
+          >Teléfono<input
+            name="phone"
+            type="tel"
+            autocomplete="tel"
+            maxlength="20"
+            pattern="\+?[\d ]{7,20}"
+            placeholder="300 123 4567" /></label
         ><label
           >Correo electrónico<input
             name="email"
@@ -360,7 +399,9 @@
             maxlength="64" /></label
         >
         <p id="register-note" class="muted" hidden>
-          El registro crea una cuenta de cliente. Para ser proveedor, después
+          Tu teléfono y tu correo solo los ve el proveedor de lo que reserves,
+          para coordinar el pago y la entrega. El registro crea una cuenta de
+          cliente. Para ser proveedor, después
           envía tu solicitud desde “¿Quieres ser proveedor?”.
         </p>
         <p id="auth-error" class="form-error" role="alert"></p>

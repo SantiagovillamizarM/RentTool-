@@ -10,35 +10,106 @@ Object.assign(state, {
 async function loadCategories() {
   try {
     state.categories = await api("/categories");
-    $("#category-grid").innerHTML = state.categories
-      .map(
-        (c, i) =>
-          `<button class="category-card" data-category="${c.id}"><span class="category-icon">${esc(c.icon)}</span><h3>${esc(c.name)}</h3><p>${["Potencia para cada tarea.", "Equipos para transformar.", "Cada detalle cuenta.", "Llega un poco más lejos."][i % 4]}</p><span class="category-arrow">→</span></button>`,
-      )
-      .join("");
-    const options = state.categories
-      .map((c) => `<option value="${c.id}">${esc(c.name)}</option>`)
-      .join("");
     $("#category-filter").innerHTML =
-      '<option value="">Todas las categorías</option>' + options;
-    $("#tool-category").innerHTML = options;
-    $("#category-grid")
-      .querySelectorAll("button")
-      .forEach(
-        (b) =>
-          (b.onclick = () => {
-            $("#category-filter").value = b.dataset.category;
-            state.page = 0;
-            loadTools();
-            location.hash = "catalogo";
-          }),
-      );
-  } catch (error) {
-    $("#category-grid").innerHTML =
-      `<p class="muted">${esc(error.message)} Comprueba que el backend esté iniciado.</p>`;
+      '<option value="">Todas las categorías</option>' +
+      state.categories.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
+  } catch {
+    // El catálogo muestra el error de conexión con su botón de reintentar.
   }
 }
+// Proveedores activos: llenan el filtro y ponen nombre a las tarjetas.
+async function loadProviders() {
+  try {
+    const list = await api("/providers");
+    state.providers = Object.fromEntries(list.map((p) => [p.id, p]));
+    const select = $("#provider-filter");
+    const chosen = select.value;
+    select.innerHTML =
+      '<option value="">Todos los proveedores</option>' +
+      list.map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join("");
+    select.value = state.providers[chosen] ? chosen : "";
+  } catch {
+    state.providers = {};
+  }
+}
+const providerOf = (t) => state.providers?.[t.providerId]?.name;
+// Una línea por sección del catálogo; las categorías nuevas simplemente no la tienen.
+const SECTION_BLURBS = {
+  Eléctricas: "Potencia para perforar, cortar, demoler y medir.",
+  Iluminación: "Luz para trabajar de noche o en espacios cerrados.",
+  Manuales: "Precisión y control, sin cables ni baterías.",
+};
+const EMPTY_CATALOG =
+  '<div class="empty"><h3>Tu próxima herramienta está por llegar.</h3><p>No hay publicaciones para estos filtros.<br>¿Tienes equipo para alquilar? Publícalo en RentTool.</p><button class="outline-button" data-apply>Sé proveedor ↗</button></div>';
+const toolsLabel = (n) => `${n} ${n === 1 ? "herramienta" : "herramientas"}`;
+const unitsLabel = (n) => `${n} ${n === 1 ? "unidad operativa" : "unidades operativas"}`;
+function productCard(t) {
+  return `<article class="product"><div class="product-image"><span class="product-tag">${t.operationalUnits > 0 ? "EQUIPO OPERATIVO" : "CONSULTAR INVENTARIO"}</span>${imageMarkup(t)}</div><div class="product-body"><p class="product-category">${esc(t.category)}</p><h3>${esc(t.name)}</h3>${providerOf(t) ? `<p class="product-provider">Por ${esc(providerOf(t))}</p>` : ""}<p class="stock">${unitsLabel(t.operationalUnits)}</p><div class="product-bottom"><p class="price">${money(t.dailyRate)} <small>COP / día</small></p><button class="icon-button" data-detail="${t.id}" aria-label="Ver ${esc(t.name)}">↗</button></div></div></article>`;
+}
+function wireProducts(container) {
+  container
+    .querySelectorAll("[data-detail]")
+    .forEach((b) => (b.onclick = () => detail(b.dataset.detail)));
+  wireImages(container);
+}
+function catalogError(container, error) {
+  container.innerHTML = `<div class="empty"><h3>No pudimos consultar el catálogo.</h3><p>${esc(error.message)}</p><button class="outline-button" id="retry-catalog">Reintentar</button></div>`;
+  $("#result-count").textContent = "Conexión no disponible";
+  $("#retry-catalog").onclick = async () => {
+    if (!state.categories.length) await loadCategories();
+    loadTools();
+  };
+}
+/**
+ * Sin búsqueda ni categoría, el catálogo se divide en secciones (una por categoría). Al buscar o
+ * filtrar se vuelve a la cuadrícula paginada.
+ */
 async function loadTools() {
+  const grouped = !$("#search").value.trim() && !$("#category-filter").value;
+  $("#catalog-sections").hidden = !grouped;
+  $("#products").hidden = grouped;
+  $(".catalog .pagination").hidden = grouped;
+  return grouped ? loadSections() : loadGrid();
+}
+async function loadSections() {
+  const box = $("#catalog-sections");
+  box.innerHTML = '<div class="empty">Consultando herramientas…</div>';
+  try {
+    if (!state.categories.length) await loadCategories();
+    if (!state.categories.length) throw new Error("No se pudieron cargar las secciones.");
+    const filter = new URLSearchParams({ size: 100, sort: $("#sort-order").value });
+    if ($("#provider-filter").value) filter.set("providerId", $("#provider-filter").value);
+    const results = await Promise.all(
+      state.categories.map((c) => api(`/tools?categoryId=${c.id}&${filter}`)),
+    );
+    const sections = state.categories
+      .map((c, i) => ({ category: c, page: results[i] }))
+      .filter((s) => s.page.totalElements > 0);
+    const total = sections.reduce((n, s) => n + s.page.totalElements, 0);
+    $("#result-count").textContent = `${toolsLabel(total)} en ${sections.length} ${sections.length === 1 ? "sección" : "secciones"}`;
+    box.innerHTML = sections.length
+      ? sections
+          .map(
+            ({ category: c, page }) =>
+              `<section class="catalog-group" aria-labelledby="seccion-${c.id}"><header class="catalog-group-head"><span class="catalog-group-icon" aria-hidden="true">${esc(c.icon)}</span><div class="catalog-group-title"><h3 id="seccion-${c.id}">${esc(c.name)}</h3><p class="muted">${esc(SECTION_BLURBS[c.name] || "")}</p></div><span class="catalog-group-count">${toolsLabel(page.totalElements)}</span><button class="text-button" data-only-category="${c.id}">Ver solo ${esc(c.name)} →</button></header><div class="products">${page.content.map(productCard).join("")}</div></section>`,
+          )
+          .join("")
+      : EMPTY_CATALOG;
+    box.querySelectorAll("[data-only-category]").forEach(
+      (b) =>
+        (b.onclick = () => {
+          $("#category-filter").value = b.dataset.onlyCategory;
+          state.page = 0;
+          loadTools();
+          $("#catalogo").scrollIntoView({ behavior: reducedMotion.matches ? "auto" : "smooth" });
+        }),
+    );
+    wireProducts(box);
+  } catch (error) {
+    catalogError(box, error);
+  }
+}
+async function loadGrid() {
   const container = $("#products");
   container.innerHTML = '<div class="empty">Consultando herramientas…</div>';
   try {
@@ -50,33 +121,20 @@ async function loadTools() {
     });
     if ($("#category-filter").value)
       params.set("categoryId", $("#category-filter").value);
+    if ($("#provider-filter").value)
+      params.set("providerId", $("#provider-filter").value);
     const data = await api("/tools?" + params);
     state.totalPages = data.totalPages;
-    $("#result-count").textContent =
-      `${data.totalElements} herramientas en catálogo`;
-    container.innerHTML = data.content.length
-      ? data.content
-          .map(
-            (t) =>
-              `<article class="product"><div class="product-image"><span class="product-tag">${t.operationalUnits > 0 ? "EQUIPO OPERATIVO" : "CONSULTAR INVENTARIO"}</span>${imageMarkup(t)}</div><div class="product-body"><p class="product-category">${esc(t.category)}</p><h3>${esc(t.name)}</h3><p class="stock">${t.operationalUnits} unidades operativas</p><div class="product-bottom"><p class="price">${money(t.dailyRate)} <small>COP / día</small></p><button class="icon-button" data-detail="${t.id}" aria-label="Ver ${esc(t.name)}">↗</button></div></div></article>`,
-          )
-          .join("")
-      : '<div class="empty"><h3>Tu próxima herramienta está por llegar.</h3><p>No hay publicaciones para estos filtros.<br>¿Eres proveedor? Entra con la cuenta que te asignó RentTool.</p><button class="outline-button" data-empty-register>Publicar mi inventario ↗</button></div>';
-    container
-      .querySelectorAll("[data-detail]")
-      .forEach((b) => (b.onclick = () => detail(b.dataset.detail)));
-    container
-      .querySelector("[data-empty-register]")
-      ?.addEventListener("click", () => openAuth("login"));
-    wireImages(container);
+    const n = data.totalElements;
+    $("#result-count").textContent = `${n} ${n === 1 ? "herramienta encontrada" : "herramientas encontradas"}`;
+    container.innerHTML = data.content.length ? data.content.map(productCard).join("") : EMPTY_CATALOG;
+    wireProducts(container);
     $("#page-label").textContent =
       `${data.totalPages ? state.page + 1 : 0} / ${data.totalPages}`;
     $("#prev").disabled = state.page === 0;
     $("#next").disabled = state.page + 1 >= data.totalPages;
   } catch (error) {
-    container.innerHTML = `<div class="empty"><h3>No pudimos consultar el catálogo.</h3><p>${esc(error.message)}</p><button class="outline-button" id="retry-catalog">Reintentar</button></div>`;
-    $("#result-count").textContent = "Conexión no disponible";
-    $("#retry-catalog").onclick = loadTools;
+    catalogError(container, error);
     $("#prev").disabled = $("#next").disabled = true;
   }
 }
@@ -85,7 +143,7 @@ async function detail(id) {
     const t = await api("/tools/" + id);
     const start = addDays(businessToday(), 1);
     $("#detail-content").innerHTML =
-      `<div class="detail-image">${imageMarkup(t)}</div><p class="eyebrow">${esc(t.category)}</p><h2>${esc(t.name)}</h2><p class="muted">${esc(t.description)}</p><p class="detail-price">${money(t.dailyRate)} <small>COP / día</small></p><p class="stock">${t.operationalUnits} unidades operativas</p>` +
+      `<div class="detail-image">${imageMarkup(t)}</div><p class="eyebrow">${esc(t.category)}</p><h2>${esc(t.name)}</h2>${providerOf(t) ? `<p class="detail-provider">Ofrecido por <strong>${esc(providerOf(t))}</strong></p>` : ""}<p class="muted">${esc(t.description)}</p><p class="detail-price">${money(t.dailyRate)} <small>COP / día</small></p><p class="stock">${unitsLabel(t.operationalUnits)}</p>` +
       `<form id="reserve-form" class="reserve-form" novalidate><h3>Reserva por fechas</h3><div class="reserve-fields"><label>Entrega<input type="date" name="start" required min="${businessToday()}" value="${start}"></label><label>Devolución<input type="date" name="end" required min="${addDays(start, 1)}" value="${addDays(start, 2)}"></label><label>Unidades<input type="number" name="quantity" required min="1" max="20" value="1"></label></div><p class="reserve-quote" aria-live="polite"></p><p class="form-error" role="alert"></p><button class="button full">Solicitar reserva →</button><p class="muted reserve-hint">El día de devolución no se cobra. El proveedor tiene 24 horas para aceptar.</p></form>`;
     wireImages($("#detail-content"));
     wireReservation(t);
@@ -150,6 +208,15 @@ function wireReservation(tool) {
       error.textContent = "Las reservas se hacen con una cuenta de cliente.";
       return;
     }
+    // El proveedor llama al cliente para acordar el pago y la entrega.
+    if (!state.user.phone) {
+      $("#detail-dialog").close();
+      location.hash = "workspace";
+      const phone = $("#profile-form").elements.phone;
+      fieldError($("#profile-form"), "phone", "Agrega tu teléfono para que el proveedor pueda contactarte.");
+      phone.focus();
+      return;
+    }
     submit.disabled = true;
     try {
       const r = await api("/reservations", {
@@ -190,8 +257,9 @@ function openAuth(mode) {
   }
   state.mode = mode;
   const register = mode === "register";
-  $("#name-field").hidden = $("#register-note").hidden = !register;
+  $("#name-field").hidden = $("#phone-field").hidden = $("#register-note").hidden = !register;
   $("#auth-form").elements.name.required = register;
+  $("#auth-form").elements.phone.required = register;
   $("#auth-form").elements.password.minLength = register ? 10 : 1;
   $("#auth-form").elements.password.autocomplete = register
     ? "new-password"
@@ -264,6 +332,7 @@ function renderAccount() {
   };
   $("#workspace-title").textContent = "Tu próximo proyecto empieza aquí.";
   $("#profile-form").elements.name.value = state.user.name;
+  $("#profile-form").elements.phone.value = state.user.phone || "";
   $("#profile-avatar").src = "assets/icons/user.png";
   $("#profile-avatar").classList.remove("photo");
   $("#reservations-title").textContent = "Mis reservas";
@@ -411,7 +480,10 @@ $("#auth-form").onsubmit = async (event) => {
   b.disabled = true;
   $("#auth-error").textContent = "";
   const data = Object.fromEntries(new FormData(event.target));
-  if (state.mode === "login") delete data.name;
+  if (state.mode === "login") {
+    delete data.name;
+    delete data.phone;
+  }
   try {
     const result = await api(
       "/auth/" + (state.mode === "register" ? "register" : "login"),
@@ -448,6 +520,7 @@ $("#switch-auth").onclick = () =>
   openAuth(state.mode === "login" ? "register" : "login");
 $("#profile-form").onsubmit = async (e) => {
   e.preventDefault();
+  clearFieldErrors(e.target);
   try {
     state.user = await api("/me", {
       method: "PUT",
@@ -465,6 +538,10 @@ $("#search-form").onsubmit = (e) => {
   loadTools();
 };
 $("#category-filter").onchange = () => {
+  state.page = 0;
+  loadTools();
+};
+$("#provider-filter").onchange = () => {
   state.page = 0;
   loadTools();
 };
@@ -501,7 +578,7 @@ document.querySelectorAll("nav a").forEach(
 $("#year").textContent = new Date().getFullYear();
 wireAuth();
 (async () => {
-  await loadCategories();
+  await Promise.all([loadCategories(), loadProviders()]);
   loadTools();
   if (state.token) {
     try {

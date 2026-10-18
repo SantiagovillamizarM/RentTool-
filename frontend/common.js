@@ -509,13 +509,18 @@ function reservationRow(r) {
   const who =
     (role === "CLIENTE" ? "" : ` · Cliente: ${esc(r.clientName)}`) +
     (provider ? ` · Proveedor: ${esc(provider)}` : "");
+  // El proveedor llama al cliente para acordar el pago y la entrega.
+  const contact =
+    role !== "CLIENTE" && (r.clientPhone || r.clientEmail)
+      ? `<p class="client-contact">${r.clientPhone ? `<a href="tel:${esc(r.clientPhone.replace(/ /g, ""))}">☎ ${esc(r.clientPhone)}</a>` : ""}${r.clientEmail ? `<a href="mailto:${esc(r.clientEmail)}">✉ ${esc(r.clientEmail)}</a>` : ""}</p>`
+      : "";
   const extra =
     r.status === "SOLICITADA" && r.respondBy
       ? `<p class="muted">Respuesta antes del ${dateTime(r.respondBy)}</p>`
       : r.note
         ? `<p class="muted">Motivo: ${esc(r.note)}</p>`
         : "";
-  return `<article class="inventory-row reservation-row"><div><h3><span class="reservation-id">#${r.id}</span> ${esc(r.toolName)} <span class="status-chip status-${r.status.toLowerCase()}">${reservationStatus[r.status]}</span></h3><p class="muted">${shortDate(r.start)} → ${shortDate(r.end)} · ${r.days} ${r.days === 1 ? "día" : "días"} · ${r.quantity} ${r.quantity === 1 ? "unidad" : "unidades"} · ${money(r.total)}${who}</p>${extra}</div>${actions.length ? `<div class="inventory-actions">${actions.join("")}</div>` : ""}</article>`;
+  return `<article class="inventory-row reservation-row"><div><h3><span class="reservation-id">#${r.id}</span> ${esc(r.toolName)} <span class="status-chip status-${r.status.toLowerCase()}">${reservationStatus[r.status]}</span></h3><p class="muted">${shortDate(r.start)} → ${shortDate(r.end)} · ${r.days} ${r.days === 1 ? "día" : "días"} · ${r.quantity} ${r.quantity === 1 ? "unidad" : "unidades"} · ${money(r.total)}${who}</p>${contact}${extra}</div>${actions.length ? `<div class="inventory-actions">${actions.join("")}</div>` : ""}</article>`;
 }
 async function loadReservations() {
   const box = $("#reservations");

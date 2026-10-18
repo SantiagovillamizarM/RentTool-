@@ -1,5 +1,6 @@
 package com.renttool.infrastructure.inventory.web;
 
+import com.renttool.application.fleet.port.in.SetUnitCountUseCase;
 import com.renttool.application.inventory.port.in.*;
 import com.renttool.domain.inventory.*;
 import com.renttool.application.shared.PageResult;
@@ -66,7 +67,7 @@ public final class InventoryDtos {
       @Schema(example = "Incluye maletín, broca para concreto y mandril de 13 mm.")
           String description,
       @Schema(example = "1") Long categoryId,
-      @Schema(example = "Herramientas eléctricas") String category,
+      @Schema(example = "Eléctricas") String category,
       @Schema(example = "4") Long providerId,
       @Schema(example = "25000.00") BigDecimal dailyRate,
       @Schema(example = "true") boolean active,
@@ -87,6 +88,13 @@ public final class InventoryDtos {
           d.operationalUnits());
     }
   }
+
+  public record UnitCountRequest(
+      @Schema(example = "5", description = "Unidades que tiene, en mantenimiento incluidas")
+          @NotNull
+          @Min(0)
+          @Max(SetUnitCountUseCase.MAX_UNITS)
+          Integer count) {}
 
   public record UnitResponse(
       @Schema(example = "31") Long id,
@@ -109,7 +117,7 @@ public final class InventoryDtos {
 
   public record CategoryResponse(
       @Schema(example = "1") Long id,
-      @Schema(example = "Herramientas eléctricas") String name,
+      @Schema(example = "Eléctricas") String name,
       @Schema(example = "↯") String icon) {
     public static CategoryResponse from(Category c) {
       return new CategoryResponse(c.id(), c.name(), c.icon());

@@ -27,4 +27,7 @@ public class AccountEntity {
   /** UTC, como el resto de instantes; null si la cuenta no fue eliminada. */
   @Column(name = "removed_at")
   public LocalDateTime removedAt;
+
+  @Column(length = 20)
+  public String phone;
 }

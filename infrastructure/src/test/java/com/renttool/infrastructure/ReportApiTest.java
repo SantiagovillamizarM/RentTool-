@@ -65,7 +65,7 @@ class ReportApiTest {
                         .contentType("application/json")
                         .content(
                             "{\"name\":\"=HYPERLINK(\\\"http://x\\\")\",\"email\":\"rep-client@test.example\","
-                                + "\"password\":\"correct-test-password\"}"))
+                                + "\"password\":\"correct-test-password\",\"phone\":\"3001234567\"}"))
                 .andExpect(status().isCreated())
                 .andReturn()
                 .getResponse()

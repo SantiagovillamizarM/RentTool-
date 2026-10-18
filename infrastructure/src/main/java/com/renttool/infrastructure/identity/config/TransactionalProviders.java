@@ -4,6 +4,7 @@ import com.renttool.application.identity.port.in.*;
 import com.renttool.application.identity.service.ProviderAdministrationService;
 import com.renttool.application.shared.PageQuery;
 import com.renttool.application.shared.PageResult;
+import java.util.List;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -11,7 +12,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * Cuenta y perfil del proveedor se escriben en la misma transacción: si el perfil falla (por
  * ejemplo, otro alta simultánea con el mismo NIT) no queda una cuenta huérfana.
  */
-class TransactionalProviders implements ManageProvidersUseCase {
+class TransactionalProviders implements ManageProvidersUseCase, ManageOwnCompanyUseCase {
   private final ProviderAdministrationService service;
   private final TransactionTemplate write;
   private final TransactionTemplate read;
@@ -62,5 +63,25 @@ class TransactionalProviders implements ManageProvidersUseCase {
   @Override
   public void resetPassword(Long adminId, Long providerId, String temporaryPassword) {
     write.executeWithoutResult(s -> service.resetPassword(adminId, providerId, temporaryPassword));
+  }
+
+  @Override
+  public ProviderDetails updateOwn(Long providerId, CompanyCommand command) {
+    return write.execute(s -> service.updateOwn(providerId, command));
+  }
+
+  @Override
+  public ProviderDetails setOwnLogo(Long providerId, byte[] content) {
+    return write.execute(s -> service.setOwnLogo(providerId, content));
+  }
+
+  @Override
+  public ProviderDetails removeOwnLogo(Long providerId) {
+    return write.execute(s -> service.removeOwnLogo(providerId));
+  }
+
+  @Override
+  public List<PublicProvider> publicProviders() {
+    return read.execute(s -> service.publicProviders());
   }
 }

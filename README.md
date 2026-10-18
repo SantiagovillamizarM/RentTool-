@@ -10,7 +10,8 @@ Plataforma de alquiler de herramientas y equipos de construcción. Este incremen
 - **Alta de proveedores por el administrador**: correo, contraseña temporal, tipo de persona, NIT con dígito de verificación DIAN, razón social, nombre comercial, representante legal, teléfono, dirección y ciudad. El proveedor debe cambiar la contraseña temporal antes de usar la API; el administrador puede editar sus datos, desactivarlo (pierde el acceso al instante) o asignarle una nueva clave temporal.
 - Restricciones por rol y propietario; el registro público solo crea clientes.
 - **"¿Quieres ser proveedor?"**: un cliente envía los datos de su empresa desde el sitio; el administrador acepta o rechaza con motivo. La próxima vez que entra ve la respuesta una sola vez: el motivo del rechazo (con opción de reenviar) o la bienvenida con su nombre comercial y el acceso a su panel.
-- **Panel del proveedor** en `/proveedor`, aparte del sitio: inventario (publicar, editar con imagen principal, unidades e imágenes, retirar), solicitudes de reserva y sus datos legales de solo lectura.
+- **Panel del proveedor** en `/proveedor`, aparte del sitio: inventario (publicar, editar con imagen principal, elegir cuántas unidades tiene, imágenes, retirar), solicitudes de reserva con el teléfono y el correo del cliente, y los datos de su empresa (nombre, representante, contacto y logo; el NIT y el tipo de persona solo los corrige el administrador).
+- **Catálogo por proveedor**: el cliente elige "Todos los proveedores" o uno en particular; la búsqueda también mira la descripción, donde suele ir la marca.
 - **Editar herramientas desde el panel del administrador**: nombre, categoría, descripción, tarifa e imagen principal (cambiarla o quitarla). Sin imagen se muestra una ilustración predeterminada. Las reservas ya solicitadas conservan la tarifa pactada.
 - **Eliminar proveedor** desde el panel, con aviso previo de lo que pasará y confirmación escribiendo su nombre: cierra su cuenta para siempre, retira todas sus herramientas del catálogo y cancela sus reservas que aún no empiezan (los alquileres en curso siguen). Sus datos se conservan para el historial.
 - **Historial y auditoría de reservas**: cada solicitud, aceptación, rechazo, cancelación y vencimiento queda registrado con quién lo hizo y cuándo, visible en "Historial" de cada reserva.
@@ -39,13 +40,15 @@ Abre **http://localhost:8088**. El frontend y la API se sirven desde el mismo or
 
 La documentación interactiva de la API (Swagger) está en **http://localhost:8088/swagger-ui.html**. Para probar los endpoints protegidos, obtén un token con `/auth/login`, pulsa **Authorize** y pégalo. MySQL y las imágenes persisten en volúmenes. No abras `index.html` con `file://`: necesita la API.
 
-Para cargar seis herramientas de demostración, añade `DEMO_PASSWORD` (mínimo 10 caracteres) a `.env` y ejecuta:
+Para cargar el catálogo de demostración, añade `DEMO_PASSWORD` (mínimo 10 caracteres) a `.env` y ejecuta:
 
 ```bash
 docker compose -f compose.yaml -f compose.demo.yaml up --build
 ```
 
-Cuenta demo: `proveedor@renttool.demo`, contraseña definida en `DEMO_PASSWORD`. El perfil demo solo puebla el inventario si está vacío; sus publicaciones se identifican como demostración. No uses este perfil con datos reales.
+El perfil demo crea al proveedor **Midnight** (Midnight Herramientas S.A.S., representante legal Santiago Villamizar Mantilla) y publica sus 18 herramientas con imagen y unidades, repartidas en las secciones Eléctricas, Iluminación y Manuales. Lo hace con los mismos casos de uso que usa un proveedor desde su panel; las imágenes están en `infrastructure/src/main/resources/demo/tools/`.
+
+Cuenta: `midnight@renttool.demo`, contraseña definida en `DEMO_PASSWORD`. Es idempotente: si Midnight ya tiene herramientas no las duplica. Si la base tenía la cuenta demo anterior (`proveedor@renttool.demo`), la da de baja y retira sus herramientas, conservando su historial. No uses este perfil con datos reales.
 
 ## Compilación y pruebas
 

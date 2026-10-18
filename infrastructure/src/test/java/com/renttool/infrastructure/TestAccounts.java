@@ -51,7 +51,7 @@ final class TestAccounts {
                             + email
                             + "\",\"password\":\""
                             + PASSWORD
-                            + "\"}"))
+                            + "\",\"phone\":\"3001234567\"}"))
             .andExpect(status().isCreated())
             .andReturn()
             .getResponse()

@@ -34,8 +34,8 @@ public class AuthenticationService
       throw new ConflictException("Este correo ya está registrado");
     var account =
         accounts.save(
-            Account.create(
-                command.name(), email, passwords.hash(command.rawPassword()), Role.CLIENTE));
+            Account.createClient(
+                command.name(), email, passwords.hash(command.rawPassword()), command.phone()));
     return session(account, clock.instant());
   }
 

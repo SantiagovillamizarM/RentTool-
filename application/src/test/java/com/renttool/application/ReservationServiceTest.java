@@ -30,7 +30,11 @@ class ReservationServiceTest {
         }
 
         public Card cardOf(Long id) {
-          return new Card(nameOf(id), "p" + id + "@x.co", id.equals(4L) ? "800197268-4" : null);
+          return new Card(
+              nameOf(id),
+              "p" + id + "@x.co",
+              id.equals(4L) ? "800197268-4" : null,
+              id.equals(9L) ? null : "300 000 00" + id);
         }
       };
   private final List<String> downloads = new ArrayList<>();
@@ -70,6 +74,18 @@ class ReservationServiceTest {
     assertEquals(3, availability.check(12L, period(8, 10), 1).availableUnits(), "devolución el 8");
     assertEquals(
         new BigDecimal("150000.00"), availability.check(12L, period(8, 11), 2).total());
+  }
+
+  @Test
+  void providerSeesHowToContactTheClient() {
+    var details = service.request(client, days(5, 6, 1));
+    assertEquals("p7@x.co", details.clientEmail());
+    assertEquals("300 000 007", details.clientPhone());
+    var noPhone = new Participant(9L, Participant.Role.CLIENTE);
+    assertThrows(
+        InvalidInputException.class,
+        () -> service.request(noPhone, days(5, 6, 1)),
+        "sin teléfono no puede reservar");
   }
 
   @Test

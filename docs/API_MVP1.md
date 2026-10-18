@@ -6,18 +6,20 @@ Base `/api/v1`, JSON excepto subida de archivos. Autenticación: `Authorization:
 
 | Método | Ruta | Operación |
 |---|---|---|
-| POST | /auth/register | name, email, password (10–64 caracteres); role opcional y solo `CLIENTE` (otro valor: 403) |
+| POST | /auth/register | name, email, password (10–64 caracteres), phone (obligatorio: dígitos, espacios y +, 7–20); role opcional y solo `CLIENTE` (otro valor: 403) |
 | POST | /auth/login | email, password; devuelve token, expiresAt y user |
 | POST | /auth/refresh | Con token vigente: emite uno nuevo para la misma sesión (máximo 8 horas desde el login) |
-| GET/PUT | /me | Perfil propio (incluye `mustChangePassword` y, para proveedores, `logoUrl`); PUT modifica name, salvo el del administrador, que es fijo (403) |
+| GET/PUT | /me | Perfil propio (incluye `mustChangePassword`, `phone` y, para proveedores, `logoUrl`); PUT modifica name y, para clientes, phone. El nombre del administrador es fijo y el del proveedor se cambia con `PUT /me/provider-profile` (403) |
 | PUT | /me/password | currentPassword, newPassword (10–64); reemplaza la contraseña y libera la temporal |
 | GET | /categories | Categorías públicas |
-| GET | /tools | q, categoryId, page (desde 0), size (1–100), mine, sort (`RECENT` por defecto, `PRICE_ASC`, `PRICE_DESC`) |
+| GET | /providers | Público: proveedores activos (id, name, logoUrl) ordenados por nombre, para filtrar el catálogo |
+| GET | /tools | q (busca en nombre y descripción, donde suele ir la marca), categoryId, providerId, page (desde 0), size (1–100), mine, sort (`RECENT` por defecto, `PRICE_ASC`, `PRICE_DESC`) |
 | GET | /tools/{id} | Detalle de publicación activa |
 | POST | /tools | Crear: categoryId, name, description, dailyRate |
 | PUT | /tools/{id} | Editar los mismos campos, propietario o administrador |
 | DELETE | /tools/{id} | Retirada lógica |
 | GET/POST | /tools/{id}/units | Consultar/crear: code, status |
+| PUT | /tools/{id}/units/count | `{"count": n}` (0–200): unidades que tiene, sin contar las retiradas. Crea las que faltan (OPERATIVA, código con prefijo del nombre: TAL-01…) o retira las sobrantes, primero las de mantenimiento. Nunca retira unidades de reservas aceptadas que no han terminado: si no alcanza, 409 con el mínimo posible. Devuelve las unidades vigentes |
 | PUT | /tools/{id}/units/{unitId} | Modificar code y status |
 | DELETE | /tools/{id}/units/{unitId} | Retirar unidad |
 | POST | /tools/{id}/images | Añadir referencia HTTPS: location |
@@ -36,12 +38,14 @@ Solo `ADMINISTRADOR`; otro rol recibe 403.
 | POST | /me/provider-application | Cliente | Envía los datos legales (mismo `profile` del alta). 409 si ya tiene una en revisión o el NIT está en uso |
 | GET | /me/provider-application | Autenticado | Su solicitud más reciente (204 si no tiene). `needsNotice` indica que aún no vio la respuesta |
 | POST | /me/provider-application/acknowledge | Autenticado | Marca la respuesta como vista |
-| GET | /me/provider-profile | Proveedor | Sus datos legales, de solo lectura |
+| GET | /me/provider-profile | Proveedor | Los datos de su empresa |
+| PUT | /me/provider-profile | Proveedor | legalName, tradeName, legalRepresentative, representativeDocument, phone, address, city. El NIT y el tipo de persona se conservan (solo el administrador los corrige). La cuenta pasa a mostrarse con el nombre comercial, o la razón social si no tiene. Otro rol: 403 |
+| POST/DELETE | /me/provider-profile/logo | Proveedor | Sube (multipart, campo file, PNG/JPEG hasta 2 MB) o quita su logo |
 | GET | /admin/provider-applications | Administrador | status (PENDIENTE por defecto), page, size; las más antiguas primero |
 | POST | /admin/provider-applications/{id}/accept | Administrador | La cuenta pasa a PROVEEDOR con su nombre comercial y sus datos legales |
 | POST | /admin/provider-applications/{id}/reject | Administrador | `{"reason": "..."}` obligatorio; el solicitante lo verá |
 
-Tras aceptarse, el token anterior del solicitante todavía dice CLIENTE: la API responde 401 con `code: "ROLE_CHANGED"` (salvo `GET /me` y `POST /auth/refresh`) y la interfaz renueva el token automáticamente. El nombre de un proveedor no se cambia con `PUT /me` (403): es su nombre comercial y lo actualiza el administrador.
+Tras aceptarse, el token anterior del solicitante todavía dice CLIENTE: la API responde 401 con `code: "ROLE_CHANGED"` (salvo `GET /me` y `POST /auth/refresh`) y la interfaz renueva el token automáticamente. El nombre de un proveedor no se cambia con `PUT /me` (403): es su nombre comercial y lo actualiza él mismo con `PUT /me/provider-profile` o el administrador.
 
 | Método | Ruta | Operación |
 |---|---|---|
@@ -83,9 +87,9 @@ Fechas ISO `AAAA-MM-DD`, días completos en `America/Bogota`, rango `[start, end
 | Método | Ruta | Quién | Operación |
 |---|---|---|---|
 | GET | /tools/{id}/availability | Público | start, end, quantity (1 por defecto); unidades libres y total. No aparta unidades |
-| POST | /reservations | Cliente | toolId, start, end, quantity. Crea `SOLICITADA` con la tarifa vigente |
+| POST | /reservations | Cliente | toolId, start, end, quantity. Crea `SOLICITADA` con la tarifa vigente. 400 si el cliente no tiene teléfono (cuentas anteriores al campo) |
 | GET | /reservations | Autenticado | page, size. Cliente: las suyas; proveedor: las de sus herramientas; administrador: todas |
-| GET | /reservations/{id} | Cliente dueño, proveedor de la herramienta o administrador | Detalle |
+| GET | /reservations/{id} | Cliente dueño, proveedor de la herramienta o administrador | Detalle. Incluye `clientEmail` y `clientPhone` para que el proveedor coordine el pago y la entrega |
 | POST | /reservations/{id}/accept | Proveedor de la herramienta | Asigna unidades concretas y pasa a `ACEPTADA` |
 | POST | /reservations/{id}/reject | Proveedor de la herramienta | reason opcional (máximo 500); pasa a `RECHAZADA` |
 | DELETE | /reservations/{id} | Cliente dueño o administrador | Cancelación lógica; una aceptada solo antes del día de inicio |

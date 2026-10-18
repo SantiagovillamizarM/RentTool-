@@ -1,6 +1,6 @@
 # Modelo implementado — identidad, inventario y reservas
 
-Migraciones: `V1__identity_inventory.sql`, `V2__reservations.sql` y `V3__provider_profiles.sql`, `V4__provider_logo.sql`, `V5__reservation_events.sql`, `V6__provider_removal.sql`, `V7__tool_image_order.sql` y `V8__provider_applications.sql` en `infrastructure/src/main/resources/db/migration/`.
+Migraciones: `V1__identity_inventory.sql`, `V2__reservations.sql` y `V3__provider_profiles.sql`, `V4__provider_logo.sql`, `V5__reservation_events.sql`, `V6__provider_removal.sql`, `V7__tool_image_order.sql`, `V8__provider_applications.sql`, `V9__catalog_sections.sql` y `V10__account_phone.sql` en `infrastructure/src/main/resources/db/migration/`.
 
 ```mermaid
 erDiagram
@@ -93,10 +93,14 @@ Reservas: cada fila depende solo de su id. `daily_rate` y `total` se guardan a p
 
 Solicitudes de proveedor: `provider_applications` guarda cada solicitud con su copia de los datos legales, su estado (PENDIENTE, ACEPTADA o RECHAZADA), quién la resolvió y cuándo, el motivo de rechazo y cuándo vio la respuesta el solicitante. Se conservan todas, también las rechazadas; un CHECK exige fecha de resolución salvo en las pendientes. Al aceptar, los datos se copian a `provider_profiles` y la cuenta cambia de rol en la misma transacción.
 
+Categorías: desde V9 el catálogo tiene tres secciones, Eléctricas (1), Iluminación (2) y Manuales (3). La migración reasigna las herramientas existentes (construcción y medición a Eléctricas, trabajo en altura a Manuales) antes de quitar la categoría sobrante.
+
 Imágenes: `tool_images.position` ordena las imágenes de cada herramienta; la de menor posición es la principal del catálogo. Una imagen nueva va al final y "cambiar imagen" inserta la nueva delante y quita la anterior principal. Sin imágenes, la interfaz muestra una ilustración predeterminada.
+
+Teléfono del cliente: `users.phone` (V10, hasta 20 caracteres) es obligatorio al registrarse un cliente y lo ve el proveedor en las reservas de sus herramientas para coordinar el pago y la entrega. La columna admite NULL porque las cuentas anteriores no lo tienen y administradores y proveedores no lo usan (el del proveedor está en su perfil); el dominio exige que el cliente lo agregue antes de reservar.
 
 Eliminación de proveedores: `users.removed_at` marca la baja definitiva en lugar de borrar la fila, porque herramientas, reservas, eventos e informes la referencian y deben seguir diciendo quién fue. Una cuenta con `removed_at` está siempre inactiva y no aparece en el listado de proveedores.
 
 Historial: `reservation_events` es un registro de solo inserción; cada fila es un hecho (acción, autor, rol, instante) que depende solo de su id. `actor_id` es nulo únicamente cuando el rol es `SISTEMA`, regla que fija un CHECK. El estado actual sigue en `reservations.status`: el historial no lo reemplaza, lo explica. La migración reconstruye la solicitud de las reservas existentes con su `requested_at` y su cliente. `report_downloads` deja constancia de cada informe descargado, porque contienen datos personales. Índices cubren el historial por reserva y por fecha, y las reservas por fecha de solicitud.
 
-El modelo completo propuesto en el desglose incluye además perfiles, pagos, facturas, entregas, devoluciones e incidencias. Esas tablas aún no se crean. El diagrama como imagen y los 20 registros por entidad para entrega académica se completarán con los siguientes MVP; seis publicaciones demo no satisfacen ese entregable final.
+El modelo completo propuesto en el desglose incluye además perfiles, pagos, facturas, entregas, devoluciones e incidencias. Esas tablas aún no se crean. El diagrama como imagen y los 20 registros por entidad para entrega académica se completarán con los siguientes MVP; las 18 publicaciones demo de Midnight no satisfacen ese entregable final.

@@ -23,8 +23,11 @@ public class IdentityConfig {
 
   @Bean
   AccountProvisioningService accountProvisioningService(
-      AccountRepository accounts, PasswordHasher passwords) {
-    return new AccountProvisioningService(accounts, passwords);
+      AccountRepository accounts,
+      PasswordHasher passwords,
+      ProviderProfileRepository profiles,
+      Clock clock) {
+    return new AccountProvisioningService(accounts, passwords, profiles, clock);
   }
 
   @Bean

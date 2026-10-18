@@ -50,13 +50,13 @@ class ApiIntegrationTest {
             post("/api/v1/auth/register")
                 .contentType("application/json")
                 .content(
-                    "{\"name\":\"Admin\",\"email\":\"admin@test.example\",\"password\":\"correct-test-password\",\"role\":\"ADMINISTRADOR\"}"))
+                    "{\"name\":\"Admin\",\"email\":\"admin@test.example\",\"password\":\"correct-test-password\",\"role\":\"ADMINISTRADOR\",\"phone\":\"3001234567\"}"))
         .andExpect(status().isForbidden());
     mvc.perform(
             post("/api/v1/auth/register")
                 .contentType("application/json")
                 .content(
-                    "{\"name\":\"Intruso\",\"email\":\"self@test.example\",\"password\":\"correct-test-password\",\"role\":\"PROVEEDOR\"}"))
+                    "{\"name\":\"Intruso\",\"email\":\"self@test.example\",\"password\":\"correct-test-password\",\"role\":\"PROVEEDOR\",\"phone\":\"3001234567\"}"))
         .andExpect(status().isForbidden());
   }
 
@@ -114,7 +114,10 @@ class ApiIntegrationTest {
     mvc.perform(get("/api/v1/tools?size=999")).andExpect(status().isBadRequest());
     mvc.perform(get("/api/v1/categories"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.length()").value(4));
+        .andExpect(jsonPath("$.length()").value(3))
+        .andExpect(jsonPath("$[0].name").value("Eléctricas"))
+        .andExpect(jsonPath("$[1].name").value("Iluminación"))
+        .andExpect(jsonPath("$[2].name").value("Manuales"));
     mvc.perform(get("/")).andExpect(status().isOk());
     mvc.perform(get("/admin")).andExpect(status().isOk()).andExpect(forwardedUrl("/admin.html"));
     mvc.perform(get("/proveedor"))

@@ -56,6 +56,10 @@ public class ReservationService implements ManageReservationsUseCase, ExpireRese
   @Override
   public ReservationDetails request(Participant client, RequestCommand c) {
     client.ensureClient();
+    // Sin teléfono el proveedor no tiene cómo coordinar el pago ni la entrega.
+    if (directory.cardOf(client.id()).phone() == null)
+      throw new InvalidInputException(
+          "Agrega tu número de teléfono en tu perfil para que el proveedor pueda contactarte");
     var period = new RentalPeriod(c.start(), c.end());
     if (period.startsBefore(today()))
       throw new InvalidInputException("No se puede reservar en fechas pasadas");
@@ -204,8 +208,9 @@ public class ReservationService implements ManageReservationsUseCase, ExpireRese
   }
 
   private ReservationDetails details(Reservation r, RentableTool tool) {
+    var client = directory.cardOf(r.clientId());
     return new ReservationDetails(
-        r, tool.name(), tool.providerId(), directory.nameOf(r.clientId()));
+        r, tool.name(), tool.providerId(), client.name(), client.email(), client.phone());
   }
 
   private LocalDate today() {

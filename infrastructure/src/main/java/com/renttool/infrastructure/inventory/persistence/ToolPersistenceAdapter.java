@@ -45,12 +45,14 @@ class ToolPersistenceAdapter implements ToolRepository {
         (root, query, cb) -> {
           var predicates = new ArrayList<Predicate>();
           predicates.add(cb.isTrue(root.get("active")));
-          if (criteria.text() != null)
+          // Búsqueda literal en el nombre o la descripción (por ejemplo, una marca).
+          if (criteria.text() != null) {
+            String text = criteria.text().toLowerCase(Locale.ROOT);
             predicates.add(
-                cb.greaterThan(
-                    cb.locate(
-                        cb.lower(root.get("name")), criteria.text().toLowerCase(Locale.ROOT)),
-                    0));
+                cb.or(
+                    cb.greaterThan(cb.locate(cb.lower(root.get("name")), text), 0),
+                    cb.greaterThan(cb.locate(cb.lower(root.get("description")), text), 0)));
+          }
           if (criteria.categoryId() != null)
             predicates.add(cb.equal(root.get("categoryId"), criteria.categoryId()));
           if (criteria.providerId() != null)

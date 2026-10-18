@@ -4,24 +4,32 @@ import static com.renttool.infrastructure.config.OpenApiConfig.BEARER;
 
 import com.renttool.application.identity.port.in.ApplyAsProviderUseCase;
 import com.renttool.application.identity.port.in.GetProfileUseCase;
+import com.renttool.application.identity.port.in.ManageOwnCompanyUseCase;
 import com.renttool.application.identity.port.in.ReviewProviderApplicationsUseCase;
 import com.renttool.application.shared.PageQuery;
 import com.renttool.domain.identity.ProviderApplication.Status;
 import com.renttool.domain.shared.exception.NotFoundException;
 import com.renttool.infrastructure.identity.web.ProviderApplicationDtos.*;
 import com.renttool.infrastructure.identity.web.ProviderDtos.ProfileRequest;
+import com.renttool.infrastructure.identity.web.ProviderDtos.CompanyRequest;
 import com.renttool.infrastructure.identity.web.ProviderDtos.ProfileResponse;
+import com.renttool.infrastructure.identity.web.ProviderDtos.ProviderResponse;
+import com.renttool.infrastructure.identity.web.ProviderDtos.PublicProviderResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.io.IOException;
+import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1")
@@ -36,14 +44,17 @@ public class ProviderApplicationController {
   private final ApplyAsProviderUseCase apply;
   private final ReviewProviderApplicationsUseCase review;
   private final GetProfileUseCase profiles;
+  private final ManageOwnCompanyUseCase company;
 
   public ProviderApplicationController(
       ApplyAsProviderUseCase apply,
       ReviewProviderApplicationsUseCase review,
-      GetProfileUseCase profiles) {
+      GetProfileUseCase profiles,
+      ManageOwnCompanyUseCase company) {
     this.apply = apply;
     this.review = review;
     this.profiles = profiles;
+    this.company = company;
   }
 
   @PostMapping("/me/provider-application")
@@ -95,7 +106,8 @@ public class ProviderApplicationController {
   @GetMapping("/me/provider-profile")
   @Operation(
       summary = "Ver mis datos de proveedor",
-      description = "Datos legales de solo lectura; los actualiza el administrador.")
+      description =
+          "Datos de la empresa. El NIT y el tipo de persona solo los cambia el administrador.")
   @ApiResponse(responseCode = "200", description = "Datos legales")
   @ApiResponse(responseCode = "404", description = "La cuenta no tiene datos de proveedor")
   public ProfileResponse providerProfile(
@@ -104,6 +116,54 @@ public class ProviderApplicationController {
         .providerProfileOf(accountId(jwt))
         .map(ProfileResponse::from)
         .orElseThrow(() -> new NotFoundException("No hay datos de proveedor registrados"));
+  }
+
+  @PutMapping("/me/provider-profile")
+  @Operation(
+      summary = "Actualizar los datos de mi empresa",
+      description =
+          "Solo PROVEEDOR. Nombre, representante, contacto y dirección; el NIT y el tipo de persona"
+              + " se conservan. La cuenta se muestra con el nombre comercial, o la razón social si no"
+              + " tiene.")
+  @ApiResponse(responseCode = "200", description = "Datos actualizados")
+  @ApiResponse(responseCode = "400", description = "Datos inválidos")
+  @ApiResponse(responseCode = "403", description = "La cuenta no es de proveedor")
+  public ProviderResponse updateCompany(
+      @Valid @RequestBody CompanyRequest r,
+      @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
+    return ProviderResponse.from(company.updateOwn(accountId(jwt), r.toCommand()));
+  }
+
+  @PostMapping(value = "/me/provider-profile/logo", consumes = "multipart/form-data")
+  @Operation(
+      summary = "Subir o reemplazar mi logo",
+      description = "Solo PROVEEDOR. Archivo PNG o JPEG real de hasta 2 MB en el campo file.")
+  @ApiResponse(responseCode = "200", description = "Logo guardado")
+  @ApiResponse(responseCode = "400", description = "No es una imagen válida o supera 2 MB")
+  @ApiResponse(responseCode = "403", description = "La cuenta no es de proveedor")
+  public ProviderResponse uploadLogo(
+      @RequestParam("file") MultipartFile file,
+      @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt)
+      throws IOException {
+    return ProviderResponse.from(company.setOwnLogo(accountId(jwt), file.getBytes()));
+  }
+
+  @DeleteMapping("/me/provider-profile/logo")
+  @Operation(summary = "Quitar mi logo", description = "Vuelve al logo predeterminado.")
+  @ApiResponse(responseCode = "200", description = "Logo quitado")
+  @ApiResponse(responseCode = "403", description = "La cuenta no es de proveedor")
+  public ProviderResponse removeLogo(@Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
+    return ProviderResponse.from(company.removeOwnLogo(accountId(jwt)));
+  }
+
+  @GetMapping("/providers")
+  @SecurityRequirements
+  @Operation(
+      summary = "Listar proveedores",
+      description = "Público. Proveedores activos por nombre, para filtrar el catálogo.")
+  @ApiResponse(responseCode = "200", description = "Proveedores")
+  public List<PublicProviderResponse> publicProviders() {
+    return company.publicProviders().stream().map(PublicProviderResponse::from).toList();
   }
 
   @GetMapping("/admin/provider-applications")

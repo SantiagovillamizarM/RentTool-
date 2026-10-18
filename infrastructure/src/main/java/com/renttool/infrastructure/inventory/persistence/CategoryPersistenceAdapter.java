@@ -4,6 +4,7 @@ import com.renttool.application.inventory.port.out.CategoryRepository;
 import com.renttool.domain.inventory.Category;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -16,7 +17,8 @@ class CategoryPersistenceAdapter implements CategoryRepository {
 
   @Override
   public List<Category> findAll() {
-    return jpa.findAll().stream().map(CategoryPersistenceAdapter::toDomain).toList();
+    // Orden fijo: es el orden de las secciones del catálogo.
+    return jpa.findAll(Sort.by("id")).stream().map(CategoryPersistenceAdapter::toDomain).toList();
   }
 
   @Override

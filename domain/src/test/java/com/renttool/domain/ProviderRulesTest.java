@@ -53,8 +53,17 @@ class ProviderRulesTest {
   }
 
   @Test
+  void clientsRegisterWithAValidPhone() {
+    var client = Account.createClient("Laura", "l@x.co", "hash", " +57 300 123 4567 ");
+    assertEquals("+57 300 123 4567", client.phone());
+    assertThrows(InvalidInputException.class, () -> Account.createClient("L", "l@x.co", "h", " "));
+    assertThrows(InvalidInputException.class, () -> client.withPhone("llámame"));
+    assertNull(client.withPhone("").phone(), "vacío se guarda como sin teléfono");
+  }
+
+  @Test
   void removedAccountStaysInactiveForever() {
-    var account = new Account(5L, "Obras", "p@obras.co", "hash", Role.PROVEEDOR, true, false, null);
+    var account = new Account(5L, "Obras", "p@obras.co", "hash", Role.PROVEEDOR, true, false, null, null);
     var removed = account.remove(java.time.Instant.parse("2026-10-15T15:00:00Z"));
     assertTrue(removed.isRemoved());
     assertFalse(removed.active());

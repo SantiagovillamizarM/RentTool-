@@ -6,6 +6,8 @@ import com.renttool.application.shared.PageQuery;
 import com.renttool.application.shared.PageResult;
 import com.renttool.domain.identity.*;
 import com.renttool.domain.shared.exception.*;
+import java.util.Comparator;
+import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -13,7 +15,8 @@ import java.util.stream.Collectors;
  * El administrador da de alta proveedores con sus datos legales y una contraseña temporal. La
  * cuenta y el perfil se guardan juntos; el adaptador de entrada aporta la transacción.
  */
-public class ProviderAdministrationService implements ManageProvidersUseCase {
+public class ProviderAdministrationService
+    implements ManageProvidersUseCase, ManageOwnCompanyUseCase {
   public static final int MAX_LOGO_BYTES = 2 * 1024 * 1024;
 
   private final AccountRepository accounts;
@@ -93,7 +96,79 @@ public class ProviderAdministrationService implements ManageProvidersUseCase {
   @Override
   public ProviderDetails setLogo(Long adminId, Long providerId, byte[] content) {
     ensureAdministrator(adminId);
+    return storeLogo(load(providerId), content);
+  }
+
+  @Override
+  public ProviderDetails removeLogo(Long adminId, Long providerId) {
+    ensureAdministrator(adminId);
+    return dropLogo(load(providerId));
+  }
+
+  // --- El proveedor sobre su propia empresa ---
+
+  @Override
+  public ProviderDetails updateOwn(Long providerId, CompanyCommand c) {
+    var current = own(providerId);
+    var p = current.profile();
+    // NIT y tipo de persona se conservan: solo el administrador los corrige.
+    var updated =
+        new ProviderProfile(
+            providerId,
+            p.personType(),
+            p.nit(),
+            c.legalName(),
+            c.tradeName(),
+            c.legalRepresentative(),
+            c.representativeDocument(),
+            c.phone(),
+            c.address(),
+            c.city(),
+            p.logoLocation());
+    var account = accounts.save(current.account().rename(updated.displayName()));
+    return new ProviderDetails(account, profiles.save(updated));
+  }
+
+  @Override
+  public ProviderDetails setOwnLogo(Long providerId, byte[] content) {
+    return storeLogo(own(providerId), content);
+  }
+
+  @Override
+  public ProviderDetails removeOwnLogo(Long providerId) {
+    return dropLogo(own(providerId));
+  }
+
+  @Override
+  public List<PublicProvider> publicProviders() {
+    var page = accounts.findByRole(Role.PROVEEDOR, new PageQuery(0, PageQuery.MAX_SIZE));
+    var active = page.content().stream().filter(Account::active).toList();
+    var logos =
+        profiles.findAllByAccountId(active.stream().map(Account::id).toList()).stream()
+            .filter(p -> p.logoLocation() != null)
+            .collect(Collectors.toMap(ProviderProfile::accountId, ProviderProfile::logoLocation));
+    return active.stream()
+        .map(a -> new PublicProvider(a.id(), a.name(), logos.get(a.id())))
+        .sorted(Comparator.comparing(PublicProvider::name, String.CASE_INSENSITIVE_ORDER))
+        .toList();
+  }
+
+  /** El proveedor activo que edita su propia empresa; debe tener datos legales registrados. */
+  private ProviderDetails own(Long providerId) {
+    accounts
+        .findById(providerId)
+        .filter(Account::isProvider)
+        .orElseThrow(
+            () -> new ForbiddenOperationException("Solo un proveedor edita los datos de su empresa"));
     var current = load(providerId);
+    if (!current.account().active())
+      throw new ForbiddenOperationException("La cuenta del proveedor no está activa");
+    if (current.profile() == null)
+      throw new NotFoundException("Tus datos legales aún no están registrados");
+    return current;
+  }
+
+  private ProviderDetails storeLogo(ProviderDetails current, byte[] content) {
     if (current.profile() == null)
       throw new InvalidInputException("Registra primero los datos legales del proveedor");
     if (content == null || content.length == 0 || content.length > MAX_LOGO_BYTES)
@@ -109,10 +184,7 @@ public class ProviderAdministrationService implements ManageProvidersUseCase {
     }
   }
 
-  @Override
-  public ProviderDetails removeLogo(Long adminId, Long providerId) {
-    ensureAdministrator(adminId);
-    var current = load(providerId);
+  private ProviderDetails dropLogo(ProviderDetails current) {
     if (current.profile() == null || current.profile().logoLocation() == null) return current;
     var saved = profiles.save(current.profile().withLogo(null));
     discard(current.profile().logoLocation());
