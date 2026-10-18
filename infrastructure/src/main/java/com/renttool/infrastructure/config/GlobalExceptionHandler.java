@@ -35,6 +35,9 @@ public class GlobalExceptionHandler {
   }
 
   private static final Map<String, String> FIELD_NAMES = Map.ofEntries(
+      Map.entry("notes", "Observaciones"), Map.entry("units", "Unidades"),
+      Map.entry("condition", "Estado de devolución"), Map.entry("resolution", "Resolución"),
+      Map.entry("type", "Tipo de incidencia"), Map.entry("unitId", "Unidad"),
       Map.entry("name", "Nombre"), Map.entry("email", "Correo electrónico"),
       Map.entry("password", "Contraseña"), Map.entry("temporaryPassword", "Contraseña temporal"),
       Map.entry("currentPassword", "Contraseña actual"), Map.entry("newPassword", "Nueva contraseña"),
@@ -55,7 +58,7 @@ public class GlobalExceptionHandler {
     String label = FIELD_NAMES.getOrDefault(field, "Campo");
     Object[] args = error.getArguments();
     String message = switch (error.getCode() == null ? "" : error.getCode()) {
-      case "NotBlank", "NotNull" -> "es obligatorio.";
+      case "NotBlank", "NotNull", "NotEmpty" -> "es obligatorio.";
       case "Email" -> "escribe una dirección válida, por ejemplo nombre@ejemplo.com.";
       case "Size" -> ((Number) args[2]).intValue() == 0
           ? "admite hasta " + args[1] + " caracteres."

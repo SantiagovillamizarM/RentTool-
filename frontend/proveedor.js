@@ -233,7 +233,7 @@ document.addEventListener("reservations:loaded", (e) => {
   const reservations = e.detail.content;
   const pending = reservations.filter((r) => r.status === "SOLICITADA").length;
   $("#stat-pending").textContent = pending;
-  $("#stat-active").textContent = reservations.filter((r) => r.status === "ACEPTADA").length;
+  $("#stat-active").textContent = reservations.filter((r) => r.status === "ACEPTADA" && r.rentalStatus !== "DEVUELTA").length;
   $("#tab-pending").hidden = pending === 0;
   $("#tab-pending").textContent = pending;
 });

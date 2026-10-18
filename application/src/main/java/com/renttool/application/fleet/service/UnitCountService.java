@@ -23,9 +23,12 @@ public class UnitCountService implements SetUnitCountUseCase {
   private final UnitRepository units;
   private final ReservationRepository reservations;
   private final Clock clock;
+  private final com.renttool.application.operations.port.out.RentalRecords records;
 
   public UnitCountService(
-      ToolRepository tools, UnitRepository units, ReservationRepository reservations, Clock clock) {
+      ToolRepository tools, UnitRepository units, ReservationRepository reservations, Clock clock,
+      com.renttool.application.operations.port.out.RentalRecords records) {
+    this.records = records;
     this.tools = tools;
     this.units = units;
     this.reservations = reservations;
@@ -85,7 +88,8 @@ public class UnitCountService implements SetUnitCountUseCase {
     var today = LocalDate.now(clock);
     return reservations.findOpenByTools(List.of(toolId)).stream()
         .filter(r -> r.status() == ReservationStatus.ACEPTADA)
-        .filter(r -> r.period().end().isAfter(today))
+        .filter(r -> r.period().end().isAfter(today)
+            || records.operation(r.id()).map(operation -> operation.isOut()).orElse(false))
         .map(Reservation::unitIds)
         .flatMap(Set::stream)
         .collect(Collectors.toSet());

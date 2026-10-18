@@ -127,3 +127,7 @@ Errores: 400 fechas inválidas o pasadas, 403 rol o propiedad incorrectos, 404 i
 ## Pagos y facturas de demostración
 
 POST `/reservations/{id}/payments` recibe `{"result":"APROBADO"}` o `{"result":"RECHAZADO"}`. GET de la misma ruta consulta el historial; GET `/reservations/{id}/invoice` descarga la factura de demostración. Todas requieren JWT y permisos sobre la reserva. No se cobra dinero real. Guía: [PAGOS_DEMO.md](PAGOS_DEMO.md).
+
+## Entregas, devoluciones e incidencias
+
+Se incorporan los registros físicos del alquiler y la revisión por unidad. El campo `rentalStatus` distingue la situación física de los estados de solicitud. Endpoints, reglas y recorrido: [ENTREGAS_DEVOLUCIONES.md](ENTREGAS_DEVOLUCIONES.md).

@@ -23,7 +23,7 @@ Plataforma de alquiler de herramientas y equipos de construcción. Este incremen
 - Portada responsiva, panel de inventario, estados vacíos, errores y notificaciones.
 - **Reservas por fechas**: disponibilidad pública por rango, solicitud del cliente con tarifa congelada, aceptación del proveedor con asignación de unidades bajo bloqueo, rechazo con motivo, cancelación y vencimiento automático de solicitudes sin respuesta.
 
-Pagos reales, facturación fiscal, entregas, devoluciones y el resto de la administración global (usuarios, incidencias, reportes) **siguen pendientes** según [la planeación](docs/PLANEACION_PROYECTO.md). No se cobran pagos desde esta versión.
+Pagos reales, facturación fiscal y el resto de la administración global (usuarios, incidencias, reportes) **siguen pendientes** según [la planeación](docs/PLANEACION_PROYECTO.md). No se cobran pagos desde esta versión.
 
 ## Ejecución con Docker
 
@@ -90,3 +90,7 @@ El administrador inicial se provisiona al arrancar con `RENTTOOL_ADMIN_EMAIL` y 
 ## Pagos y facturas de demostración
 
 Para el proyecto escolar, RentTool permite simular pagos aprobados o rechazados dentro de la aplicación. Un pago aprobado genera una factura de demostración automáticamente. No se usa una pasarela externa ni se cobra dinero real. Guía: [docs/PAGOS_DEMO.md](docs/PAGOS_DEMO.md).
+
+## Entregas, devoluciones e incidencias
+
+Se registra entrega de reservas pagadas, revisión de cada unidad al devolver y resolución de daños o pérdidas. El equipo sin devolver sigue ocupado; los daños bloquean su uso hasta revisión. Guía: [docs/ENTREGAS_DEVOLUCIONES.md](docs/ENTREGAS_DEVOLUCIONES.md).

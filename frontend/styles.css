@@ -3067,3 +3067,14 @@ label.consent input {
 
 #billing-content small { overflow-wrap: anywhere; }
 #billing-content button { margin: 8px 8px 8px 0; }
+
+#operations-dialog { max-width: 700px; }
+#operations-content h3 { margin: 24px 0 12px; }
+#operations-content fieldset { border: 1px solid var(--line); padding: 14px; margin: 14px 0; border-radius: 8px; min-width: 0; }
+#operations-content legend { padding: 0 8px; }
+.incident-card { margin: 16px 0; padding: 14px; border: 1px solid var(--line); border-radius: 8px; overflow-wrap: anywhere; }
+.incident-report { margin: 24px 0; }
+.preserve-lines { white-space: pre-wrap; overflow-wrap: anywhere; }
+.operation-check { display: flex; align-items: flex-start; gap: 10px; }
+.operation-check input { width: auto; margin: 4px 0; }
+#open-incidents { margin: 12px 0 20px; }

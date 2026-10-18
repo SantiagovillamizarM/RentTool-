@@ -71,3 +71,7 @@ Pruebas por capa: `domain` prueba reglas del dominio y `application` prueba caso
 ## Contexto billing
 
 `domain/billing` contiene Payment e Invoice. `application/billing` contiene los casos de uso, PaymentService y los puertos para consultar reservas y guardar pagos. `infrastructure/billing` implementa repositorios JPA, controladores y configuración. Pago aprobado y factura se guardan en una transacción. Se conservan los tres módulos Maven y la separación de capas. No hay pasarela externa, claves ni webhooks.
+
+## Contexto operations
+
+Coordina reservas, pago e inventario para registrar entregas, devoluciones e incidencias. Los modelos viven en `domain/operations`, los puertos y RentalService en `application/operations`, y JPA/HTTP/transacciones en `infrastructure/operations`. No se añaden módulos Maven ni frameworks a las capas interiores. La disponibilidad excluye devoluciones completadas y mantiene ocupadas las entregas pendientes, aunque haya pasado la fecha prevista.

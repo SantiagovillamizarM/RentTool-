@@ -489,7 +489,8 @@ const reservationStatus = {
 };
 function reservationRow(r) {
   const role = state.user.role;
-  const actions = [`<button class="outline-button" data-billing="${r.id}">Pagos y factura</button>`];
+  const actions = [`<button class="outline-button" data-billing="${r.id}">Pagos y factura</button>`,
+    `<button class="outline-button" data-operations="${r.id}">Entrega y devolución</button>`];
   if (role === "PROVEEDOR" && r.status === "SOLICITADA")
     actions.push(
       `<button class="button compact" data-accept="${r.id}">Aceptar</button>`,
@@ -520,7 +521,7 @@ function reservationRow(r) {
       : r.note
         ? `<p class="muted">Motivo: ${esc(r.note)}</p>`
         : "";
-  return `<article class="inventory-row reservation-row"><div><h3><span class="reservation-id">#${r.id}</span> ${esc(r.toolName)} <span class="status-chip status-${r.status.toLowerCase()}">${reservationStatus[r.status]}</span></h3><p class="muted">${shortDate(r.start)} → ${shortDate(r.end)} · ${r.days} ${r.days === 1 ? "día" : "días"} · ${r.quantity} ${r.quantity === 1 ? "unidad" : "unidades"} · ${money(r.total)}${who}</p>${contact}${extra}</div>${actions.length ? `<div class="inventory-actions">${actions.join("")}</div>` : ""}</article>`;
+  return `<article class="inventory-row reservation-row"><div><h3><span class="reservation-id">#${r.id}</span> ${esc(r.toolName)} <span class="status-chip status-${r.status.toLowerCase()}">${r.rentalStatus === "EN_USO" ? "Entregada / en uso" : r.rentalStatus === "DEVUELTA" ? "Devuelta" : reservationStatus[r.status]}</span></h3><p class="muted">${shortDate(r.start)} → ${shortDate(r.end)} · ${r.days} ${r.days === 1 ? "día" : "días"} · ${r.quantity} ${r.quantity === 1 ? "unidad" : "unidades"} · ${money(r.total)}${who}</p>${contact}${extra}</div>${actions.length ? `<div class="inventory-actions">${actions.join("")}</div>` : ""}</article>`;
 }
 async function loadReservations() {
   const box = $("#reservations");
@@ -551,6 +552,7 @@ async function loadReservations() {
     box
       .querySelectorAll("[data-history]")
       .forEach((b) => (b.onclick = () => openHistory(b.dataset.history)));
+    box.querySelectorAll("[data-operations]").forEach(b => b.onclick = () => openOperations(b.dataset.operations));
     box.querySelectorAll("[data-billing]").forEach(b => b.onclick = () => openBilling(b.dataset.billing));
     box.querySelectorAll("[data-accept]").forEach(
       (b) =>

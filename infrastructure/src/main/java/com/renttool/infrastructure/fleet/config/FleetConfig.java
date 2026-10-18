@@ -24,8 +24,9 @@ public class FleetConfig {
       UnitRepository units,
       ReservationRepository reservations,
       Clock clock,
-      PlatformTransactionManager transactions) {
-    var service = new UnitCountService(tools, units, reservations, clock);
+      PlatformTransactionManager transactions,
+      com.renttool.application.operations.port.out.RentalRecords records) {
+    var service = new UnitCountService(tools, units, reservations, clock, records);
     var tx = new TransactionTemplate(transactions);
     tx.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
     return (actor, toolId, count) -> tx.execute(s -> service.setCount(actor, toolId, count));

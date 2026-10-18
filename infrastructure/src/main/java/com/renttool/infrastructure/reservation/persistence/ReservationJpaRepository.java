@@ -17,12 +17,16 @@ interface ReservationJpaRepository extends JpaRepository<ReservationEntity, Long
   Optional<ReservationEntity> findByIdForUpdate(@Param("id") Long id);
 
   /** Rangos [inicio, fin) que se cruzan: inicio < fin del otro y fin > inicio del otro. */
-  @Query(
+  @Query(value =
       """
-      select u from ReservationEntity r join r.unitIds u
-      where r.toolId = :toolId and r.status in :statuses
-        and r.startDate < :end and r.endDate > :start
-      """)
+      select ru.unit_id from reservation_units ru
+      join reservations r on r.id = ru.reservation_id
+      left join rental_operations o on o.reservation_id = r.id
+      where r.tool_id = :toolId and r.status in (:statuses)
+        and o.returned_at is null
+        and ((r.start_date < :end and r.end_date > :start)
+          or (o.delivered_at is not null and r.start_date < :end))
+      """, nativeQuery = true)
   List<Long> findHeldUnits(
       @Param("toolId") Long toolId,
       @Param("statuses") Collection<String> statuses,
@@ -36,8 +40,13 @@ interface ReservationJpaRepository extends JpaRepository<ReservationEntity, Long
       findByRequestedAtGreaterThanEqualAndRequestedAtLessThanAndStatusOrderByRequestedAtAscIdAsc(
           LocalDateTime from, LocalDateTime to, String status);
 
+  @Query(value = """
+      select r.* from reservations r
+      left join rental_operations o on o.reservation_id = r.id
+      where r.tool_id in (:toolIds) and r.status in (:statuses) and o.returned_at is null
+      """, nativeQuery = true)
   List<ReservationEntity> findByToolIdInAndStatusIn(
-      Collection<Long> toolIds, Collection<String> statuses);
+      @Param("toolIds") Collection<Long> toolIds, @Param("statuses") Collection<String> statuses);
 
   Page<ReservationEntity> findByClientId(Long clientId, Pageable pageable);
 

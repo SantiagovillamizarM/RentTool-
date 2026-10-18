@@ -104,3 +104,17 @@ Eliminación de proveedores: `users.removed_at` marca la baja definitiva en luga
 Historial: `reservation_events` es un registro de solo inserción; cada fila es un hecho (acción, autor, rol, instante) que depende solo de su id. `actor_id` es nulo únicamente cuando el rol es `SISTEMA`, regla que fija un CHECK. El estado actual sigue en `reservations.status`: el historial no lo reemplaza, lo explica. La migración reconstruye la solicitud de las reservas existentes con su `requested_at` y su cliente. `report_downloads` deja constancia de cada informe descargado, porque contienen datos personales. Índices cubren el historial por reserva y por fecha, y las reservas por fecha de solicitud.
 
 El modelo completo propuesto en el desglose incluye además perfiles, pagos, facturas, entregas, devoluciones e incidencias. Esas tablas aún no se crean. El diagrama como imagen y los 20 registros por entidad para entrega académica se completarán con los siguientes MVP; las 18 publicaciones demo de Midnight no satisfacen ese entregable final.
+
+## Movimientos físicos e incidencias — V12
+
+`rental_operations` guarda una entrega y una devolución por reserva, sus responsables, fechas y observaciones. `rental_returns` guarda la condición de cada unidad (clave compuesta reserva/unidad). `incidents` conserva reportes de daño, pérdida u otros eventos, con resolución y responsables. Las referencias existentes no se eliminan ni se sobrescriben al cerrar un alquiler.
+
+```mermaid
+erDiagram
+ RESERVATIONS ||--o| RENTAL_OPERATIONS : registra
+ RENTAL_OPERATIONS ||--o{ RENTAL_RETURNS : revisa
+ UNITS ||--o{ RENTAL_RETURNS : devuelve
+ RENTAL_OPERATIONS ||--o{ INCIDENTS : documenta
+ UNITS o|--o{ INCIDENTS : afecta
+ USERS ||--o{ INCIDENTS : reporta_resuelve
+```

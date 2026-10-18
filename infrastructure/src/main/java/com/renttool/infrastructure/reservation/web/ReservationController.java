@@ -28,8 +28,11 @@ import org.springframework.web.bind.annotation.*;
 @ApiResponse(responseCode = "401", description = "Sin token, token vencido o cuenta inactiva")
 public class ReservationController {
   private final ManageReservationsUseCase reservations;
+  private final com.renttool.application.operations.port.in.ManageRentalsUseCase operations;
 
-  public ReservationController(ManageReservationsUseCase reservations) {
+  public ReservationController(ManageReservationsUseCase reservations,
+      com.renttool.application.operations.port.in.ManageRentalsUseCase operations) {
+    this.operations = operations;
     this.reservations = reservations;
   }
 
@@ -48,7 +51,7 @@ public class ReservationController {
   public ReservationResponse request(
       @Valid @RequestBody ReservationRequest r,
       @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
-    return ReservationResponse.from(
+    return response(ParticipantResolver.from(jwt),
         reservations.request(ParticipantResolver.from(jwt), r.toCommand()));
   }
 
@@ -67,7 +70,7 @@ public class ReservationController {
     return PageResponse.from(
         reservations
             .list(ParticipantResolver.from(jwt), new PageQuery(page, size))
-            .map(ReservationResponse::from));
+            .map(details -> response(ParticipantResolver.from(jwt), details)));
   }
 
   @GetMapping("/{id}")
@@ -77,7 +80,7 @@ public class ReservationController {
   @ApiResponse(responseCode = "404", description = "La reserva no existe")
   public ReservationResponse get(
       @PathVariable Long id, @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
-    return ReservationResponse.from(reservations.get(ParticipantResolver.from(jwt), id));
+    return response(ParticipantResolver.from(jwt), reservations.get(ParticipantResolver.from(jwt), id));
   }
 
   @GetMapping("/{id}/history")
@@ -110,7 +113,7 @@ public class ReservationController {
       description = "Ya no está pendiente, la fecha pasó o no quedan unidades libres")
   public ReservationResponse accept(
       @PathVariable Long id, @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
-    return ReservationResponse.from(reservations.accept(ParticipantResolver.from(jwt), id));
+    return response(ParticipantResolver.from(jwt), reservations.accept(ParticipantResolver.from(jwt), id));
   }
 
   @PostMapping("/{id}/reject")
@@ -125,7 +128,7 @@ public class ReservationController {
       @PathVariable Long id,
       @Valid @RequestBody(required = false) RejectRequest r,
       @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
-    return ReservationResponse.from(
+    return response(ParticipantResolver.from(jwt),
         reservations.reject(ParticipantResolver.from(jwt), id, r == null ? null : r.reason()));
   }
 
@@ -143,5 +146,10 @@ public class ReservationController {
   public void cancel(
       @PathVariable Long id, @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
     reservations.cancel(ParticipantResolver.from(jwt), id);
+  }
+  private ReservationResponse response(com.renttool.domain.reservation.Participant actor,
+      com.renttool.application.reservation.port.in.ReservationDetails details) {
+    String status = operations.get(actor, details.reservation().id()).status();
+    return ReservationResponse.from(details, status);
   }
 }
