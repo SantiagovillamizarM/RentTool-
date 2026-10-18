@@ -3078,3 +3078,19 @@ label.consent input {
 .operation-check { display: flex; align-items: flex-start; gap: 10px; }
 .operation-check input { width: auto; margin: 4px 0; }
 #open-incidents { margin: 12px 0 20px; }
+
+/* Disponibilidad y resumen de la actividad, sin dependencias adicionales. */
+.availability-filters, .statistics-form { display:flex; flex-wrap:wrap; align-items:end; gap:16px; margin:18px 0; }
+.availability-filters label, .statistics-form label { display:grid; gap:8px; color:var(--muted); font-size:.85rem; }
+.availability-filters input, .statistics-form input { color:inherit; background:transparent; border:1px solid #555; border-radius:8px; padding:10px; color-scheme:dark; }
+.availability-filters input[type=number] { width:90px; }
+.availability-filters p, .statistics-form .form-error { flex-basis:100%; }
+.statistics-panel { border:1px solid #555; border-radius:12px; padding:20px; margin-bottom:24px; }
+.statistics-panel summary { cursor:pointer; font-weight:600; }
+.statistics-panel > p { margin-top:16px; line-height:1.6; }
+.statistics-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin:18px 0; }
+.statistics-cards .stat { min-width:0; padding:16px; }
+.statistics-cards strong { font-size:1.6rem; overflow-wrap:anywhere; }
+.statistics-panel h3 { margin:18px 0 10px; }
+.statistics-panel ol { padding-left:24px; line-height:1.8; }
+.statistics-status { display:flex; flex-wrap:wrap; gap:10px 24px; list-style:none; }

@@ -206,6 +206,13 @@
             <option value="PRICE_DESC">Precio: mayor a menor</option>
           </select><button class="button compact">Buscar <span>→</span></button>
         </form>
+        <div class="availability-filters">
+          <label>Entrega<input type="date" id="available-start" name="start"></label>
+          <label>Devolución<input type="date" id="available-end" name="end"></label>
+          <label>Unidades<input type="number" id="available-quantity" name="quantity" min="1" max="20" step="1" value="1" required></label>
+          <button type="button" class="text-button" id="clear-availability">Quitar fechas</button>
+          <p class="muted">Con fechas, solo se muestran equipos con suficientes unidades libres. La disponibilidad se vuelve a comprobar al aceptar la reserva.</p>
+        </div>
         <div class="catalog-meta">
           <span id="result-count">Consultando inventario…</span
           ><span>TARIFAS EN COP / DÍA</span>

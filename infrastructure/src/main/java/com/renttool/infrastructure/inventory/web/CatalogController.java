@@ -21,8 +21,10 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Catálogo", description = "Consulta pública de categorías y herramientas activas")
 public class CatalogController {
   private final BrowseCatalogUseCase catalog;
+  private final com.renttool.application.discovery.port.in.SearchAvailableToolsUseCase availableTools;
 
-  public CatalogController(BrowseCatalogUseCase catalog) {
+  public CatalogController(BrowseCatalogUseCase catalog, com.renttool.application.discovery.port.in.SearchAvailableToolsUseCase availableTools) {
+    this.availableTools = availableTools;
     this.catalog = catalog;
   }
 
@@ -62,6 +64,9 @@ public class CatalogController {
           int size,
       @Parameter(description = "Orden: RECENT, PRICE_ASC o PRICE_DESC")
           @RequestParam(defaultValue = "RECENT") CatalogOrder sort,
+      @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate start,
+      @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate end,
+      @RequestParam(defaultValue = "1") int quantity,
       @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
     var query =
         new BrowseCatalogUseCase.Query(
@@ -72,7 +77,7 @@ public class CatalogController {
             ActorResolver.from(jwt),
             new PageQuery(page, size),
             sort);
-    return PageResponse.from(catalog.search(query).map(ToolDetailsResponse::from));
+    return PageResponse.from(availableTools.search(query, start, end, quantity).map(ToolDetailsResponse::from));
   }
 
   @GetMapping("/tools/{id}")

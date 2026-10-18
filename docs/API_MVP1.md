@@ -131,3 +131,7 @@ POST `/reservations/{id}/payments` recibe `{"result":"APROBADO"}` o `{"result":"
 ## Entregas, devoluciones e incidencias
 
 Se incorporan los registros físicos del alquiler y la revisión por unidad. El campo `rentalStatus` distingue la situación física de los estados de solicitud. Endpoints, reglas y recorrido: [ENTREGAS_DEVOLUCIONES.md](ENTREGAS_DEVOLUCIONES.md).
+
+## Estadísticas y filtros por disponibilidad
+
+GET /api/v1/tools admite start, end y quantity opcionales para filtrar antes de paginar. GET /api/v1/statistics?from=AAAA-MM-DD&to=AAAA-MM-DD devuelve un resumen para administrador o proveedor. [Reglas, permisos y significado de los datos](ESTADISTICAS_DISPONIBILIDAD.md).

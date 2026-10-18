@@ -64,14 +64,17 @@ function catalogError(container, error) {
  * Sin búsqueda ni categoría, el catálogo se divide en secciones (una por categoría). Al buscar o
  * filtrar se vuelve a la cuadrícula paginada.
  */
+let catalogTicket = 0;
 async function loadTools() {
-  const grouped = !$("#search").value.trim() && !$("#category-filter").value;
+  if (!validateAvailabilityFilters()) return;
+  const ticket = ++catalogTicket;
+  const grouped = !$("#search").value.trim() && !$("#category-filter").value && !$("#available-start").value;
   $("#catalog-sections").hidden = !grouped;
   $("#products").hidden = grouped;
   $(".catalog .pagination").hidden = grouped;
-  return grouped ? loadSections() : loadGrid();
+  return grouped ? loadSections(ticket) : loadGrid(ticket);
 }
-async function loadSections() {
+async function loadSections(ticket) {
   const box = $("#catalog-sections");
   box.innerHTML = '<div class="empty">Consultando herramientas…</div>';
   try {
@@ -82,6 +85,7 @@ async function loadSections() {
     const results = await Promise.all(
       state.categories.map((c) => api(`/tools?categoryId=${c.id}&${filter}`)),
     );
+    if (ticket !== catalogTicket) return;
     const sections = state.categories
       .map((c, i) => ({ category: c, page: results[i] }))
       .filter((s) => s.page.totalElements > 0);
@@ -106,10 +110,10 @@ async function loadSections() {
     );
     wireProducts(box);
   } catch (error) {
-    catalogError(box, error);
+    if (ticket === catalogTicket) catalogError(box, error);
   }
 }
-async function loadGrid() {
+async function loadGrid(ticket) {
   const container = $("#products");
   container.innerHTML = '<div class="empty">Consultando herramientas…</div>';
   try {
@@ -123,7 +127,13 @@ async function loadGrid() {
       params.set("categoryId", $("#category-filter").value);
     if ($("#provider-filter").value)
       params.set("providerId", $("#provider-filter").value);
+    if ($("#available-start").value) {
+      params.set("start", $("#available-start").value);
+      params.set("end", $("#available-end").value);
+      params.set("quantity", $("#available-quantity").value);
+    }
     const data = await api("/tools?" + params);
+    if (ticket !== catalogTicket) return;
     state.totalPages = data.totalPages;
     const n = data.totalElements;
     $("#result-count").textContent = `${n} ${n === 1 ? "herramienta encontrada" : "herramientas encontradas"}`;
@@ -134,6 +144,7 @@ async function loadGrid() {
     $("#prev").disabled = state.page === 0;
     $("#next").disabled = state.page + 1 >= data.totalPages;
   } catch (error) {
+    if (ticket !== catalogTicket) return;
     catalogError(container, error);
     $("#prev").disabled = $("#next").disabled = true;
   }
@@ -141,10 +152,12 @@ async function loadGrid() {
 async function detail(id) {
   try {
     const t = await api("/tools/" + id);
-    const start = addDays(businessToday(), 1);
+    const start = $("#available-start").value || addDays(businessToday(), 1);
+    const end = $("#available-end").value || addDays(start, 2);
+    const quantity = $("#available-start").value ? $("#available-quantity").value : "1";
     $("#detail-content").innerHTML =
       `<div class="detail-image">${imageMarkup(t)}</div><p class="eyebrow">${esc(t.category)}</p><h2>${esc(t.name)}</h2>${providerOf(t) ? `<p class="detail-provider">Ofrecido por <strong>${esc(providerOf(t))}</strong></p>` : ""}<p class="muted">${esc(t.description)}</p><p class="detail-price">${money(t.dailyRate)} <small>COP / día</small></p><p class="stock">${unitsLabel(t.operationalUnits)}</p>` +
-      `<form id="reserve-form" class="reserve-form" novalidate><h3>Reserva por fechas</h3><div class="reserve-fields"><label>Entrega<input type="date" name="start" required min="${businessToday()}" value="${start}"></label><label>Devolución<input type="date" name="end" required min="${addDays(start, 1)}" value="${addDays(start, 2)}"></label><label>Unidades<input type="number" name="quantity" required min="1" max="20" value="1"></label></div><p class="reserve-quote" aria-live="polite"></p><p class="form-error" role="alert"></p><button class="button full">Solicitar reserva →</button><p class="muted reserve-hint">El día de devolución no se cobra. El proveedor tiene 24 horas para aceptar.</p></form>`;
+      `<form id="reserve-form" class="reserve-form" novalidate><h3>Reserva por fechas</h3><div class="reserve-fields"><label>Entrega<input type="date" name="start" required min="${businessToday()}" value="${start}"></label><label>Devolución<input type="date" name="end" required min="${addDays(start, 1)}" value="${end}"></label><label>Unidades<input type="number" name="quantity" required min="1" max="20" value="${quantity}"></label></div><p class="reserve-quote" aria-live="polite"></p><p class="form-error" role="alert"></p><button class="button full">Solicitar reserva →</button><p class="muted reserve-hint">El día de devolución no se cobra. El proveedor tiene 24 horas para aceptar.</p></form>`;
     wireImages($("#detail-content"));
     wireReservation(t);
     $("#detail-dialog").showModal();
@@ -162,10 +175,11 @@ function wireReservation(tool) {
   let ticket = 0;
   const check = async () => {
     error.textContent = "";
-    if (!start.value || !end.value) return;
+    const current = ++ticket;
+    submit.disabled = true;
+    if (!start.value || !end.value) { quote.textContent = "Indica ambas fechas."; return; }
     end.min = addDays(start.value, 1);
     if (end.value <= start.value) end.value = addDays(start.value, 1);
-    const current = ++ticket;
     quote.textContent = "Consultando disponibilidad…";
     quote.className = "reserve-quote";
     try {
@@ -191,6 +205,8 @@ function wireReservation(tool) {
     }
   };
   const schedule = () => {
+    ticket++;
+    submit.disabled = true;
     clearTimeout(timer);
     timer = setTimeout(check, 250);
   };
@@ -240,6 +256,7 @@ function wireReservation(tool) {
       submit.disabled = false;
     }
   };
+  form.closest("dialog").addEventListener("close", () => { clearTimeout(timer); ticket++; }, { once: true });
   check();
 }
 function openAuth(mode) {
@@ -532,6 +549,31 @@ $("#profile-form").onsubmit = async (e) => {
     if (!showFormError(e.target, error)) notify(error.message);
   }
 };
+
+function validateAvailabilityFilters() {
+  const start = $("#available-start"), end = $("#available-end"), quantity = $("#available-quantity");
+  start.min = businessToday();
+  end.min = start.value ? addDays(start.value, 1) : businessToday();
+  start.required = Boolean(end.value);
+  end.required = Boolean(start.value);
+  quantity.setCustomValidity(!start.value && quantity.value !== "1" ? "Indica las fechas para buscar por cantidad disponible." : "");
+  for (const input of [start, end, quantity]) if (!input.reportValidity()) return false;
+  return true;
+}
+for (const id of ["available-start", "available-end", "available-quantity"]) {
+  $("#" + id).addEventListener("change", () => {
+    $("#available-end").min = $("#available-start").value ? addDays($("#available-start").value, 1) : businessToday();
+    if (Boolean($("#available-start").value) !== Boolean($("#available-end").value)) return;
+    state.page = 0; loadTools();
+  });
+}
+$("#clear-availability").onclick = () => {
+  $("#available-start").value = $("#available-end").value = "";
+  $("#available-quantity").value = "1";
+  state.page = 0;
+  loadTools();
+};
+
 $("#search-form").onsubmit = (e) => {
   e.preventDefault();
   state.page = 0;

@@ -196,4 +196,70 @@ class RentalOperationsApiTest {
     mvc.perform(post("/api/v1/incidents/" + incident + "/resolve").header("Authorization", "Bearer " + provider)
         .contentType("application/json").content("{\"resolution\":\"Otra vez\",\"readyToUse\":false}")).andExpect(status().isConflict());
   }
+
+  String providerId() throws Exception {
+    return TestAccounts.field(mvc.perform(get("/api/v1/tools/" + tool)).andExpect(status().isOk())
+        .andReturn().getResponse().getContentAsString(), "providerId");
+  }
+
+  @Test void catalogAvailabilityFiltersBeforePaginationAndHonorsDateBoundaries() throws Exception {
+    // Más reciente y más barata, pero sin unidades: no debe ocupar la primera página.
+    mvc.perform(post("/api/v1/tools").header("Authorization", "Bearer " + provider)
+        .contentType("application/json").content("{\"categoryId\":1,\"name\":\"Sin unidades\",\"description\":\"Equipo\",\"dailyRate\":1}"))
+        .andExpect(status().isCreated());
+    String filter = "/api/v1/tools?providerId=" + providerId() + "&start=" + today +
+        "&end=" + today.plusDays(2) + "&quantity=2&size=1&sort=PRICE_ASC";
+    mvc.perform(get(filter)).andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(1)).andExpect(jsonPath("$.totalPages").value(1))
+        .andExpect(jsonPath("$.content[0].id").value(Long.valueOf(tool)));
+    mvc.perform(get(filter + "&page=1")).andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(0)).andExpect(jsonPath("$.totalElements").value(1));
+    reserve(today, today.plusDays(2));
+    mvc.perform(get(filter)).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0));
+    mvc.perform(get("/api/v1/tools?providerId=" + providerId() + "&start=" + today.plusDays(2) +
+        "&end=" + today.plusDays(3) + "&quantity=2")).andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(1));
+  }
+
+  @Test void invalidAvailabilityIsRejectedEvenWithoutCatalogMatches() throws Exception {
+    String prefix = "/api/v1/tools?q=nonexistent-no-matches";
+    for (String params : List.of("&start=" + today, "&end=" + today.plusDays(1),
+        "&start=" + today + "&end=" + today, "&quantity=0", "&quantity=21", "&quantity=2",
+        "&start=" + today.minusDays(1) + "&end=" + today.plusDays(1),
+        "&start=" + today + "&end=" + today.plusDays(91))) {
+      mvc.perform(get(prefix + params)).andExpect(status().isBadRequest());
+    }
+  }
+
+  @Test void statisticsRespectOwnershipAndCountApprovedPaymentsOnce() throws Exception {
+    String id = reserve(today, today.plusDays(2));
+    pay(id);
+    pay(id); // reintentar no duplica el importe ni las reservas pagadas.
+    mvc.perform(delivery(id, provider)).andExpect(status().isOk());
+    String url = "/api/v1/statistics?from=" + today + "&to=" + today;
+    mvc.perform(get(url)).andExpect(status().isUnauthorized());
+    mvc.perform(get(url).header("Authorization", "Bearer " + client)).andExpect(status().isForbidden());
+    mvc.perform(get(url).header("Authorization", "Bearer " + provider))
+        .andExpect(status().isOk()).andExpect(jsonPath("$.reservations").value(1))
+        .andExpect(jsonPath("$.byStatus.ACEPTADA").value(1))
+        .andExpect(jsonPath("$.paidReservations").value(1)).andExpect(jsonPath("$.approvedAmount").value(400))
+        .andExpect(jsonPath("$.inUse").value(1)).andExpect(jsonPath("$.returned").value(0))
+        .andExpect(jsonPath("$.popularTools[0].toolId").value(Long.valueOf(tool)));
+    String otherProvider = TestAccounts.provider(mvc, "stats-other-" + SEQ.incrementAndGet() + "@test.example");
+    mvc.perform(get(url).header("Authorization", "Bearer " + otherProvider))
+        .andExpect(status().isOk()).andExpect(jsonPath("$.reservations").value(0))
+        .andExpect(jsonPath("$.approvedAmount").value(0));
+    mvc.perform(post("/api/v1/reservations/" + id + "/return").header("Authorization", "Bearer " + provider)
+        .contentType("application/json").content(returnBody("DANADO", "Cable dañado")))
+        .andExpect(status().isOk());
+    mvc.perform(get(url).header("Authorization", "Bearer " + provider))
+        .andExpect(status().isOk()).andExpect(jsonPath("$.inUse").value(0))
+        .andExpect(jsonPath("$.returned").value(1)).andExpect(jsonPath("$.openIncidents").value(1));
+    mvc.perform(get(url).header("Authorization", "Bearer " + TestAccounts.admin(mvc)))
+        .andExpect(status().isOk());
+    mvc.perform(get("/api/v1/statistics?from=" + today + "&to=" + today.minusDays(1))
+        .header("Authorization", "Bearer " + provider)).andExpect(status().isBadRequest());
+    mvc.perform(get("/api/v1/statistics?from=" + today + "&to=" + today.plusDays(366))
+        .header("Authorization", "Bearer " + provider)).andExpect(status().isBadRequest());
+  }
 }

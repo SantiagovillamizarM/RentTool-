@@ -28,6 +28,17 @@
       </div>
     </header>
     <main class="admin-main" id="admin-main" hidden>
+      <details class="statistics-panel" id="statistics-panel">
+        <summary>Estadísticas de reservas</summary>
+        <p class="muted">Incluye las reservas solicitadas entre ambas fechas y su estado actual. Los importes son pagos de demostración de esas reservas, sin cobros reales. Los proveedores ven únicamente sus herramientas.</p>
+        <form class="statistics-form">
+          <label>Solicitadas desde<input name="from" type="date" required></label>
+          <label>Hasta (incluido)<input name="to" type="date" required></label>
+          <button class="outline-button">Consultar</button>
+          <p class="form-error" role="alert"></p>
+        </form>
+        <div data-statistics aria-live="polite"></div>
+      </details>
       <section class="admin-intro">
         <div>
           <p class="eyebrow"><span></span> PANEL DE ADMINISTRACIÓN</p>
@@ -352,6 +363,7 @@
     <script src="common.js" defer></script>
     <script src="billing.js" defer></script>
     <script src="operations.js" defer></script>
+    <script src="statistics.js" defer></script>
     <script src="tool-editor.js" defer></script>
     <script src="admin.js" defer></script>
   </body>

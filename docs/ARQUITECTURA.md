@@ -75,3 +75,7 @@ Pruebas por capa: `domain` prueba reglas del dominio y `application` prueba caso
 ## Contexto operations
 
 Coordina reservas, pago e inventario para registrar entregas, devoluciones e incidencias. Los modelos viven en `domain/operations`, los puertos y RentalService en `application/operations`, y JPA/HTTP/transacciones en `infrastructure/operations`. No se añaden módulos Maven ni frameworks a las capas interiores. La disponibilidad excluye devoluciones completadas y mantiene ocupadas las entregas pendientes, aunque haya pasado la fecha prevista.
+
+## Consulta de disponibilidad y estadísticas
+
+Los contextos application/discovery y application/insights coordinan los puertos existentes de catálogo, reservas, pagos e incidencias. Los controladores solo usan puertos de entrada; las consultas no introducen dependencias de frameworks en las capas interiores ni nuevos módulos Maven. Consulta [la guía funcional y técnica](ESTADISTICAS_DISPONIBILIDAD.md).

@@ -23,7 +23,7 @@ Plataforma de alquiler de herramientas y equipos de construcción. Este incremen
 - Portada responsiva, panel de inventario, estados vacíos, errores y notificaciones.
 - **Reservas por fechas**: disponibilidad pública por rango, solicitud del cliente con tarifa congelada, aceptación del proveedor con asignación de unidades bajo bloqueo, rechazo con motivo, cancelación y vencimiento automático de solicitudes sin respuesta.
 
-Pagos reales, facturación fiscal y el resto de la administración global (usuarios, incidencias, reportes) **siguen pendientes** según [la planeación](docs/PLANEACION_PROYECTO.md). No se cobran pagos desde esta versión.
+Pagos reales, facturación fiscal y la administración global de usuarios **siguen pendientes** según [la planeación](docs/PLANEACION_PROYECTO.md). Los pagos actuales son de demostración; ya se incluyen informes e incidencias.
 
 ## Ejecución con Docker
 
@@ -94,3 +94,7 @@ Para el proyecto escolar, RentTool permite simular pagos aprobados o rechazados 
 ## Entregas, devoluciones e incidencias
 
 Se registra entrega de reservas pagadas, revisión de cada unidad al devolver y resolución de daños o pérdidas. El equipo sin devolver sigue ocupado; los daños bloquean su uso hasta revisión. Guía: [docs/ENTREGAS_DEVOLUCIONES.md](docs/ENTREGAS_DEVOLUCIONES.md).
+
+## Estadísticas y disponibilidad del catálogo
+
+El catálogo permite filtrar por fechas y cantidad, además de texto, categoría, proveedor y precio. Los paneles de administrador y proveedor incluyen estadísticas por fecha de solicitud: estados, pagos de demostración, entregas, devoluciones, incidencias y herramientas más solicitadas. Consulta [la guía](docs/ESTADISTICAS_DISPONIBILIDAD.md).
