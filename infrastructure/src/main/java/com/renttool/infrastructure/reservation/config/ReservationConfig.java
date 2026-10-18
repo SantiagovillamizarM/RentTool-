@@ -41,9 +41,10 @@ public class ReservationConfig {
       RentalInventory inventory,
       ParticipantDirectory directory,
       Clock clock,
-      PlatformTransactionManager transactions) {
+      PlatformTransactionManager transactions,
+      com.renttool.application.billing.port.in.ManagePaymentsUseCase payments) {
     return new TransactionalReservations(
-        new ReservationService(reservations, events, inventory, directory, clock), transactions);
+        new ReservationService(reservations, events, inventory, directory, clock), transactions, payments);
   }
 
   /** Los informes leen mucho y escriben el registro de descarga en la misma transacción. */

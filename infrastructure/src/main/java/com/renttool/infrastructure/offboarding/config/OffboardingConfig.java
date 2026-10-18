@@ -28,9 +28,10 @@ public class OffboardingConfig {
       ReservationRepository reservations,
       ReservationEventRepository events,
       Clock clock,
-      PlatformTransactionManager transactions) {
+      PlatformTransactionManager transactions,
+      com.renttool.application.billing.port.in.ManagePaymentsUseCase payments) {
     var service =
-        new ProviderRemovalService(accounts, profiles, tools, reservations, events, clock);
+        new ProviderRemovalService(accounts, profiles, tools, reservations, events, clock, payments);
     var write = new TransactionTemplate(transactions);
     write.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
     var read = new TransactionTemplate(transactions);

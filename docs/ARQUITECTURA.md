@@ -67,3 +67,7 @@ Pruebas por capa: `domain` prueba reglas del dominio y `application` prueba caso
 3. Implementar los casos de uso en `application/.../rental/service` usando solo puertos.
 4. Crear adaptadores en `infrastructure/.../rental/` y ensamblarlos en `rental/config`.
 5. Si necesita datos de otro contexto, consumir sus puertos de entrada, nunca sus repositorios.
+
+## Contexto billing
+
+`domain/billing` contiene Payment e Invoice. `application/billing` contiene los casos de uso, PaymentService y los puertos para consultar reservas y guardar pagos. `infrastructure/billing` implementa repositorios JPA, controladores y configuración. Pago aprobado y factura se guardan en una transacción. Se conservan los tres módulos Maven y la separación de capas. No hay pasarela externa, claves ni webhooks.

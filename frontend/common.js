@@ -489,7 +489,7 @@ const reservationStatus = {
 };
 function reservationRow(r) {
   const role = state.user.role;
-  const actions = [];
+  const actions = [`<button class="outline-button" data-billing="${r.id}">Pagos y factura</button>`];
   if (role === "PROVEEDOR" && r.status === "SOLICITADA")
     actions.push(
       `<button class="button compact" data-accept="${r.id}">Aceptar</button>`,
@@ -551,6 +551,7 @@ async function loadReservations() {
     box
       .querySelectorAll("[data-history]")
       .forEach((b) => (b.onclick = () => openHistory(b.dataset.history)));
+    box.querySelectorAll("[data-billing]").forEach(b => b.onclick = () => openBilling(b.dataset.billing));
     box.querySelectorAll("[data-accept]").forEach(
       (b) =>
         (b.onclick = async () => {

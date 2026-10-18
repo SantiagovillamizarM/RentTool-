@@ -123,3 +123,7 @@ Respuesta (201):
 ```
 
 Errores: 400 fechas inválidas o pasadas, 403 rol o propiedad incorrectos, 404 inexistente, 409 sin unidades libres, estado que no permite la operación o alquiler ya iniciado.
+
+## Pagos y facturas de demostración
+
+POST `/reservations/{id}/payments` recibe `{"result":"APROBADO"}` o `{"result":"RECHAZADO"}`. GET de la misma ruta consulta el historial; GET `/reservations/{id}/invoice` descarga la factura de demostración. Todas requieren JWT y permisos sobre la reserva. No se cobra dinero real. Guía: [PAGOS_DEMO.md](PAGOS_DEMO.md).

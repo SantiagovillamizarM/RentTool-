@@ -20,10 +20,13 @@ import org.springframework.transaction.support.TransactionTemplate;
  */
 class TransactionalReservations implements ManageReservationsUseCase, ExpireReservationsUseCase {
   private final ReservationService service;
+  private final com.renttool.application.billing.port.in.ManagePaymentsUseCase payments;
   private final TransactionTemplate write;
   private final TransactionTemplate read;
 
-  TransactionalReservations(ReservationService service, PlatformTransactionManager transactions) {
+  TransactionalReservations(ReservationService service, PlatformTransactionManager transactions,
+      com.renttool.application.billing.port.in.ManagePaymentsUseCase payments) {
+    this.payments = payments;
     this.service = service;
     this.write = new TransactionTemplate(transactions);
     this.write.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
@@ -58,7 +61,11 @@ class TransactionalReservations implements ManageReservationsUseCase, ExpireRese
 
   @Override
   public void cancel(Participant participant, Long reservationId) {
-    write.executeWithoutResult(s -> service.cancel(participant, reservationId));
+    write.executeWithoutResult(s -> {
+      service.get(participant, reservationId);
+      payments.ensureCancellationAllowed(reservationId);
+      service.cancel(participant, reservationId);
+    });
   }
 
   @Override

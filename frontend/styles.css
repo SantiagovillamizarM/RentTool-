@@ -3064,3 +3064,6 @@ label.consent input {
     width: 100%;
   }
 }
+
+#billing-content small { overflow-wrap: anywhere; }
+#billing-content button { margin: 8px 8px 8px 0; }

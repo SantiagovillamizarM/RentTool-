@@ -35,6 +35,7 @@ public class ProviderRemovalService implements RemoveProviderUseCase {
   private final ReservationRepository reservations;
   private final ReservationEventRepository events;
   private final Clock clock;
+  private final com.renttool.application.billing.port.in.ManagePaymentsUseCase payments;
 
   public ProviderRemovalService(
       AccountRepository accounts,
@@ -42,7 +43,8 @@ public class ProviderRemovalService implements RemoveProviderUseCase {
       ToolRepository tools,
       ReservationRepository reservations,
       ReservationEventRepository events,
-      Clock clock) {
+      Clock clock, com.renttool.application.billing.port.in.ManagePaymentsUseCase payments) {
+    this.payments = payments;
     this.accounts = accounts;
     this.profiles = profiles;
     this.tools = tools;
@@ -73,6 +75,7 @@ public class ProviderRemovalService implements RemoveProviderUseCase {
       // Se bloquea antes de cambiarla; pudo cambiar desde la consulta.
       var reservation = reservations.findByIdForUpdate(found.id()).orElseThrow();
       if (!reservation.isCancellableToday(today)) continue;
+      payments.ensureCancellationAllowed(reservation.id());
       var cancelled = reservations.save(reservation.cancelBecause(today, REASON));
       events.append(ReservationEvent.by(admin, cancelled.id(), cancelled.status(), now, REASON));
     }

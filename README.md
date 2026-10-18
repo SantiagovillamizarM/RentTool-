@@ -23,7 +23,7 @@ Plataforma de alquiler de herramientas y equipos de construcción. Este incremen
 - Portada responsiva, panel de inventario, estados vacíos, errores y notificaciones.
 - **Reservas por fechas**: disponibilidad pública por rango, solicitud del cliente con tarifa congelada, aceptación del proveedor con asignación de unidades bajo bloqueo, rechazo con motivo, cancelación y vencimiento automático de solicitudes sin respuesta.
 
-Pagos, facturas, entregas, devoluciones y el resto de la administración global (usuarios, incidencias, reportes) **siguen pendientes** según [la planeación](docs/PLANEACION_PROYECTO.md). No se cobran pagos desde esta versión.
+Pagos reales, facturación fiscal, entregas, devoluciones y el resto de la administración global (usuarios, incidencias, reportes) **siguen pendientes** según [la planeación](docs/PLANEACION_PROYECTO.md). No se cobran pagos desde esta versión.
 
 ## Ejecución con Docker
 
@@ -86,3 +86,7 @@ El JWT se conserva en `sessionStorage`, con vencimiento de una hora. El del admi
 Auditoría, perfiles comerciales completos, paginación del panel de inventario más allá de 100 elementos y el resto de MVP aún deben incorporarse. Las imágenes eliminadas de una publicación conservan su archivo físico; su limpieza se implementará con una política de retención. No se inventan garantías comerciales, estadísticas ni contacto de una empresa real.
 
 El administrador inicial se provisiona al arrancar con `RENTTOOL_ADMIN_EMAIL` y `RENTTOOL_ADMIN_PASSWORD` (12–64 caracteres); Docker Compose las exige. Sin él nadie puede dar de alta proveedores. No se eleva una cuenta existente ni se cambia su contraseña automáticamente. Los proveedores creados por registro público antes de este cambio aparecen en el panel como "Sin datos legales" para que el administrador los complete o desactive; sus publicaciones siguen visibles hasta que se retiren.
+
+## Pagos y facturas de demostración
+
+Para el proyecto escolar, RentTool permite simular pagos aprobados o rechazados dentro de la aplicación. Un pago aprobado genera una factura de demostración automáticamente. No se usa una pasarela externa ni se cobra dinero real. Guía: [docs/PAGOS_DEMO.md](docs/PAGOS_DEMO.md).
