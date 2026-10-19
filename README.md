@@ -10,6 +10,7 @@ El proyecto demuestra el flujo completo de la plataforma. **Los pagos son simula
 - [Tecnologías](#tecnologías)
 - [Estructura y arquitectura](#estructura-y-arquitectura)
 - [Sistemas compatibles](#sistemas-compatibles)
+- [Ejecutar en Linux sin sudo y con catálogo demo](#ejecutar-en-linux-sin-sudo-y-con-catálogo-demo)
 - [Ejecutar con Docker](#ejecutar-con-docker)
 - [Ejecutar con Java y MySQL](#ejecutar-con-java-y-mysql)
 - [Catálogo de demostración](#catálogo-de-demostración)
@@ -144,6 +145,124 @@ RentTool funciona en **Windows, macOS (Intel y Apple Silicon) y Linux**. Hay dos
 | [Java y MySQL locales](#ejecutar-con-java-y-mysql) | JDK 21 y MySQL 8 | Desarrollar sin contenedores |
 
 Los comandos son iguales en los tres sistemas salvo en tres puntos: el wrapper de Maven (`.\mvnw.cmd` en Windows, `./mvnw` en macOS y Linux), la forma de copiar archivos y la de definir variables de entorno. Cada paso muestra la versión de **PowerShell** (Windows) y la de **bash/zsh** (macOS y Linux).
+
+## Ejecutar en Linux sin sudo y con catálogo demo
+
+Este es el procedimiento utilizado para ejecutar RentTool en Linux con **Docker rootless** y cargar las **18 herramientas de Midnight**. Requiere tener Docker rootless y el plugin Compose instalados y configurados para tu usuario; seleccionar un contexto no los instala. No necesitas instalar Java, Maven ni MySQL por separado: los contenedores incluyen Java 21 y MySQL 8.4, y el proyecto utiliza Spring Boot 4.1.1. La primera construcción requiere Internet.
+
+### 1. Entrar a la carpeta del proyecto
+
+Abre una terminal en la raíz del repositorio, donde están `compose.yaml`, `compose.demo.yaml` y `Dockerfile`:
+
+```bash
+cd /home/camper/Escritorio/RentTool-
+```
+
+Si descargaste el proyecto en otra ubicación, sustituye esa ruta por la tuya.
+
+### 2. Seleccionar Docker rootless
+
+```bash
+docker --version
+docker compose version
+docker context ls
+docker context use rootless
+docker info
+```
+
+`docker info` debe mostrar información del servidor sin errores de conexión. A partir de aquí los comandos se ejecutan **sin `sudo`**.
+
+Si aparece un error que menciona `~/.docker/desktop/docker.sock`, se está intentando conectar con Docker Desktop. Comprueba con `docker context show` que esté seleccionado `rootless`.
+
+Si el contexto `rootless` existe pero su motor está detenido, en instalaciones que lo gestionan mediante systemd de usuario puedes iniciarlo con:
+
+```bash
+systemctl --user start docker
+docker info
+```
+
+Si no existe el contexto o la unidad de usuario, primero debes instalar/configurar Docker rootless; no continúes con Compose hasta que `docker info` funcione. Docker Desktop y Docker Engine convencional son alternativas descritas en [Ejecutar con Docker](#ejecutar-con-docker).
+
+**Mantén el mismo contexto en los siguientes arranques.** Cada motor tiene sus propios contenedores y volúmenes: los datos guardados en otro motor no se trasladan automáticamente a rootless.
+
+### 3. Crear y editar `.env`
+
+Desde la misma carpeta:
+
+```bash
+test -f .env || cp .env.example .env
+nano .env
+```
+
+El primer comando conserva `.env` si ya existe. Es un archivo oculto por comenzar con punto; puedes verlo con `ls -a` o con **Ctrl+H** en el explorador de archivos.
+
+Configura todas estas variables con valores propios:
+
+```dotenv
+APP_PORT=8088
+DB_PASSWORD=tu_clave_mysql_local
+MYSQL_ROOT_PASSWORD=tu_clave_root_mysql
+JWT_SECRET=tu_secreto_aleatorio_de_al_menos_32_caracteres
+RENTTOOL_ADMIN_EMAIL=admin@example.com
+RENTTOOL_ADMIN_PASSWORD=tu_clave_admin_de_12_a_64_caracteres
+DEMO_PASSWORD=tu_clave_demo_de_al_menos_10_caracteres
+```
+
+- `JWT_SECRET`: al menos 32 caracteres. Si tienes OpenSSL, puedes generar un valor con `openssl rand -hex 32` y copiarlo en esta variable.
+- `RENTTOOL_ADMIN_PASSWORD`: entre 12 y 64 caracteres.
+- `DEMO_PASSWORD`: al menos 10 caracteres; será la contraseña inicial del proveedor demo.
+
+En nano, guarda con **Ctrl+O**, pulsa **Enter** y sal con **Ctrl+X**. Compose lee `.env` y pasa las variables a los contenedores. Cambiar aquí una contraseña no restablece automáticamente la de un usuario ya creado en MySQL o en RentTool; conserva las credenciales originales de una instalación existente.
+
+### 4. Comprobar la configuración y arrancar con herramientas
+
+```bash
+docker compose -f compose.yaml -f compose.demo.yaml config --quiet
+docker compose -f compose.yaml -f compose.demo.yaml up --build -d
+```
+
+El primer comando valida la configuración sin mostrar los secretos. Si indica que falta una variable, complétala en `.env` antes de continuar.
+
+El segundo construye la aplicación y la deja ejecutándose en segundo plano. **Incluye ambos archivos:** `compose.yaml` inicia MySQL y RentTool; `compose.demo.yaml` activa `SPRING_PROFILES_ACTIVE=demo` y entrega `DEMO_PASSWORD` al inicializador del catálogo. Arrancar solo con el primer archivo no carga las herramientas demo en una base vacía.
+
+MySQL guarda los registros en el volumen `mysql_data`. Cuando está saludable, arranca la aplicación, Flyway aplica las migraciones y el inicializador demo crea Midnight, sus publicaciones, imágenes y unidades. Las imágenes se conservan en el volumen `uploads`.
+
+### 5. Verificar el arranque y abrir el catálogo
+
+```bash
+docker compose -f compose.yaml -f compose.demo.yaml ps
+docker compose -f compose.yaml -f compose.demo.yaml logs --tail=100 -f app
+```
+
+Comprueba que MySQL figure saludable y que la aplicación no registre errores de arranque. Busca `Started RentToolApplication`; la carga inicial también puede mostrar `Midnight publicó 18 herramientas de demostración`. Espera a que termine esa carga y revisa que no haya errores posteriores. En arranques siguientes no tiene que aparecer el mensaje de publicación: el inicializador evita repetir el catálogo si Midnight ya tiene herramientas activas.
+
+Pulsa **Ctrl+C** para dejar de seguir los registros; esto no detiene los contenedores iniciados con `-d`.
+
+Abre **http://localhost:8088**. Si configuraste otro `APP_PORT`, usa ese puerto. Recarga con **Ctrl+F5** si el navegador conserva una versión anterior.
+
+- Administrador: correo y contraseña configurados en `RENTTOOL_ADMIN_EMAIL` y `RENTTOOL_ADMIN_PASSWORD` al crear la cuenta.
+- Proveedor demo: `midnight@renttool.demo` y la contraseña de `DEMO_PASSWORD` utilizada al crear esa cuenta.
+
+### 6. Detener y volver a ejecutar conservando datos
+
+Para detener:
+
+```bash
+docker compose -f compose.yaml -f compose.demo.yaml down
+```
+
+Para volver a iniciar, o aplicar cambios del código después de actualizarlos:
+
+```bash
+docker context use rootless
+docker compose -f compose.yaml -f compose.demo.yaml up --build -d
+```
+
+**No añadas `-v` a `down` si quieres conservar los datos y las imágenes.** Si el catálogo aparece vacío, comprueba que utilizaste ambos archivos, el mismo contexto y los mismos volúmenes. Para consultar errores de ambos servicios:
+
+```bash
+docker compose -f compose.yaml -f compose.demo.yaml logs --tail=100 app mysql
+```
 
 ## Ejecutar con Docker
 
