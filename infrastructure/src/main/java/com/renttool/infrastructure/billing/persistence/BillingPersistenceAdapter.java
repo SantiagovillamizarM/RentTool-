@@ -12,7 +12,6 @@ class BillingPersistenceAdapter implements PaymentStore {
   BillingPersistenceAdapter(PaymentJpaRepository payments, InvoiceJpaRepository invoices, ObjectMapper json) {
     this.payments=payments; this.invoices=invoices; this.json=json;
   }
-  public Optional<Payment> find(String ref) { return payments.findById(ref).map(this::domain); }
   public List<Payment> history(Long id) { return payments.findByReservationIdOrderByCreatedAtDesc(id).stream().map(this::domain).toList(); }
   public Payment save(Payment p) {
     var e = new PaymentEntity();

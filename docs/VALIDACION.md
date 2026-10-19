@@ -1,5 +1,7 @@
 # Validación del primer MVP
 
+Este documento conserva resultados históricos de versiones anteriores; no es una guía de pruebas de la versión actual. El antiguo script de navegador se retiró porque esperaba seis publicaciones demo, registro público de proveedores y formularios que ya no existen. Para ejecutar las comprobaciones actuales, consulta la sección de pruebas del [README](../README.md).
+
 Fecha: 13 de octubre de 2026, America/Bogota.
 
 ## Resultado
@@ -9,7 +11,7 @@ Fecha: 13 de octubre de 2026, America/Bogota.
 - Cinco pruebas de API: registro y seguridad; catálogo/propiedad/baja; validación y credenciales; imágenes y acceso a unidades; cuenta desactivada con token previo.
 - Dos pruebas de dominio: tarifa positiva y prohibición de transferir propiedad al editar.
 - Pruebas con H2: cinco casos de API pasaron antes de añadir los dos casos de dominio; H2 se utiliza solo como alternativa efímera en pruebas locales.
-- `node --check frontend/app.js` y `node --check scripts/check-browser.mjs`: sintaxis válida.
+- La sintaxis de frontend/app.js y del antiguo script de navegador se comprobó en esa versión.
 - Navegador Chrome real contra la demo MySQL: seis publicaciones, menú móvil, registro proveedor, publicación, edición, unidad, subida de PNG, retirada y cierre de sesión. Sin excepciones JavaScript y sin desbordamiento horizontal a 390 px, incluida sesión iniciada y acceso al cierre de sesión.
 - Capturas: `screenshots/desktop.png`, `screenshots/mobile.png` y `screenshots/provider.png`.
 
@@ -17,7 +19,7 @@ Fecha: 13 de octubre de 2026, America/Bogota.
 
 Usa una base **vacía dedicada a pruebas**. Los tests crean usuarios y herramientas y no deben apuntar a datos reales. Configura `TEST_DB_URL`, `TEST_DB_DRIVER=com.mysql.cj.jdbc.Driver`, `TEST_DB_USER` y `TEST_DB_PASSWORD` y ejecuta `./mvnw verify`. Una segunda ejecución requiere otra base vacía porque los tests verifican correos únicos con datos fijos.
 
-Para la prueba de navegador, arranca la aplicación con perfil demo en una base independiente, inicia Chrome con un perfil temporal y depuración local en el puerto 9228 y ejecuta `node scripts/check-browser.mjs`. `RENTTOOL_TEST_URL` permite cambiar la URL por defecto `http://127.0.0.1:8088`; `CHROME_DEBUG_URL` permite cambiar el endpoint de depuración. La prueba espera seis publicaciones demo y crea un usuario y una publicación que retira al terminar. No usa una base de producción.
+La prueba de navegador descrita en este registro se ejecutó con la interfaz antigua. Ese procedimiento ya no aplica a la versión actual.
 
 ## Límites de esta verificación
 
@@ -36,5 +38,5 @@ Fecha: 15 de octubre de 2026, America/Bogota.
 - La prueba concurrente se comprobó también en sentido inverso: al quitar el bloqueo de la herramienta, ambas aceptaciones devuelven 200 (doble reserva) en 3 de 3 intentos.
 - Hallazgo corregido: en MySQL, con su aislamiento por defecto REPEATABLE READ, la transacción que esperaba el bloqueo seguía leyendo la foto previa y asignaba la misma unidad; H2 no lo reproducía. Las escrituras de reservas usan READ COMMITTED y bloquean primero la reserva y luego la herramienta.
 - Migración `V2__reservations.sql` aplicada por Flyway sobre MySQL 8.4 vacío y validada por Hibernate.
-- Navegador Chrome real contra la demo MySQL: `scripts/check-browser.mjs` completo sin fallos; recorrido adicional de cliente que cotiza, ve el aviso de unidades insuficientes y solicita, y de proveedor que acepta desde su panel. Sin excepciones JavaScript y sin desbordamiento horizontal a 390 px.
+- Navegador Chrome real contra la demo MySQL: el script de navegador de esa versión completo sin fallos; recorrido adicional de cliente que cotiza, ve el aviso de unidades insuficientes y solicita, y de proveedor que acepta desde su panel. Sin excepciones JavaScript y sin desbordamiento horizontal a 390 px.
 - No se validaron pagos, entregas ni devoluciones porque aún no están implementados.

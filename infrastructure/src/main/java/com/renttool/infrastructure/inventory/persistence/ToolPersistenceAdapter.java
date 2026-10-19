@@ -72,11 +72,6 @@ class ToolPersistenceAdapter implements ToolRepository {
         page.page());
   }
 
-  @Override
-  public boolean isEmpty() {
-    return jpa.count() == 0;
-  }
-
   private static Tool toDomain(ToolEntity e) {
     return new Tool(e.id, e.providerId, e.categoryId, e.name, e.description, e.dailyRate, e.active);
   }

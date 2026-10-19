@@ -32,7 +32,6 @@ class PaymentServiceTest {
     Map<String, Payment> payments = new LinkedHashMap<>();
     Map<Long, Invoice> invoices = new HashMap<>();
     int issued;
-    public Optional<Payment> find(String reference) { return Optional.ofNullable(payments.get(reference)); }
     public List<Payment> history(Long id) {
       return payments.values().stream().filter(payment -> payment.reservationId().equals(id)).toList();
     }

@@ -21,8 +21,6 @@ public interface ToolRepository {
   /** Publicaciones activas con el orden solicitado, aplicado antes de paginar. */
   PageResult<Tool> searchActive(SearchCriteria criteria, PageQuery page);
 
-  boolean isEmpty();
-
   /**
    * Filtros opcionales: un valor null no restringe. text busca de forma literal en el nombre y la
    * descripción.

@@ -13,8 +13,6 @@ public interface BrowseCatalogUseCase {
 
   List<Category> categories();
 
-  boolean isInventoryEmpty();
-
   /**
    * onlyMine limita la búsqueda a las publicaciones del actor, que debe ser proveedor. providerId
    * filtra por un proveedor concreto (público); null incluye a todos.

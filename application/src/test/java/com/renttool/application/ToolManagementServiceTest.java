@@ -78,9 +78,6 @@ class ToolManagementServiceTest {
       throw new UnsupportedOperationException();
     }
 
-    public boolean isEmpty() {
-      return data.isEmpty();
-    }
   }
 
   private static class OneCategory implements CategoryRepository {

@@ -52,11 +52,6 @@ public class CatalogService implements BrowseCatalogUseCase {
     return categories.findAll();
   }
 
-  @Override
-  public boolean isInventoryEmpty() {
-    return tools.isEmpty();
-  }
-
   private ToolDetails details(Tool tool) {
     return new ToolDetails(
         tool,

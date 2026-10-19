@@ -98,8 +98,6 @@ public final class ReservationDtos {
               description = "Plazo del proveedor para responder; solo en SOLICITADA")
           Instant respondBy,
       @Schema(example = "Motivo del rechazo, si lo hubo") String note, String rentalStatus) {
-    public static ReservationResponse from(ReservationDetails d) { return from(d, null); }
-
     public static ReservationResponse from(ReservationDetails d, String rentalStatus) {
       var r = d.reservation();
       return new ReservationResponse(
