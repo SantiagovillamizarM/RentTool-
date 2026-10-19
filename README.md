@@ -1,100 +1,449 @@
 # RentTool
 
-Plataforma de alquiler de herramientas y equipos de construcción. Este incremento implementa el primer MVP: identidad, inventario y catálogo, con una interfaz oscura y amarilla basada en la referencia compartida.
+RentTool es una plataforma de alquiler de herramientas y equipos de construcción. Permite consultar equipos, reservar unidades por fechas y seguir el alquiler desde la solicitud hasta la entrega, devolución y resolución de incidencias.
 
-**Java 21 · Spring Boot 4.1.1 · MySQL · arquitectura hexagonal y DDD · Maven multimódulo · HTML/CSS/JavaScript**
+El proyecto demuestra el flujo completo de la plataforma. **Los pagos son simulados y las facturas son de demostración: no hay cobros reales ni validez fiscal.**
 
-## Funciones implementadas
+## Contenido
 
-- Registro público de clientes, login JWT, edición del nombre y cambio de contraseña.
-- **Alta de proveedores por el administrador**: correo, contraseña temporal, tipo de persona, NIT con dígito de verificación DIAN, razón social, nombre comercial, representante legal, teléfono, dirección y ciudad. El proveedor debe cambiar la contraseña temporal antes de usar la API; el administrador puede editar sus datos, desactivarlo (pierde el acceso al instante) o asignarle una nueva clave temporal.
-- Restricciones por rol y propietario; el registro público solo crea clientes.
-- **"¿Quieres ser proveedor?"**: un cliente envía los datos de su empresa desde el sitio; el administrador acepta o rechaza con motivo. La próxima vez que entra ve la respuesta una sola vez: el motivo del rechazo (con opción de reenviar) o la bienvenida con su nombre comercial y el acceso a su panel.
-- **Panel del proveedor** en `/proveedor`, aparte del sitio: inventario (publicar, editar con imagen principal, elegir cuántas unidades tiene, imágenes, retirar), solicitudes de reserva con el teléfono y el correo del cliente, y los datos de su empresa (nombre, representante, contacto y logo; el NIT y el tipo de persona solo los corrige el administrador).
-- **Catálogo por proveedor**: el cliente elige "Todos los proveedores" o uno en particular; la búsqueda también mira la descripción, donde suele ir la marca.
-- **Editar herramientas desde el panel del administrador**: nombre, categoría, descripción, tarifa e imagen principal (cambiarla o quitarla). Sin imagen se muestra una ilustración predeterminada. Las reservas ya solicitadas conservan la tarifa pactada.
-- **Eliminar proveedor** desde el panel, con aviso previo de lo que pasará y confirmación escribiendo su nombre: cierra su cuenta para siempre, retira todas sus herramientas del catálogo y cancela sus reservas que aún no empiezan (los alquileres en curso siguen). Sus datos se conservan para el historial.
-- **Historial y auditoría de reservas**: cada solicitud, aceptación, rechazo, cancelación y vencimiento queda registrado con quién lo hizo y cuándo, visible en "Historial" de cada reserva.
-- **Informes descargables (CSV para Excel)** desde el panel del administrador: reservas por rango de fechas y estado, con cliente y correo, proveedor y NIT, importes y último cambio; o el historial completo de eventos. Cada descarga queda registrada.
-- Publicación, edición y retirada lógica de herramientas con tarifa diaria y categoría.
-- Unidades físicas con códigos únicos y estados operativa, mantenimiento o retirada.
-- Imágenes HTTPS o subida PNG/JPEG con límites de tamaño y dimensiones.
-- Catálogo paginado, búsqueda literal, filtros por categoría y detalle de herramientas.
-- Portada responsiva, panel de inventario, estados vacíos, errores y notificaciones.
-- **Reservas por fechas**: disponibilidad pública por rango, solicitud del cliente con tarifa congelada, aceptación del proveedor con asignación de unidades bajo bloqueo, rechazo con motivo, cancelación y vencimiento automático de solicitudes sin respuesta.
+- [Funcionamiento](#funcionamiento)
+- [Tecnologías](#tecnologías)
+- [Estructura y arquitectura](#estructura-y-arquitectura)
+- [Ejecutar con Docker en Windows](#ejecutar-con-docker-en-windows)
+- [Ejecutar con Java y MySQL en Windows](#ejecutar-con-java-y-mysql-en-windows)
+- [Catálogo de demostración](#catálogo-de-demostración)
+- [Probar un alquiler completo](#probar-un-alquiler-completo)
+- [Configuración](#configuración)
+- [Pruebas y actualización](#pruebas-y-actualización)
+- [Solución de problemas](#solución-de-problemas)
+- [Limitaciones y documentación](#limitaciones-y-documentación)
 
-Pagos reales, facturación fiscal y la administración global de usuarios **siguen pendientes** según [la planeación](docs/PLANEACION_PROYECTO.md). Los pagos actuales son de demostración; ya se incluyen informes e incidencias.
+## Funcionamiento
 
-## Ejecución con Docker
+El frontend y la API se sirven desde una misma aplicación. No necesitas iniciar otro servidor para la interfaz.
 
-Requiere Docker Engine activo y Docker Compose.
+### Roles
 
-```bash
-cp .env.example .env
-# Edita .env: configura contraseñas, un JWT_SECRET aleatorio de al menos 32 caracteres
-# y el administrador inicial (RENTTOOL_ADMIN_EMAIL y RENTTOOL_ADMIN_PASSWORD).
+| Rol | Funciones |
+| --- | --- |
+| Visitante | Consultar catálogo, imágenes, tarifas, proveedores y disponibilidad; buscar y ordenar herramientas. |
+| Cliente | Registrarse, editar su perfil y teléfono, solicitar reservas, consultar sus registros, simular pagos y descargar facturas. Puede solicitar convertirse en proveedor. |
+| Proveedor | Publicar y editar herramientas, gestionar unidades e imágenes, responder reservas, registrar entregas y devoluciones, gestionar incidencias y consultar estadísticas propias. |
+| Administrador | Gestionar proveedores y solicitudes, moderar herramientas, consultar todas las reservas, registrar operaciones, resolver incidencias y consultar estadísticas e informes CSV. |
+
+El registro público crea **clientes**. Para ser proveedor, un cliente envía una solicitud con sus datos comerciales y el administrador la acepta o rechaza con motivo. El administrador también puede darlo de alta directamente con una contraseña temporal, que debe cambiar antes de operar.
+
+El proveedor dispone de un panel propio con inventario, reservas y datos de su empresa. El administrador puede editar datos, desactivar el acceso o gestionar su baja conservando el historial; las operaciones que afecten reservas y pagos están sujetas a las validaciones del sistema.
+
+### Catálogo e inventario
+
+- Búsqueda por nombre o descripción y filtros por categoría y proveedor.
+- Orden por publicaciones recientes o tarifa diaria, ascendente o descendente.
+- Filtro por fechas de entrega y devolución y cantidad disponible.
+- Detalle con descripción, categoría, tarifa e imágenes.
+- Cada publicación representa una herramienta; sus unidades representan equipos físicos con código y estado: operativa, mantenimiento o retirada.
+- Imágenes por referencia HTTPS o archivos PNG/JPEG, con validaciones de tamaño y dimensiones.
+
+### Recorrido de un alquiler
+
+1. El cliente busca una herramienta e indica fechas y cantidad.
+2. Inicia sesión y solicita la reserva. El servidor calcula el importe y conserva la tarifa pactada.
+3. El proveedor acepta o rechaza. Al aceptar, se comprueba nuevamente la disponibilidad y se asignan unidades.
+4. El cliente abre **Pagos y factura** y simula un resultado aprobado o rechazado. La aprobación genera automáticamente la factura; el rechazo permite reintentar.
+5. El proveedor o administrador registra la entrega dentro del período del alquiler, con pago aprobado y unidades aptas.
+6. Al devolver, revisa todas las unidades e indica buen estado, daño o pérdida.
+7. RentTool actualiza el inventario y registra incidencias. El responsable documenta después su resolución.
+8. Los participantes autorizados consultan historial, registros, pagos y factura.
+
+La factura se descarga como HTML. Para obtener un PDF, abre el archivo en el navegador y utiliza **Imprimir → Guardar como PDF**.
+
+### Reglas del negocio
+
+- Fechas en la zona del negocio: `America/Bogota` por defecto.
+- Reservas de 1 a 20 unidades, máximo 90 días y sin inicio en el pasado.
+- El día de devolución no se cobra: del 10 al 12 son dos días.
+- El proveedor tiene 24 horas para responder; las solicitudes sin respuesta vencen automáticamente.
+- Consultar disponibilidad o enviar una solicitud no aparta unidades. Al aceptar se vuelve a comprobar bajo bloqueo para evitar asignaciones incompatibles.
+- Una reserva con pago aprobado no se puede cancelar en esta versión; no hay reembolsos.
+- No se permite entregar dos veces ni devolver antes de entregar. La devolución es completa.
+- Una unidad dañada pasa a mantenimiento; una perdida pasa a retirada. Los daños o pérdidas abiertos impiden habilitarla manualmente.
+- Las unidades entregadas y sin devolver siguen ocupadas, incluso después de la fecha prevista. Una devolución anticipada libera las unidades aptas.
+- El estado de reserva (`SOLICITADA`, `ACEPTADA`, `RECHAZADA`, `CANCELADA`, `VENCIDA`) se conserva separado del movimiento físico (`PENDIENTE_ENTREGA`, `EN_USO`, `DEVUELTA`).
+
+### Estadísticas e informes
+
+Administrador y proveedor pueden consultar reservas por estado, pagos aprobados de demostración, equipos en uso, devoluciones, incidencias abiertas y herramientas más solicitadas.
+
+**El rango selecciona reservas por su fecha de solicitud y muestra su estado actual.** La suma de pagos corresponde a esas reservas; no representa ingresos agrupados por fecha de pago. El proveedor ve únicamente sus herramientas, incluidas las retiradas.
+
+El administrador también descarga informes CSV para Excel de reservas e historial de eventos. Las descargas quedan registradas porque pueden contener datos personales.
+
+## Tecnologías
+
+| Herramienta | Uso |
+| --- | --- |
+| Java 21 | Lenguaje del backend y versión de compilación. |
+| Maven / Maven Wrapper | Dependencias, compilación, pruebas y empaquetado. El wrapper fija Maven 3.9.12. |
+| Spring Boot 4.1.1 / Spring MVC | Arranque y API REST con servidor embebido. |
+| Spring Data JPA / Hibernate | Persistencia y acceso a datos. |
+| MySQL | Base de datos normal; Compose utiliza MySQL 8.4. |
+| Flyway | Migraciones versionadas para crear y actualizar el esquema. |
+| Spring Security, JWT y BCrypt | Autenticación, permisos y hash de contraseñas. |
+| Bean Validation | Validación de solicitudes. |
+| HTML, CSS y JavaScript | Interfaz sin framework de frontend. |
+| springdoc / Swagger UI | Documentación y pruebas interactivas de API. |
+| JUnit, Spring Boot Test, H2 y ArchUnit | Pruebas de reglas, servicios, API y arquitectura. H2 solo se usa en pruebas. |
+| Docker / Docker Compose | Ejecución de aplicación y MySQL con almacenamiento persistente. |
+| Git / VS Code | Control de versiones y desarrollo. |
+
+**No necesitas Node.js para ejecutar RentTool ni instalar un Tomcat externo.** Node.js es opcional para las comprobaciones de JavaScript.
+
+## Estructura y arquitectura
+
+La arquitectura hexagonal separa reglas de negocio y casos de uso de HTTP, base de datos y archivos.
+
+```text
+RentTool-/
+├── pom.xml                 Padre Maven
+├── domain/                 Modelos y reglas de negocio en Java puro
+├── application/            Servicios y puertos de entrada/salida
+├── infrastructure/         Spring Boot, HTTP, JPA, seguridad y archivos
+│   └── src/main/resources/db/migration/
+│                           Migraciones Flyway
+├── frontend/               HTML, CSS, JavaScript e imágenes
+├── docs/                   Documentación
+├── scripts/                Comprobaciones JavaScript
+├── compose.yaml            Aplicación y MySQL
+├── compose.demo.yaml       Activación de datos demo
+└── .env.example            Configuración de ejemplo para Compose
+```
+
+Dependencias: **infrastructure → application → domain**.
+
+- `domain` contiene modelos y reglas sin depender de Spring ni JPA.
+- `application` define casos de uso mediante `port/in`, acceso a servicios externos mediante `port/out` y los servicios que coordinan el negocio.
+- `infrastructure` implementa adaptadores y configuración; genera el JAR ejecutable.
+- Maven copia `frontend/` al JAR, por lo que interfaz y API comparten servidor.
+
+Los contextos incluyen identidad, inventario, reservas, pagos y operaciones; también hay coordinación para disponibilidad, estadísticas, ajuste de unidades y baja de proveedores.
+
+### VS Code y Java Projects
+
+Abre **la raíz que contiene el pom.xml principal**, no solamente un módulo o `frontend/`. Con **Extension Pack for Java**, VS Code puede importar y mostrar los tres módulos Maven en Java Projects, junto con sus paquetes, pruebas y dependencias.
+
+El arranque está en `infrastructure/src/main/java/com/renttool/infrastructure/RentToolApplication.java`. Los comandos siguientes no dependen de la configuración del botón Run.
+
+## Ejecutar con Docker en Windows
+
+Esta opción incluye MySQL y la aplicación en contenedores. No requiere instalar Java, Maven o MySQL en Windows.
+
+### 1. Preparar Docker
+
+Instala y abre Docker Desktop con soporte para contenedores Linux. Espera a que el motor esté listo. La primera construcción necesita Internet.
+
+Comprueba en PowerShell:
+
+```powershell
+docker --version
+docker compose version
+```
+
+### 2. Abrir el repositorio
+
+En la terminal de VS Code, sustituye esta ruta por la de tu equipo:
+
+```powershell
+cd "C:\ruta\RentTool-"
+Get-ChildItem pom.xml, compose.yaml, .env.example
+```
+
+### 3. Configurar el archivo .env
+
+Solo si todavía no existe:
+
+```powershell
+Copy-Item .env.example .env
+notepad .env
+```
+
+Reemplaza los ejemplos por tus valores:
+
+```dotenv
+APP_PORT=8088
+DB_PASSWORD=tu_clave_mysql_local
+MYSQL_ROOT_PASSWORD=tu_clave_root_mysql
+JWT_SECRET=tu_secreto_aleatorio_de_al_menos_32_caracteres
+RENTTOOL_ADMIN_EMAIL=admin@example.com
+RENTTOOL_ADMIN_PASSWORD=tu_clave_admin_de_12_a_64_caracteres
+DEMO_PASSWORD=tu_clave_demo_de_al_menos_10_caracteres
+```
+
+`DEMO_PASSWORD` solo se utiliza con el perfil demo. `.env` está excluido de Git. No sobrescribas un archivo ya configurado si deseas conservar sus valores.
+
+### 4. Construir y arrancar
+
+Para iniciar sin cargar catálogo demo:
+
+```powershell
 docker compose up --build
 ```
 
-Abre **http://localhost:8088**. El frontend y la API se sirven desde el mismo origen. Los proveedores trabajan en **http://localhost:8088/proveedor**. Al iniciar sesión como administrador se abre el panel **http://localhost:8088/admin**, separado del sitio público: proveedores, moderación del catálogo y todas las reservas. Desde ahí, "Ver sitio público" (o "Ver cambios" tras retirar una herramienta) lleva al sitio con una barra superior para volver al panel.
+Si quieres cargar herramientas de ejemplo, usa en su lugar el comando de [Catálogo de demostración](#catálogo-de-demostración).
 
-La documentación interactiva de la API (Swagger) está en **http://localhost:8088/swagger-ui.html**. Para probar los endpoints protegidos, obtén un token con `/auth/login`, pulsa **Authorize** y pégalo. MySQL y las imágenes persisten en volúmenes. No abras `index.html` con `file://`: necesita la API.
+Deja abierta la terminal. Espera a que MySQL esté saludable y aparezca **Started RentToolApplication**.
 
-Para cargar el catálogo de demostración, añade `DEMO_PASSWORD` (mínimo 10 caracteres) a `.env` y ejecuta:
+Desde otra terminal puedes revisar:
 
-```bash
+```powershell
+docker compose ps
+docker compose logs --tail=100 app
+```
+
+### 5. Abrir la aplicación
+
+| Página | Dirección predeterminada |
+| --- | --- |
+| Sitio público e inicio de sesión | http://localhost:8088 |
+| Proveedor | http://localhost:8088/proveedor |
+| Administrador | http://localhost:8088/admin |
+| Swagger UI | http://localhost:8088/swagger-ui.html |
+| Especificación OpenAPI | http://localhost:8088/v3/api-docs |
+
+Inicia sesión como administrador con las credenciales configuradas en `.env`. No existe una contraseña universal. Cada panel requiere el rol correspondiente.
+
+En Swagger, obtén un token con `POST /api/v1/auth/login` y utiliza **Authorize** para probar rutas protegidas.
+
+### 6. Detener y reiniciar
+
+```powershell
+docker compose down
+```
+
+Para volver a iniciar en segundo plano:
+
+```powershell
+docker compose up -d
+```
+
+Los volúmenes `mysql_data` y `uploads` conservan datos e imágenes. **No añadas -v al apagar si deseas conservarlos.** MySQL solo se publica dentro de la red de Compose; RentTool se expone en el puerto local de `APP_PORT`.
+
+## Ejecutar con Java y MySQL en Windows
+
+Esta alternativa usa Java y MySQL instalados en tu PC, sin necesidad de Docker.
+
+### 1. Instalar y comprobar los requisitos
+
+Instala **JDK 21** y MySQL; MySQL Workbench es opcional. Inicia el servicio MySQL.
+
+Desde la raíz del repositorio:
+
+```powershell
+java -version
+javac -version
+.\mvnw.cmd -version
+```
+
+Verifica que el wrapper use el JDK correcto. No necesitas instalar Maven por separado; la primera descarga requiere Internet.
+
+### 2. Crear base de datos y usuario
+
+Desde MySQL Workbench o una consola MySQL, con una cuenta administradora:
+
+```sql
+CREATE DATABASE IF NOT EXISTS renttool CHARACTER SET utf8mb4;
+CREATE USER IF NOT EXISTS 'renttool'@'localhost'
+  IDENTIFIED BY 'tu_clave_mysql_local';
+GRANT ALL PRIVILEGES ON renttool.* TO 'renttool'@'localhost';
+```
+
+Usa la misma contraseña en `DB_PASSWORD`. Si el usuario ya existe, este comando no cambia su clave: utiliza la existente o actualízala en MySQL.
+
+No crees tablas manualmente. Flyway aplica las migraciones y Hibernate valida el esquema al arrancar.
+
+### 3. Definir variables en PowerShell
+
+En la misma terminal donde ejecutarás Java:
+
+```powershell
+$env:DB_URL = "jdbc:mysql://localhost:3306/renttool"
+$env:DB_USER = "renttool"
+$env:DB_PASSWORD = "tu_clave_mysql_local"
+$env:JWT_SECRET = "tu_secreto_aleatorio_de_al_menos_32_caracteres"
+$env:RENTTOOL_ADMIN_EMAIL = "admin@example.com"
+$env:RENTTOOL_ADMIN_PASSWORD = "tu_clave_admin_de_12_a_64_caracteres"
+$env:SERVER_PORT = "8088"
+```
+
+Sustituye las credenciales. Las variables duran lo que dure esa sesión de PowerShell: si cierras la terminal, debes volver a configurarlas.
+
+**El JAR no carga automáticamente .env.** Ese archivo se utiliza con Compose. En ejecución local define las variables o configura expresamente el entorno de VS Code.
+
+El administrador se crea al arrancar si no existe y configuraste sus datos. Cambiar las variables posteriormente no restablece la contraseña de una cuenta existente ni convierte a un cliente en administrador.
+
+### 4. Compilar y probar
+
+```powershell
+.\mvnw.cmd clean verify
+```
+
+Espera a **BUILD SUCCESS**. Las pruebas usan H2 y no necesitan MySQL local. Si ya tienes Maven instalado, puedes usar `mvn clean verify`.
+
+### 5. Iniciar el JAR
+
+Con MySQL activo y en la misma terminal de las variables:
+
+```powershell
+java -jar .\infrastructure\target\renttool-infrastructure-0.1.0-SNAPSHOT.jar
+```
+
+Espera a **Started RentToolApplication** y abre http://localhost:8088. Las demás páginas utilizan las rutas de la tabla anterior.
+
+Sin `SERVER_PORT`, Java local usa **8080**. `APP_PORT` solo controla el puerto publicado por Docker Compose.
+
+Para detener Java pulsa **Ctrl+C**. Para reiniciar, ejecuta nuevamente el JAR con las variables configuradas.
+
+## Catálogo de demostración
+
+El perfil `demo` crea el proveedor **Midnight**, cuenta `midnight@renttool.demo`, y 18 herramientas con imágenes y unidades en Eléctricas, Iluminación y Manuales.
+
+### Con Docker
+
+Configura `DEMO_PASSWORD` en `.env` y arranca con:
+
+```powershell
 docker compose -f compose.yaml -f compose.demo.yaml up --build
 ```
 
-El perfil demo crea al proveedor **Midnight** (Midnight Herramientas S.A.S., representante legal Santiago Villamizar Mantilla) y publica sus 18 herramientas con imagen y unidades, repartidas en las secciones Eléctricas, Iluminación y Manuales. Lo hace con los mismos casos de uso que usa un proveedor desde su panel; las imágenes están en `infrastructure/src/main/resources/demo/tools/`.
+Para detener:
 
-Cuenta: `midnight@renttool.demo`, contraseña definida en `DEMO_PASSWORD`. Es idempotente: si Midnight ya tiene herramientas no las duplica. Si la base tenía la cuenta demo anterior (`proveedor@renttool.demo`), la da de baja y retira sus herramientas, conservando su historial. No uses este perfil con datos reales.
-
-## Compilación y pruebas
-
-Con JDK 21:
-
-```bash
-./mvnw verify
+```powershell
+docker compose -f compose.yaml -f compose.demo.yaml down
 ```
 
-Las pruebas automatizadas usan H2 en modo MySQL exclusivamente para pruebas; no sustituyen la validación contra MySQL. La aplicación utiliza MySQL y Flyway en ejecución normal.
+### Con Java local
 
-- [Compilación](docs/COMPILACION.md)
-- [Despliegue](docs/DESPLIEGUE.md)
-- [Modelo de datos](docs/MODELO_DATOS.md)
-- [API del MVP](docs/API_MVP1.md)
-- [Planeación por MVP](docs/PLANEACION_PROYECTO.md)
-- [Contexto y archivos conservados](docs/MEMORIA_PROYECTO.md)
-- [Especificación completa](docs/DESGLOSE_PROYECTO_IA.md)
+Después de configurar las variables de la ejecución local:
 
-## Estructura
+```powershell
+$env:SPRING_PROFILES_ACTIVE = "demo"
+$env:DEMO_PASSWORD = "tu_clave_demo_de_al_menos_10_caracteres"
+java -jar .\infrastructure\target\renttool-infrastructure-0.1.0-SNAPSHOT.jar
+```
 
-Arquitectura hexagonal (puertos y adaptadores) por módulo; detalle en [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md).
+Para volver a iniciar sin el perfil, elimina las variables antes del siguiente arranque:
 
-Tres módulos Maven, uno por capa, cada uno con un paquete por contexto (`identity`, `inventory`, `reservation`):
+```powershell
+Remove-Item Env:SPRING_PROFILES_ACTIVE -ErrorAction SilentlyContinue
+Remove-Item Env:DEMO_PASSWORD -ErrorAction SilentlyContinue
+```
 
-- `domain/`: agregados y reglas de negocio en Java puro, sin dependencias.
-- `application/`: casos de uso (`port/in`), puertos de salida (`port/out`) y servicios; solo depende de `domain`.
-- `infrastructure/`: adaptadores web, JPA, JWT y archivos, configuración, migraciones y arranque de Spring Boot. Genera el JAR ejecutable.
-- `frontend/`: fuentes estáticas incluidas automáticamente en el JAR por Maven.
+La contraseña de Midnight es la definida al crear esa cuenta. El inicializador evita duplicar sus publicaciones y no restablece contraseñas existentes. Si detecta la cuenta demo anterior `proveedor@renttool.demo`, la da de baja y retira sus herramientas conservando el historial. Usa el perfil en una base destinada a demostración.
 
-El JWT se conserva en `sessionStorage`, con vencimiento de una hora. El del administrador vence a los **10 minutos** y la interfaz lo renueva (`/auth/refresh`) solo mientras hay actividad; tras 10 minutos sin actividad cierra la sesión sin preguntar y pide iniciar sesión de nuevo, y aunque alguien copiara el token, el servidor ya no lo acepta. Ninguna sesión se renueva más de 8 horas después del inicio de sesión. Cerrar sesión lo elimina de este navegador; no revoca una copia del token. El backend revisa que la cuenta siga activa en cada petición autenticada. El uso de un header Bearer permite desactivar CSRF sin usar cookies de autenticación. CORS se limita a orígenes configurados. Las imágenes externas no envían referrer desde la interfaz.
+## Probar un alquiler completo
 
-## Límites actuales
+1. Carga el catálogo demo o crea un proveedor desde el administrador y publica una herramienta con unidades operativas.
+2. Registra un cliente desde el sitio público y completa su teléfono.
+3. Solicita una reserva que **comience hoy** y termine después.
+4. Como proveedor, acepta la solicitud.
+5. Como cliente, simula el pago aprobado y descarga la factura.
+6. Como proveedor, registra la entrega y después la devolución de todas las unidades.
+7. Para probar incidencias, devuelve una unidad como dañada, escribe el motivo y registra luego su resolución.
+8. Consulta estadísticas con un rango que incluya el día de solicitud de la reserva.
 
-Auditoría, perfiles comerciales completos, paginación del panel de inventario más allá de 100 elementos y el resto de MVP aún deben incorporarse. Las imágenes eliminadas de una publicación conservan su archivo físico; su limpieza se implementará con una política de retención. No se inventan garantías comerciales, estadísticas ni contacto de una empresa real.
+Puedes usar otra ventana privada u otro navegador para mantener sesiones de distintos roles.
 
-El administrador inicial se provisiona al arrancar con `RENTTOOL_ADMIN_EMAIL` y `RENTTOOL_ADMIN_PASSWORD` (12–64 caracteres); Docker Compose las exige. Sin él nadie puede dar de alta proveedores. No se eleva una cuenta existente ni se cambia su contraseña automáticamente. Los proveedores creados por registro público antes de este cambio aparecen en el panel como "Sin datos legales" para que el administrador los complete o desactive; sus publicaciones siguen visibles hasta que se retiren.
+## Configuración
 
-## Pagos y facturas de demostración
+| Variable | Función |
+| --- | --- |
+| `DB_URL` | JDBC de MySQL. Local: localhost:3306; Compose configura el host interno mysql. |
+| `DB_USER` / `DB_PASSWORD` | Usuario y contraseña de la aplicación. Usuario local predeterminado: renttool. |
+| `MYSQL_ROOT_PASSWORD` | Clave inicial de root para MySQL en Compose. |
+| `JWT_SECRET` | Secreto para firmar tokens; mínimo 32 caracteres. |
+| `RENTTOOL_ADMIN_EMAIL` / `RENTTOOL_ADMIN_PASSWORD` | Alta inicial del administrador; contraseña de 12 a 64 caracteres. Compose exige ambas. |
+| `APP_PORT` | Puerto local publicado por Docker; predeterminado 8088. |
+| `SERVER_PORT` | Puerto del proceso Java; predeterminado 8080. |
+| `RENTTOOL_UPLOAD_DIR` | Carpeta de imágenes; predeterminada uploads, relativa al directorio de ejecución. |
+| `RENTTOOL_CORS_ORIGINS` | Orígenes permitidos por CORS cuando se separa interfaz y API. |
+| `SPRING_PROFILES_ACTIVE` / `DEMO_PASSWORD` | Activación y contraseña de la demostración. |
+| `RENTTOOL_TIME_ZONE` | Zona del negocio; predeterminada America/Bogota. |
 
-Para el proyecto escolar, RentTool permite simular pagos aprobados o rechazados dentro de la aplicación. Un pago aprobado genera una factura de demostración automáticamente. No se usa una pasarela externa ni se cobra dinero real. Guía: [docs/PAGOS_DEMO.md](docs/PAGOS_DEMO.md).
+Las contraseñas se almacenan con BCrypt. El JWT se conserva en `sessionStorage`; el servidor verifica que la cuenta siga activa en cada petición autenticada. La sesión administrativa vence a los 10 minutos, con renovación mientras hay actividad y límite de 8 horas desde el inicio de sesión.
 
-## Entregas, devoluciones e incidencias
+## Pruebas y actualización
 
-Se registra entrega de reservas pagadas, revisión de cada unidad al devolver y resolución de daños o pérdidas. El equipo sin devolver sigue ocupado; los daños bloquean su uso hasta revisión. Guía: [docs/ENTREGAS_DEVOLUCIONES.md](docs/ENTREGAS_DEVOLUCIONES.md).
+### Backend
 
-## Estadísticas y disponibilidad del catálogo
+```powershell
+.\mvnw.cmd verify
+```
 
-El catálogo permite filtrar por fechas y cantidad, además de texto, categoría, proveedor y precio. Los paneles de administrador y proveedor incluyen estadísticas por fecha de solicitud: estados, pagos de demostración, entregas, devoluciones, incidencias y herramientas más solicitadas. Consulta [la guía](docs/ESTADISTICAS_DISPONIBILIDAD.md).
+Ejecuta pruebas de dominio, servicios, API y arquitectura. H2 en modo MySQL facilita la automatización, pero no sustituye una validación contra MySQL.
+
+### JavaScript: comprobaciones opcionales con Node.js
+
+```powershell
+node --check frontend/app.js
+node --check frontend/statistics.js
+node scripts/check-errors.mjs
+node scripts/check-confirmations.mjs
+node scripts/check-availability.mjs
+```
+
+### Aplicar cambios del código
+
+El frontend se copia al JAR al compilar. Después de modificar Java, HTML, CSS o JavaScript:
+
+- **Docker:** ejecuta otra vez `docker compose up --build`; incluye ambos archivos con `-f` si utilizas demo.
+- **Java local:** detén el JAR, ejecuta `.\mvnw.cmd clean verify` y vuelve a arrancarlo con sus variables.
+
+Recarga el navegador con **Ctrl+F5** si sigue mostrando archivos anteriores.
+
+## Solución de problemas
+
+| Problema | Revisión |
+| --- | --- |
+| Failed to load page o localhost no abre | Comprueba que el proceso siga activo y haya mostrado Started RentToolApplication. Revisa el puerto: 8088 con estas instrucciones o 8080 si no configuraste SERVER_PORT en Java local. |
+| Página abre, pero catálogo falla | Usa el servidor de Java; no abras index.html con file:// ni con Live Server. Revisa los registros. |
+| Docker no conecta con el motor | Abre Docker Desktop y espera a que esté listo. Ejecuta docker compose ps desde la raíz. |
+| No conecta con MySQL | Revisa servicio, puerto, base y credenciales. Java local utiliza localhost; el contenedor utiliza mysql. |
+| Edité .env y MySQL rechaza la clave | Un volumen existente conserva las claves originales. Cambiar .env no modifica usuarios ya creados: usa la clave original o actualízala en MySQL. |
+| Falta DB_PASSWORD o JWT_SECRET | Define las variables en la misma terminal de Java. El JAR no lee .env automáticamente. |
+| Java o wrapper no funcionan | Revisa JDK 21, JAVA_HOME, PATH y la versión mostrada por el wrapper; la primera descarga necesita Internet. |
+| Puerto ocupado | Cambia APP_PORT en Docker o SERVER_PORT en Java y abre la nueva dirección. |
+| Administrador no inicia sesión | Usa sus credenciales originales. Las variables de provisionamiento no cambian su contraseña después de crearlo. |
+| Proveedor no puede operar | Revisa rol, cuenta activa y cambio obligatorio de contraseña temporal. |
+| No permite entregar | La reserva debe estar aceptada, pagada, dentro del período y con unidades aptas. |
+| Estadísticas vacías | Elige fechas que incluyan la solicitud, no solo la entrega o el pago; el proveedor solo ve sus herramientas. |
+| Error de Flyway | Revisa el mensaje, migración y base conectada. No modifiques migraciones aplicadas ni borres el historial como solución automática. |
+
+Registros con Docker:
+
+```powershell
+docker compose logs --tail=100 app mysql
+```
+
+En Java local, revisa la terminal del JAR: el error final suele identificar la causa del fallo de arranque.
+
+## Limitaciones y documentación
+
+- Sin pasarela real, reembolsos ni facturación fiscal.
+- Sin devoluciones parciales, transporte integrado, multas o cobros automáticos por daños.
+- Algunas listas de gestión cargan hasta 100 herramientas o 50 reservas; el catálogo y determinadas consultas sí ofrecen paginación.
+- Las consultas de estadísticas y disponibilidad están orientadas al tamaño de la demostración; para grandes volúmenes habría que optimizar consultas y agregaciones.
+- Quitar una imagen de una publicación no borra automáticamente su archivo físico.
+- La gestión global de usuarios y otros requisitos de la planeación quedan para siguientes incrementos.
+
+| Documento | Contenido |
+| --- | --- |
+| [Arquitectura](docs/ARQUITECTURA.md) | Capas, contextos, puertos y adaptadores. |
+| [Modelo de datos](docs/MODELO_DATOS.md) | Tablas y relaciones. |
+| [API](docs/API_MVP1.md) | Rutas y contratos. |
+| [Pagos demo](docs/PAGOS_DEMO.md) | Simulación y factura. |
+| [Entregas y devoluciones](docs/ENTREGAS_DEVOLUCIONES.md) | Operación física, daños y pérdidas. |
+| [Estadísticas y disponibilidad](docs/ESTADISTICAS_DISPONIBILIDAD.md) | Filtros, permisos e interpretación. |
+| [Planeación](docs/PLANEACION_PROYECTO.md) | Incrementos previstos. |
+| [Especificación](docs/DESGLOSE_PROYECTO_IA.md) | Planteamiento y requerimientos. |
+| [Contexto conservado](docs/MEMORIA_PROYECTO.md) | Antecedentes del proyecto. |
+
+Para ejecutar la versión actual, utiliza los pasos de este README. La planeación incluye también funciones todavía no implementadas.
