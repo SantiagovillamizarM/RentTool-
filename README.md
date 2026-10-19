@@ -9,8 +9,9 @@ El proyecto demuestra el flujo completo de la plataforma. **Los pagos son simula
 - [Funcionamiento](#funcionamiento)
 - [Tecnologías](#tecnologías)
 - [Estructura y arquitectura](#estructura-y-arquitectura)
-- [Ejecutar con Docker en Windows](#ejecutar-con-docker-en-windows)
-- [Ejecutar con Java y MySQL en Windows](#ejecutar-con-java-y-mysql-en-windows)
+- [Sistemas compatibles](#sistemas-compatibles)
+- [Ejecutar con Docker](#ejecutar-con-docker)
+- [Ejecutar con Java y MySQL](#ejecutar-con-java-y-mysql)
 - [Catálogo de demostración](#catálogo-de-demostración)
 - [Probar un alquiler completo](#probar-un-alquiler-completo)
 - [Configuración](#configuración)
@@ -133,28 +134,45 @@ Abre **la raíz que contiene el pom.xml principal**, no solamente un módulo o `
 
 El arranque está en `infrastructure/src/main/java/com/renttool/infrastructure/RentToolApplication.java`. Los comandos siguientes no dependen de la configuración del botón Run.
 
-## Ejecutar con Docker en Windows
+## Sistemas compatibles
 
-Esta opción incluye MySQL y la aplicación en contenedores. No requiere instalar Java, Maven o MySQL en Windows.
+RentTool funciona en **Windows, macOS (Intel y Apple Silicon) y Linux**. Hay dos formas de ejecutarlo:
+
+| Opción | Necesitas | Recomendada para |
+| --- | --- | --- |
+| [Docker](#ejecutar-con-docker) | Docker Desktop (Windows/macOS) o Docker Engine con el plugin Compose (Linux) | Probar o presentar el proyecto: incluye MySQL |
+| [Java y MySQL locales](#ejecutar-con-java-y-mysql) | JDK 21 y MySQL 8 | Desarrollar sin contenedores |
+
+Los comandos son iguales en los tres sistemas salvo en tres puntos: el wrapper de Maven (`.\mvnw.cmd` en Windows, `./mvnw` en macOS y Linux), la forma de copiar archivos y la de definir variables de entorno. Cada paso muestra la versión de **PowerShell** (Windows) y la de **bash/zsh** (macOS y Linux).
+
+## Ejecutar con Docker
+
+Esta opción incluye MySQL y la aplicación en contenedores. No requiere instalar Java, Maven ni MySQL. Las imágenes (`maven`, `eclipse-temurin` y `mysql:8.4`) existen para x86-64 y ARM, así que también funcionan en Mac con chip M.
 
 ### 1. Preparar Docker
 
-Instala y abre Docker Desktop con soporte para contenedores Linux. Espera a que el motor esté listo. La primera construcción necesita Internet.
+- **Windows y macOS:** instala y abre Docker Desktop. Espera a que el motor esté listo.
+- **Linux:** instala Docker Engine y el plugin Compose (en Ubuntu/Debian: `sudo apt install docker.io docker-compose-v2`, o sigue la guía oficial de Docker). Para usar `docker` sin `sudo`: `sudo usermod -aG docker $USER` y vuelve a iniciar sesión.
 
-Comprueba en PowerShell:
+La primera construcción necesita Internet. Comprueba:
 
-```powershell
+```bash
 docker --version
 docker compose version
 ```
 
 ### 2. Abrir el repositorio
 
-En la terminal de VS Code, sustituye esta ruta por la de tu equipo:
+Desde la terminal, en la carpeta que contiene `pom.xml` y `compose.yaml`:
 
 ```powershell
+# Windows (PowerShell)
 cd "C:\ruta\RentTool-"
-Get-ChildItem pom.xml, compose.yaml, .env.example
+```
+
+```bash
+# macOS y Linux
+cd ~/ruta/RentTool-
 ```
 
 ### 3. Configurar el archivo .env
@@ -162,8 +180,15 @@ Get-ChildItem pom.xml, compose.yaml, .env.example
 Solo si todavía no existe:
 
 ```powershell
+# Windows (PowerShell)
 Copy-Item .env.example .env
 notepad .env
+```
+
+```bash
+# macOS y Linux
+cp .env.example .env
+nano .env        # o: open -e .env (macOS)
 ```
 
 Reemplaza los ejemplos por tus valores:
@@ -182,9 +207,9 @@ DEMO_PASSWORD=tu_clave_demo_de_al_menos_10_caracteres
 
 ### 4. Construir y arrancar
 
-Para iniciar sin cargar catálogo demo:
+Para iniciar sin cargar catálogo demo (igual en los tres sistemas):
 
-```powershell
+```bash
 docker compose up --build
 ```
 
@@ -194,7 +219,7 @@ Deja abierta la terminal. Espera a que MySQL esté saludable y aparezca **Starte
 
 Desde otra terminal puedes revisar:
 
-```powershell
+```bash
 docker compose ps
 docker compose logs --tail=100 app
 ```
@@ -215,39 +240,53 @@ En Swagger, obtén un token con `POST /api/v1/auth/login` y utiliza **Authorize*
 
 ### 6. Detener y reiniciar
 
-```powershell
+```bash
 docker compose down
 ```
 
 Para volver a iniciar en segundo plano:
 
-```powershell
+```bash
 docker compose up -d
 ```
 
 Los volúmenes `mysql_data` y `uploads` conservan datos e imágenes. **No añadas -v al apagar si deseas conservarlos.** MySQL solo se publica dentro de la red de Compose; RentTool se expone en el puerto local de `APP_PORT`.
 
-## Ejecutar con Java y MySQL en Windows
+## Ejecutar con Java y MySQL
 
-Esta alternativa usa Java y MySQL instalados en tu PC, sin necesidad de Docker.
+Esta alternativa usa Java y MySQL instalados en tu equipo, sin necesidad de Docker.
 
 ### 1. Instalar y comprobar los requisitos
 
-Instala **JDK 21** y MySQL; MySQL Workbench es opcional. Inicia el servicio MySQL.
+Instala **JDK 21** y **MySQL 8** e inicia el servicio MySQL. MySQL Workbench es opcional.
+
+| Sistema | Instalación sugerida |
+| --- | --- |
+| Windows | Instaladores de [Eclipse Temurin 21](https://adoptium.net) y [MySQL Community](https://dev.mysql.com/downloads/installer/) |
+| macOS | `brew install openjdk@21 mysql` y `brew services start mysql` |
+| Ubuntu/Debian | `sudo apt install openjdk-21-jdk mysql-server` (el servicio arranca solo) |
 
 Desde la raíz del repositorio:
 
 ```powershell
+# Windows (PowerShell)
 java -version
-javac -version
 .\mvnw.cmd -version
 ```
+
+```bash
+# macOS y Linux
+java -version
+./mvnw -version
+```
+
+Si en macOS o Linux aparece `permission denied`, da permiso de ejecución una vez: `chmod +x mvnw`.
 
 Verifica que el wrapper use el JDK correcto. No necesitas instalar Maven por separado; la primera descarga requiere Internet.
 
 ### 2. Crear base de datos y usuario
 
-Desde MySQL Workbench o una consola MySQL, con una cuenta administradora:
+Desde MySQL Workbench o una consola MySQL con una cuenta administradora (en Linux suele ser `sudo mysql`; en macOS con Homebrew, `mysql -u root`):
 
 ```sql
 CREATE DATABASE IF NOT EXISTS renttool CHARACTER SET utf8mb4;
@@ -260,9 +299,11 @@ Usa la misma contraseña en `DB_PASSWORD`. Si el usuario ya existe, este comando
 
 No crees tablas manualmente. Flyway aplica las migraciones y Hibernate valida el esquema al arrancar.
 
-### 3. Definir variables en PowerShell
+### 3. Definir variables de entorno
 
-En la misma terminal donde ejecutarás Java:
+En la misma terminal donde ejecutarás Java.
+
+**Windows (PowerShell):**
 
 ```powershell
 $env:DB_URL = "jdbc:mysql://localhost:3306/renttool"
@@ -274,7 +315,19 @@ $env:RENTTOOL_ADMIN_PASSWORD = "tu_clave_admin_de_12_a_64_caracteres"
 $env:SERVER_PORT = "8088"
 ```
 
-Sustituye las credenciales. Las variables duran lo que dure esa sesión de PowerShell: si cierras la terminal, debes volver a configurarlas.
+**macOS y Linux (bash/zsh):**
+
+```bash
+export DB_URL="jdbc:mysql://localhost:3306/renttool"
+export DB_USER="renttool"
+export DB_PASSWORD="tu_clave_mysql_local"
+export JWT_SECRET="tu_secreto_aleatorio_de_al_menos_32_caracteres"
+export RENTTOOL_ADMIN_EMAIL="admin@example.com"
+export RENTTOOL_ADMIN_PASSWORD="tu_clave_admin_de_12_a_64_caracteres"
+export SERVER_PORT="8088"
+```
+
+Sustituye las credenciales. Las variables duran lo que dure esa terminal: si la cierras, debes volver a configurarlas.
 
 **El JAR no carga automáticamente .env.** Ese archivo se utiliza con Compose. En ejecución local define las variables o configura expresamente el entorno de VS Code.
 
@@ -283,7 +336,13 @@ El administrador se crea al arrancar si no existe y configuraste sus datos. Camb
 ### 4. Compilar y probar
 
 ```powershell
+# Windows (PowerShell)
 .\mvnw.cmd clean verify
+```
+
+```bash
+# macOS y Linux
+./mvnw clean verify
 ```
 
 Espera a **BUILD SUCCESS**. Las pruebas usan H2 y no necesitan MySQL local. Si ya tienes Maven instalado, puedes usar `mvn clean verify`.
@@ -293,7 +352,13 @@ Espera a **BUILD SUCCESS**. Las pruebas usan H2 y no necesitan MySQL local. Si y
 Con MySQL activo y en la misma terminal de las variables:
 
 ```powershell
+# Windows (PowerShell)
 java -jar .\infrastructure\target\renttool-infrastructure-0.1.0-SNAPSHOT.jar
+```
+
+```bash
+# macOS y Linux
+java -jar infrastructure/target/renttool-infrastructure-0.1.0-SNAPSHOT.jar
 ```
 
 Espera a **Started RentToolApplication** y abre http://localhost:8088. Las demás páginas utilizan las rutas de la tabla anterior.
@@ -308,15 +373,15 @@ El perfil `demo` crea el proveedor **Midnight**, cuenta `midnight@renttool.demo`
 
 ### Con Docker
 
-Configura `DEMO_PASSWORD` en `.env` y arranca con:
+Configura `DEMO_PASSWORD` en `.env` y arranca con (igual en los tres sistemas):
 
-```powershell
+```bash
 docker compose -f compose.yaml -f compose.demo.yaml up --build
 ```
 
 Para detener:
 
-```powershell
+```bash
 docker compose -f compose.yaml -f compose.demo.yaml down
 ```
 
@@ -325,16 +390,30 @@ docker compose -f compose.yaml -f compose.demo.yaml down
 Después de configurar las variables de la ejecución local:
 
 ```powershell
+# Windows (PowerShell)
 $env:SPRING_PROFILES_ACTIVE = "demo"
 $env:DEMO_PASSWORD = "tu_clave_demo_de_al_menos_10_caracteres"
 java -jar .\infrastructure\target\renttool-infrastructure-0.1.0-SNAPSHOT.jar
 ```
 
+```bash
+# macOS y Linux
+export SPRING_PROFILES_ACTIVE="demo"
+export DEMO_PASSWORD="tu_clave_demo_de_al_menos_10_caracteres"
+java -jar infrastructure/target/renttool-infrastructure-0.1.0-SNAPSHOT.jar
+```
+
 Para volver a iniciar sin el perfil, elimina las variables antes del siguiente arranque:
 
 ```powershell
+# Windows (PowerShell)
 Remove-Item Env:SPRING_PROFILES_ACTIVE -ErrorAction SilentlyContinue
 Remove-Item Env:DEMO_PASSWORD -ErrorAction SilentlyContinue
+```
+
+```bash
+# macOS y Linux
+unset SPRING_PROFILES_ACTIVE DEMO_PASSWORD
 ```
 
 La contraseña de Midnight es la definida al crear esa cuenta. El inicializador evita duplicar sus publicaciones y no restablece contraseñas existentes. Si detecta la cuenta demo anterior `proveedor@renttool.demo`, la da de baja y retira sus herramientas conservando el historial. Usa el perfil en una base destinada a demostración.
@@ -375,14 +454,18 @@ Las contraseñas se almacenan con BCrypt. El JWT se conserva en `sessionStorage`
 ### Backend
 
 ```powershell
-.\mvnw.cmd verify
+.\mvnw.cmd verify    # Windows
+```
+
+```bash
+./mvnw verify        # macOS y Linux
 ```
 
 Ejecuta pruebas de dominio, servicios, API y arquitectura. H2 en modo MySQL facilita la automatización, pero no sustituye una validación contra MySQL.
 
 ### JavaScript: comprobaciones opcionales con Node.js
 
-```powershell
+```bash
 node --check frontend/app.js
 node --check frontend/statistics.js
 node scripts/check-errors.mjs
@@ -395,9 +478,9 @@ node scripts/check-availability.mjs
 El frontend se copia al JAR al compilar. Después de modificar Java, HTML, CSS o JavaScript:
 
 - **Docker:** ejecuta otra vez `docker compose up --build`; incluye ambos archivos con `-f` si utilizas demo.
-- **Java local:** detén el JAR, ejecuta `.\mvnw.cmd clean verify` y vuelve a arrancarlo con sus variables.
+- **Java local:** detén el JAR, ejecuta `.\mvnw.cmd clean verify` (Windows) o `./mvnw clean verify` (macOS y Linux) y vuelve a arrancarlo con sus variables.
 
-Recarga el navegador con **Ctrl+F5** si sigue mostrando archivos anteriores.
+Recarga el navegador con **Ctrl+F5** (Windows y Linux) o **Cmd+Shift+R** (macOS) si sigue mostrando archivos anteriores.
 
 ## Solución de problemas
 
@@ -410,6 +493,9 @@ Recarga el navegador con **Ctrl+F5** si sigue mostrando archivos anteriores.
 | Edité .env y MySQL rechaza la clave | Un volumen existente conserva las claves originales. Cambiar .env no modifica usuarios ya creados: usa la clave original o actualízala en MySQL. |
 | Falta DB_PASSWORD o JWT_SECRET | Define las variables en la misma terminal de Java. El JAR no lee .env automáticamente. |
 | Java o wrapper no funcionan | Revisa JDK 21, JAVA_HOME, PATH y la versión mostrada por el wrapper; la primera descarga necesita Internet. |
+| `./mvnw: permission denied` (macOS/Linux) | Ejecuta `chmod +x mvnw` una vez. |
+| `/bin/sh^M: bad interpreter` (macOS/Linux) | El archivo `mvnw` llegó con finales de línea de Windows. Vuelve a descargarlo con `git checkout -- mvnw`; `.gitattributes` evita que se repita. |
+| Docker pide `sudo` en Linux | Agrega tu usuario al grupo docker (`sudo usermod -aG docker $USER`) y vuelve a iniciar sesión. |
 | Puerto ocupado | Cambia APP_PORT en Docker o SERVER_PORT en Java y abre la nueva dirección. |
 | Administrador no inicia sesión | Usa sus credenciales originales. Las variables de provisionamiento no cambian su contraseña después de crearlo. |
 | Proveedor no puede operar | Revisa rol, cuenta activa y cambio obligatorio de contraseña temporal. |
@@ -419,7 +505,7 @@ Recarga el navegador con **Ctrl+F5** si sigue mostrando archivos anteriores.
 
 Registros con Docker:
 
-```powershell
+```bash
 docker compose logs --tail=100 app mysql
 ```
 

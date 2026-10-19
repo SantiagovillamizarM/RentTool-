@@ -1,0 +1,20 @@
+# Finales de línea coherentes en Windows, macOS y Linux.
+* text=auto
+
+# Scripts de shell: siempre LF, o fallan en macOS y Linux ("bad interpreter").
+mvnw text eol=lf
+*.sh text eol=lf
+
+# Scripts de Windows: se conservan tal cual (CRLF).
+*.cmd -text
+*.bat -text
+
+# Binarios.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.jar binary
