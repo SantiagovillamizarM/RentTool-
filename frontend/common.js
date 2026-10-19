@@ -248,6 +248,8 @@ HTMLDialogElement.prototype.close = function (value) {
   }, 200);
 };
 HTMLDialogElement.prototype.showModal = function () {
+  // Solo los controles de cierre o Escape pueden descartar la ventana.
+  this.setAttribute("closedby", "closerequest");
   if (this.classList.contains("closing")) {
     clearTimeout(this.closeTimer);
     this.classList.remove("closing");
@@ -774,13 +776,6 @@ document.addEventListener("click", (e) => {
   if (closeButton) {
     closeButton.closest("dialog").close();
     return;
-  }
-  // Clic en el fondo: el evento llega al propio diálogo, fuera de su caja.
-  const d = e.target;
-  if (d instanceof HTMLDialogElement && d.open) {
-    const r = d.getBoundingClientRect();
-    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom)
-      d.close();
   }
 });
 // "cancel" (Escape) no burbujea: se escucha en captura para cerrarlo con la animación.

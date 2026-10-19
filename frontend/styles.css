@@ -14,6 +14,13 @@
 html {
   scroll-behavior: smooth;
   scroll-padding-top: 100px;
+  scrollbar-gutter: stable;
+}
+/* Incluye ventanas dinámicas y mantiene el bloqueo durante su animación de cierre. */
+html:has(dialog:modal),
+body:has(dialog:modal) {
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 body {
   margin: 0;
@@ -87,7 +94,8 @@ em {
   align-items: center;
   gap: 30px;
   padding: 0 clamp(16px, 2.5%, 48px);
-  position: relative;
+  position: sticky;
+  top: 0;
   z-index: 10;
   background: #0a0a0bef;
 }
@@ -742,7 +750,7 @@ form label.search {
 }
 .faq-intro {
   position: sticky;
-  top: 40px;
+  top: 116px;
 }
 .faq-intro > p.muted {
   margin: 18px 0 26px;
@@ -865,6 +873,8 @@ footer > span {
   margin-left: auto;
 }
 dialog {
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: #141416;
   color: white;
   border: 1px solid #ffffff20;
