@@ -1017,7 +1017,7 @@ textarea {
 .confirmation-actions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 12px;
 }
 .inline-form .field-wrapper {
@@ -3165,11 +3165,8 @@ dialog :is(h2, h3, p, small, legend) {
   dialog form > .full {
     margin-top: 4px;
     width: auto;
-    justify-self: end;
-    min-width: 230px;
-  }
-  #auth-dialog #auth-submit {
     justify-self: center;
+    min-width: 230px;
   }
   dialog :is(#provider-form, #apply-form, #company-form) > fieldset {
     display: grid;
@@ -3342,4 +3339,14 @@ dialog :is(h2, h3, p, small, legend) {
   #company-dialog #company-form > fieldset {
     grid-column: auto;
   }
+}
+
+/* Acciones principales de las ventanas: mismo centrado en todos los roles. */
+dialog form:not(.inline-form):not(.upload-drop)
+  > :is(button.button, button.outline-button):not(.full) {
+  display: flex;
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
+  justify-self: center;
 }
