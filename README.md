@@ -689,6 +689,24 @@ Puedes usar otra ventana privada u otro navegador para mantener sesiones de dist
 
 ## Configuración
 
+### Archivos properties y perfiles
+
+La configuracion de Spring vive en `infrastructure/src/main/resources`, el modulo que arranca la aplicacion. Se adapto la separacion de perfiles del proyecto de referencia JWT a los adaptadores y variables de RentTool:
+
+| Archivo | Responsabilidad |
+| --- | --- |
+| `application.properties` | Conexion comun, Flyway, JWT, archivos, CORS, zona horaria y rutas de Swagger. |
+| `application-dev.properties` | Desarrollo predeterminado, pool local, logs y Swagger habilitado. |
+| `application-prod.properties` | Conexion obligatoria desde el entorno, logs reducidos, compresion y Swagger deshabilitado. |
+| `application-*.properties.example` | Referencias sin secretos; Spring no las carga. |
+
+Sin perfil explicito se utiliza `dev`. Para produccion define `SPRING_PROFILES_ACTIVE=prod` junto con `DB_URL`, `DB_USER`, `DB_PASSWORD`, `JWT_SECRET`, `RENTTOOL_ADMIN_EMAIL` y `RENTTOOL_ADMIN_PASSWORD`. Configura TLS en `DB_URL` segun tu servidor MySQL. En Docker Compose, agrega `SPRING_PROFILES_ACTIVE: prod` al bloque `environment` del servicio `app`.
+
+El perfil existente `demo` sigue funcionando. Para combinarlo con ajustes de desarrollo usa `SPRING_PROFILES_ACTIVE=dev,demo`; requiere tambien `DEMO_PASSWORD`. Las variables actuales de Compose y los comandos existentes conservan su funcionamiento. El JAR no carga `.env` automaticamente.
+
+Flyway sigue siendo responsable del esquema y `ddl-auto=validate` se conserva en ambos entornos. Los secretos no tienen valores predeterminados. CORS utiliza `renttool.cors-origins`, consumido por `WebConfig`; no se copian propiedades de CORS o Actuator sin soporte en el proyecto. Para ver SQL en desarrollo define `SHOW_SQL=true`.
+
+
 | Variable | Función |
 | --- | --- |
 | `DB_URL` | JDBC de MySQL. Local: localhost:3306; Compose configura el host interno mysql. |
