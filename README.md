@@ -4,13 +4,15 @@ RentTool es una plataforma de alquiler de herramientas y equipos de construcció
 
 El proyecto demuestra el flujo completo de la plataforma. **Los pagos son simulados y las facturas son de demostración: no hay cobros reales ni validez fiscal.**
 
+> **¿Usas Linux?** Ve directo a la [Guía rápida en Linux](#guía-rápida-en-linux): pasos numerados con y sin `sudo`, con y sin datos de prueba.
+
 ## Contenido
 
 - [Funcionamiento](#funcionamiento)
 - [Tecnologías](#tecnologías)
 - [Estructura y arquitectura](#estructura-y-arquitectura)
 - [Sistemas compatibles](#sistemas-compatibles)
-- [Ejecutar en Linux sin sudo y con catálogo demo](#ejecutar-en-linux-sin-sudo-y-con-catálogo-demo)
+- [Guía rápida en Linux (con y sin sudo, con y sin datos de prueba)](#guía-rápida-en-linux)
 - [Ejecutar con Docker](#ejecutar-con-docker)
 - [Ejecutar con Java y MySQL](#ejecutar-con-java-y-mysql)
 - [Catálogo de demostración](#catálogo-de-demostración)
@@ -146,57 +148,20 @@ RentTool funciona en **Windows, macOS (Intel y Apple Silicon) y Linux**. Hay dos
 
 Los comandos son iguales en los tres sistemas salvo en tres puntos: el wrapper de Maven (`.\mvnw.cmd` en Windows, `./mvnw` en macOS y Linux), la forma de copiar archivos y la de definir variables de entorno. Cada paso muestra la versión de **PowerShell** (Windows) y la de **bash/zsh** (macOS y Linux).
 
-## Ejecutar en Linux sin sudo y con catálogo demo
+## Guía rápida en Linux
 
-Este es el procedimiento utilizado para ejecutar RentTool en Linux con **Docker rootless** y cargar las **18 herramientas de Midnight**. Requiere tener Docker rootless y el plugin Compose instalados y configurados para tu usuario; seleccionar un contexto no los instala. No necesitas instalar Java, Maven ni MySQL por separado: los contenedores incluyen Java 21 y MySQL 8.4, y el proyecto utiliza Spring Boot 4.1.1. La primera construcción requiere Internet.
+Sigue los pasos del caso que te corresponda. Todos usan Docker: **no necesitas instalar Java, Maven ni MySQL**. La primera ejecución necesita Internet.
 
-### 1. Entrar a la carpeta del proyecto
+| Caso | ¿Cuándo usarlo? |
+| --- | --- |
+| [Caso 1: sin sudo y sin datos de prueba](#caso-1-sin-sudo-y-sin-datos-de-prueba) | PCs sin permisos de administrador. Catálogo vacío. |
+| [Caso 2: sin sudo y con datos de prueba](#caso-2-sin-sudo-y-con-datos-de-prueba) | PCs sin permisos de administrador. Carga Midnight y sus 18 herramientas. |
+| [Caso 3: con sudo y sin datos de prueba](#caso-3-con-sudo-y-sin-datos-de-prueba) | Tienes permisos de administrador. Catálogo vacío. |
+| [Caso 4: con sudo y con datos de prueba](#caso-4-con-sudo-y-con-datos-de-prueba) | Tienes permisos de administrador. Carga Midnight y sus 18 herramientas. |
 
-Abre una terminal en la raíz del repositorio, donde están `compose.yaml`, `compose.demo.yaml` y `Dockerfile`:
+### Valores del archivo .env
 
-```bash
-cd /home/camper/Escritorio/RentTool-
-```
-
-Si descargaste el proyecto en otra ubicación, sustituye esa ruta por la tuya.
-
-### 2. Seleccionar Docker rootless
-
-```bash
-docker --version
-docker compose version
-docker context ls
-docker context use rootless
-docker info
-```
-
-`docker info` debe mostrar información del servidor sin errores de conexión. A partir de aquí los comandos se ejecutan **sin `sudo`**.
-
-Si aparece un error que menciona `~/.docker/desktop/docker.sock`, se está intentando conectar con Docker Desktop. Comprueba con `docker context show` que esté seleccionado `rootless`.
-
-Si el contexto `rootless` existe pero su motor está detenido, en instalaciones que lo gestionan mediante systemd de usuario puedes iniciarlo con:
-
-```bash
-systemctl --user start docker
-docker info
-```
-
-Si no existe el contexto o la unidad de usuario, primero debes instalar/configurar Docker rootless; no continúes con Compose hasta que `docker info` funcione. Docker Desktop y Docker Engine convencional son alternativas descritas en [Ejecutar con Docker](#ejecutar-con-docker).
-
-**Mantén el mismo contexto en los siguientes arranques.** Cada motor tiene sus propios contenedores y volúmenes: los datos guardados en otro motor no se trasladan automáticamente a rootless.
-
-### 3. Crear y editar `.env`
-
-Desde la misma carpeta:
-
-```bash
-test -f .env || cp .env.example .env
-nano .env
-```
-
-El primer comando conserva `.env` si ya existe. Es un archivo oculto por comenzar con punto; puedes verlo con `ls -a` o con **Ctrl+H** en el explorador de archivos.
-
-Configura todas estas variables con valores propios:
+En todos los casos se crea un archivo `.env` (solo la primera vez). Al abrirlo con `nano`, reemplaza los valores de ejemplo por los tuyos:
 
 ```dotenv
 APP_PORT=8088
@@ -208,61 +173,233 @@ RENTTOOL_ADMIN_PASSWORD=tu_clave_admin_de_12_a_64_caracteres
 DEMO_PASSWORD=tu_clave_demo_de_al_menos_10_caracteres
 ```
 
-- `JWT_SECRET`: al menos 32 caracteres. Si tienes OpenSSL, puedes generar un valor con `openssl rand -hex 32` y copiarlo en esta variable.
-- `RENTTOOL_ADMIN_PASSWORD`: entre 12 y 64 caracteres.
-- `DEMO_PASSWORD`: al menos 10 caracteres; será la contraseña inicial del proveedor demo.
+- `JWT_SECRET`: al menos 32 caracteres. Puedes generarlo con `openssl rand -hex 32`.
+- `RENTTOOL_ADMIN_EMAIL` y `RENTTOOL_ADMIN_PASSWORD`: serán el usuario y la contraseña del **administrador** (contraseña de 12 a 64 caracteres).
+- `DEMO_PASSWORD`: será la contraseña de **Midnight** (al menos 10 caracteres). Solo se usa en los casos con datos de prueba.
 
-En nano, guarda con **Ctrl+O**, pulsa **Enter** y sal con **Ctrl+X**. Compose lee `.env` y pasa las variables a los contenedores. Cambiar aquí una contraseña no restablece automáticamente la de un usuario ya creado en MySQL o en RentTool; conserva las credenciales originales de una instalación existente.
+En nano, guarda con **Ctrl+O**, pulsa **Enter** y sal con **Ctrl+X**. **Anota las contraseñas:** cambiarlas después en `.env` no cambia las de cuentas ya creadas.
 
-### 4. Comprobar la configuración y arrancar con herramientas
+### Caso 1: sin sudo y sin datos de prueba
+
+**Primero:** abre una terminal en la carpeta del proyecto (donde está `compose.yaml`).
 
 ```bash
-docker compose -f compose.yaml -f compose.demo.yaml config --quiet
+cd ~/Escritorio/RentTool-
+```
+
+**Segundo:** comprueba que Docker responde sin sudo.
+
+```bash
+docker info
+```
+
+Si muestra un error de permisos o de conexión, selecciona Docker rootless y vuelve a comprobar:
+
+```bash
+docker context use rootless
+docker info
+```
+
+Si aún falla, inicia el motor de tu usuario con `systemctl --user start docker` y repite `docker info`.
+
+**Tercero:** crea el archivo `.env` (solo la primera vez) y rellénalo con [estos valores](#valores-del-archivo-env).
+
+```bash
+test -f .env || cp .env.example .env
+nano .env
+```
+
+**Cuarto:** construye y arranca RentTool.
+
+```bash
+docker compose up --build -d
+```
+
+**Quinto:** espera a que termine de arrancar.
+
+```bash
+docker compose logs -f app
+```
+
+Cuando aparezca `Started RentToolApplication`, pulsa **Ctrl+C** (la aplicación sigue funcionando).
+
+**Sexto:** abre **http://localhost:8088** e inicia sesión como administrador con `RENTTOOL_ADMIN_EMAIL` y `RENTTOOL_ADMIN_PASSWORD`.
+
+**Para detener:**
+
+```bash
+docker compose down
+```
+
+**Para volver a iniciar otro día:** repite los pasos primero, segundo, cuarto y quinto.
+
+### Caso 2: sin sudo y con datos de prueba
+
+**Primero:** abre una terminal en la carpeta del proyecto (donde está `compose.yaml`).
+
+```bash
+cd ~/Escritorio/RentTool-
+```
+
+**Segundo:** comprueba que Docker responde sin sudo.
+
+```bash
+docker info
+```
+
+Si muestra un error de permisos o de conexión, selecciona Docker rootless y vuelve a comprobar:
+
+```bash
+docker context use rootless
+docker info
+```
+
+Si aún falla, inicia el motor de tu usuario con `systemctl --user start docker` y repite `docker info`.
+
+**Tercero:** crea el archivo `.env` (solo la primera vez) y rellénalo con [estos valores](#valores-del-archivo-env). **No olvides `DEMO_PASSWORD`.**
+
+```bash
+test -f .env || cp .env.example .env
+nano .env
+```
+
+**Cuarto:** construye y arranca RentTool con los datos de prueba (incluye **los dos** archivos `-f`).
+
+```bash
 docker compose -f compose.yaml -f compose.demo.yaml up --build -d
 ```
 
-El primer comando valida la configuración sin mostrar los secretos. Si indica que falta una variable, complétala en `.env` antes de continuar.
-
-El segundo construye la aplicación y la deja ejecutándose en segundo plano. **Incluye ambos archivos:** `compose.yaml` inicia MySQL y RentTool; `compose.demo.yaml` activa `SPRING_PROFILES_ACTIVE=demo` y entrega `DEMO_PASSWORD` al inicializador del catálogo. Arrancar solo con el primer archivo no carga las herramientas demo en una base vacía.
-
-MySQL guarda los registros en el volumen `mysql_data`. Cuando está saludable, arranca la aplicación, Flyway aplica las migraciones y el inicializador demo crea Midnight, sus publicaciones, imágenes y unidades. Las imágenes se conservan en el volumen `uploads`.
-
-### 5. Verificar el arranque y abrir el catálogo
+**Quinto:** espera a que termine de arrancar.
 
 ```bash
-docker compose -f compose.yaml -f compose.demo.yaml ps
-docker compose -f compose.yaml -f compose.demo.yaml logs --tail=100 -f app
+docker compose -f compose.yaml -f compose.demo.yaml logs -f app
 ```
 
-Comprueba que MySQL figure saludable y que la aplicación no registre errores de arranque. Busca `Started RentToolApplication`; la carga inicial también puede mostrar `Midnight publicó 18 herramientas de demostración`. Espera a que termine esa carga y revisa que no haya errores posteriores. En arranques siguientes no tiene que aparecer el mensaje de publicación: el inicializador evita repetir el catálogo si Midnight ya tiene herramientas activas.
+Cuando aparezcan `Started RentToolApplication` y `Midnight publicó 18 herramientas de demostración`, pulsa **Ctrl+C** (la aplicación sigue funcionando). En arranques siguientes el segundo mensaje no aparece porque las herramientas ya existen.
 
-Pulsa **Ctrl+C** para dejar de seguir los registros; esto no detiene los contenedores iniciados con `-d`.
+**Sexto:** abre **http://localhost:8088**. Cuentas disponibles:
 
-Abre **http://localhost:8088**. Si configuraste otro `APP_PORT`, usa ese puerto. Recarga con **Ctrl+F5** si el navegador conserva una versión anterior.
+| Cuenta | Correo | Contraseña |
+| --- | --- | --- |
+| Administrador | El de `RENTTOOL_ADMIN_EMAIL` | La de `RENTTOOL_ADMIN_PASSWORD` |
+| Proveedor Midnight | `midnight@renttool.demo` | La de `DEMO_PASSWORD` |
 
-- Administrador: correo y contraseña configurados en `RENTTOOL_ADMIN_EMAIL` y `RENTTOOL_ADMIN_PASSWORD` al crear la cuenta.
-- Proveedor demo: `midnight@renttool.demo` y la contraseña de `DEMO_PASSWORD` utilizada al crear esa cuenta.
-
-### 6. Detener y volver a ejecutar conservando datos
-
-Para detener:
+**Para detener:**
 
 ```bash
 docker compose -f compose.yaml -f compose.demo.yaml down
 ```
 
-Para volver a iniciar, o aplicar cambios del código después de actualizarlos:
+**Para volver a iniciar otro día:** repite los pasos primero, segundo, cuarto y quinto.
+
+### Caso 3: con sudo y sin datos de prueba
+
+**Primero:** abre una terminal en la carpeta del proyecto (donde está `compose.yaml`).
 
 ```bash
-docker context use rootless
-docker compose -f compose.yaml -f compose.demo.yaml up --build -d
+cd ~/Escritorio/RentTool-
 ```
 
-**No añadas `-v` a `down` si quieres conservar los datos y las imágenes.** Si el catálogo aparece vacío, comprueba que utilizaste ambos archivos, el mismo contexto y los mismos volúmenes. Para consultar errores de ambos servicios:
+**Segundo:** comprueba que Docker responde.
 
 ```bash
-docker compose -f compose.yaml -f compose.demo.yaml logs --tail=100 app mysql
+sudo docker info
 ```
+
+Si Docker no está instalado (Ubuntu/Debian): `sudo apt install docker.io docker-compose-v2`.
+
+**Tercero:** crea el archivo `.env` (solo la primera vez) y rellénalo con [estos valores](#valores-del-archivo-env).
+
+```bash
+test -f .env || cp .env.example .env
+nano .env
+```
+
+**Cuarto:** construye y arranca RentTool.
+
+```bash
+sudo docker compose up --build -d
+```
+
+**Quinto:** espera a que termine de arrancar.
+
+```bash
+sudo docker compose logs -f app
+```
+
+Cuando aparezca `Started RentToolApplication`, pulsa **Ctrl+C** (la aplicación sigue funcionando).
+
+**Sexto:** abre **http://localhost:8088** e inicia sesión como administrador con `RENTTOOL_ADMIN_EMAIL` y `RENTTOOL_ADMIN_PASSWORD`.
+
+**Para detener:**
+
+```bash
+sudo docker compose down
+```
+
+**Para volver a iniciar otro día:** repite los pasos primero, cuarto y quinto.
+
+### Caso 4: con sudo y con datos de prueba
+
+**Primero:** abre una terminal en la carpeta del proyecto (donde está `compose.yaml`).
+
+```bash
+cd ~/Escritorio/RentTool-
+```
+
+**Segundo:** comprueba que Docker responde.
+
+```bash
+sudo docker info
+```
+
+Si Docker no está instalado (Ubuntu/Debian): `sudo apt install docker.io docker-compose-v2`.
+
+**Tercero:** crea el archivo `.env` (solo la primera vez) y rellénalo con [estos valores](#valores-del-archivo-env). **No olvides `DEMO_PASSWORD`.**
+
+```bash
+test -f .env || cp .env.example .env
+nano .env
+```
+
+**Cuarto:** construye y arranca RentTool con los datos de prueba (incluye **los dos** archivos `-f`).
+
+```bash
+sudo docker compose -f compose.yaml -f compose.demo.yaml up --build -d
+```
+
+**Quinto:** espera a que termine de arrancar.
+
+```bash
+sudo docker compose -f compose.yaml -f compose.demo.yaml logs -f app
+```
+
+Cuando aparezcan `Started RentToolApplication` y `Midnight publicó 18 herramientas de demostración`, pulsa **Ctrl+C** (la aplicación sigue funcionando). En arranques siguientes el segundo mensaje no aparece porque las herramientas ya existen.
+
+**Sexto:** abre **http://localhost:8088**. Cuentas disponibles:
+
+| Cuenta | Correo | Contraseña |
+| --- | --- | --- |
+| Administrador | El de `RENTTOOL_ADMIN_EMAIL` | La de `RENTTOOL_ADMIN_PASSWORD` |
+| Proveedor Midnight | `midnight@renttool.demo` | La de `DEMO_PASSWORD` |
+
+**Para detener:**
+
+```bash
+sudo docker compose -f compose.yaml -f compose.demo.yaml down
+```
+
+**Para volver a iniciar otro día:** repite los pasos primero, cuarto y quinto.
+
+### Importante en todos los casos
+
+- **Los datos se conservan** entre arranques (volúmenes `mysql_data` y `uploads`). No añadas `-v` a `down` si quieres conservarlos.
+- **Para empezar de cero** (borra usuarios, reservas, herramientas e imágenes): `docker compose -f compose.yaml -f compose.demo.yaml down -v` (antepón `sudo` en los casos 3 y 4).
+- **Una vez cargados, los datos de prueba no desaparecen** al arrancar sin `compose.demo.yaml`. Para tener un catálogo vacío después de usar los casos 2 o 4, empieza de cero.
+- **Con sudo y sin sudo son instalaciones separadas:** cada una tiene sus propios contenedores y datos. Usa siempre la misma forma en un mismo PC.
+- **Ver errores:** `docker compose logs --tail=100 app mysql` (antepón `sudo` en los casos 3 y 4).
+- Si aparece un error que menciona `~/.docker/desktop/docker.sock`, Docker intenta conectar con Docker Desktop: ejecuta `docker context use rootless`.
+- Si el puerto 8088 está ocupado, cambia `APP_PORT` en `.env` y abre `http://localhost:<nuevo puerto>`.
 
 ## Ejecutar con Docker
 
@@ -271,7 +408,7 @@ Esta opción incluye MySQL y la aplicación en contenedores. No requiere instala
 ### 1. Preparar Docker
 
 - **Windows y macOS:** instala y abre Docker Desktop. Espera a que el motor esté listo.
-- **Linux:** instala Docker Engine y el plugin Compose (en Ubuntu/Debian: `sudo apt install docker.io docker-compose-v2`, o sigue la guía oficial de Docker). Para usar `docker` sin `sudo`: `sudo usermod -aG docker $USER` y vuelve a iniciar sesión.
+- **Linux:** si no tienes sudo o quieres pasos detallados, usa la [Guía rápida en Linux](#guía-rápida-en-linux). Si no, instala Docker Engine y el plugin Compose (en Ubuntu/Debian: `sudo apt install docker.io docker-compose-v2`, o sigue la guía oficial de Docker). Para usar `docker` sin `sudo`: `sudo usermod -aG docker $USER` y vuelve a iniciar sesión.
 
 La primera construcción necesita Internet. Comprueba:
 
@@ -614,7 +751,7 @@ Recarga el navegador con **Ctrl+F5** (Windows y Linux) o **Cmd+Shift+R** (macOS)
 | Java o wrapper no funcionan | Revisa JDK 21, JAVA_HOME, PATH y la versión mostrada por el wrapper; la primera descarga necesita Internet. |
 | `./mvnw: permission denied` (macOS/Linux) | Ejecuta `chmod +x mvnw` una vez. |
 | `/bin/sh^M: bad interpreter` (macOS/Linux) | El archivo `mvnw` llegó con finales de línea de Windows. Vuelve a descargarlo con `git checkout -- mvnw`; `.gitattributes` evita que se repita. |
-| Docker pide `sudo` en Linux | Agrega tu usuario al grupo docker (`sudo usermod -aG docker $USER`) y vuelve a iniciar sesión. |
+| Docker pide `sudo` en Linux | Sin permisos de administrador, usa Docker rootless: `docker context use rootless` (ver [Guía rápida en Linux](#guía-rápida-en-linux)). Con permisos, agrega tu usuario al grupo docker (`sudo usermod -aG docker $USER`) y vuelve a iniciar sesión. |
 | Puerto ocupado | Cambia APP_PORT en Docker o SERVER_PORT en Java y abre la nueva dirección. |
 | Administrador no inicia sesión | Usa sus credenciales originales. Las variables de provisionamiento no cambian su contraseña después de crearlo. |
 | Proveedor no puede operar | Revisa rol, cuenta activa y cambio obligatorio de contraseña temporal. |
