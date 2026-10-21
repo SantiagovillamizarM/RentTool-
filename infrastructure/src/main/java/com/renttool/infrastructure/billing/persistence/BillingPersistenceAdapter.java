@@ -17,6 +17,7 @@ class BillingPersistenceAdapter implements PaymentStore {
     var e = new PaymentEntity();
     e.reference=p.reference(); e.reservationId=p.reservationId(); e.amount=p.amount();
     e.status=p.status().name(); e.transactionId=p.transactionId(); e.createdAt=p.createdAt(); e.updatedAt=p.updatedAt();
+    e.method=p.method(); e.detail=p.detail(); e.message=p.message();
     payments.saveAndFlush(e);
     return p;
   }
@@ -28,7 +29,13 @@ class BillingPersistenceAdapter implements PaymentStore {
     e.paymentReference=i.paymentReference(); e.payload=json.writeValueAsString(i);
     invoices.saveAndFlush(e);
   }
+  public void replace(Invoice i) {
+    var e = invoices.findById(i.reservationId()).orElseThrow();
+    e.payload=json.writeValueAsString(i);
+    invoices.saveAndFlush(e);
+  }
   private Payment domain(PaymentEntity e) {
-    return new Payment(e.reference,e.reservationId,e.amount,Payment.Status.valueOf(e.status),e.transactionId,e.createdAt,e.updatedAt);
+    return new Payment(e.reference,e.reservationId,e.amount,Payment.Status.valueOf(e.status),e.transactionId,e.createdAt,e.updatedAt,
+        e.method,e.detail,e.message);
   }
 }

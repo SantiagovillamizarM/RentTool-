@@ -47,6 +47,21 @@ public class ReservationConfig {
         new ReservationService(reservations, events, inventory, directory, clock), transactions, payments);
   }
 
+  /**
+   * Apartar unidades al pagar. Se publica sin transacción propia: corre dentro de la del pago. Es
+   * una instancia aparte del servicio de reservas transaccional para no crear una dependencia
+   * circular con pagos.
+   */
+  @Bean
+  com.renttool.application.reservation.port.in.HoldUnitsUseCase holdUnits(
+      ReservationRepository reservations,
+      ReservationEventRepository events,
+      RentalInventory inventory,
+      ParticipantDirectory directory,
+      Clock clock) {
+    return new ReservationService(reservations, events, inventory, directory, clock)::holdUnits;
+  }
+
   /** Los informes leen mucho y escriben el registro de descarga en la misma transacción. */
   @Bean
   ReservationReportUseCase reservationReports(

@@ -126,7 +126,7 @@ Errores: 400 fechas inválidas o pasadas, 403 rol o propiedad incorrectos, 404 i
 
 ## Pagos y facturas de demostración
 
-POST `/reservations/{id}/payments` recibe `{"result":"APROBADO"}` o `{"result":"RECHAZADO"}`. GET de la misma ruta consulta el historial; GET `/reservations/{id}/invoice` descarga la factura de demostración. Todas requieren JWT y permisos sobre la reserva. No se cobra dinero real. Guía: [PAGOS_DEMO.md](PAGOS_DEMO.md).
+POST `/reservations/{id}/payments` paga con la pasarela simulada: `{"method":"TARJETA","number":"4242 4242 4242 4242","holder":"ANA RUIZ","expMonth":12,"expYear":2030,"cvv":"123"}` o `{"method":"NEQUI","phone":"3001234567"}`. El proveedor solo acepta reservas pagadas; rechazar, cancelar o vencer reembolsa el pago. GET de la misma ruta consulta el historial; GET `/reservations/{id}/invoice` descarga la factura de demostración. Todas requieren JWT y permisos sobre la reserva. No se cobra dinero real. Guía: [PAGOS_DEMO.md](PAGOS_DEMO.md).
 
 ## Entregas, devoluciones e incidencias
 
@@ -134,4 +134,4 @@ Se incorporan los registros físicos del alquiler y la revisión por unidad. El 
 
 ## Estadísticas y filtros por disponibilidad
 
-GET /api/v1/tools admite start, end y quantity opcionales para filtrar antes de paginar. GET /api/v1/statistics?from=AAAA-MM-DD&to=AAAA-MM-DD devuelve un resumen para administrador o proveedor. [Reglas, permisos y significado de los datos](ESTADISTICAS_DISPONIBILIDAD.md).
+GET /api/v1/tools admite start, end y quantity opcionales para filtrar antes de paginar. GET /api/v1/statistics?from=AAAA-MM-DD&to=AAAA-MM-DD devuelve a cada proveedor el resumen de sus herramientas. GET /api/v1/admin/provider-performance?from=AAAA-MM-DD&to=AAAA-MM-DD compara a los proveedores para el administrador. [Reglas, permisos y significado de los datos](ESTADISTICAS_DISPONIBILIDAD.md).

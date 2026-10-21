@@ -150,6 +150,11 @@ class ReservationApiTest {
 
     mvc.perform(
             post("/api/v1/reservations/" + id + "/accept")
+                .header("Authorization", "Bearer " + provider))
+        .andExpect(status().isConflict()); // todavía sin pagar
+    TestAccounts.pay(mvc, client, id);
+    mvc.perform(
+            post("/api/v1/reservations/" + id + "/accept")
                 .header("Authorization", "Bearer " + otherProvider))
         .andExpect(status().isForbidden());
     mvc.perform(
@@ -193,24 +198,33 @@ class ReservationApiTest {
 
   @Test
   @Order(4)
-  void concurrentAcceptsCannotShareTheLastUnit() throws Exception {
+  void concurrentPaymentsCannotShareTheLastUnit() throws Exception {
     long single = publishWithUnits(provider, 1);
     long first = body(request(client, single, 30, 32, 1)).get("id").asLong();
     long second = body(request(secondClient, single, 31, 33, 1)).get("id").asLong();
 
+    // Pagar aparta la unidad: si dos clientes pagan a la vez la última, solo uno lo logra.
     var start = new CountDownLatch(1);
-    Callable<Integer> acceptFirst = () -> accept(start, first);
-    Callable<Integer> acceptSecond = () -> accept(start, second);
+    Callable<Integer> payFirst = () -> pay(start, client, first);
+    Callable<Integer> paySecond = () -> pay(start, secondClient, second);
     var pool = Executors.newFixedThreadPool(2);
+    List<Integer> statuses;
     try {
-      var results = List.of(pool.submit(acceptFirst), pool.submit(acceptSecond));
+      var results = List.of(pool.submit(payFirst), pool.submit(paySecond));
       start.countDown();
-      var statuses = List.of(results.get(0).get(), results.get(1).get());
-      assertTrue(statuses.contains(200), "una aceptación gana: " + statuses);
-      assertTrue(statuses.contains(409), "la otra encuentra la unidad ocupada: " + statuses);
+      statuses = List.of(results.get(0).get(), results.get(1).get());
+      assertTrue(statuses.contains(200), "un pago gana: " + statuses);
+      assertTrue(statuses.contains(409), "el otro encuentra la unidad apartada: " + statuses);
     } finally {
       pool.shutdownNow();
     }
+    long winner = statuses.get(0) == 200 ? first : second;
+    long loser = winner == first ? second : first;
+    String loserToken = loser == first ? client : secondClient;
+    // Al rechazado no se le cobró nada, y el ganador se puede aceptar con la unidad que apartó.
+    mvc.perform(get("/api/v1/reservations/" + loser).header("Authorization", "Bearer " + loserToken))
+        .andExpect(jsonPath("paid").value(false)).andExpect(jsonPath("unitIds.length()").value(0));
+    assertEquals(200, accept(new CountDownLatch(0), winner));
   }
 
   @Test
@@ -218,6 +232,7 @@ class ReservationApiTest {
   void concurrentAcceptsOfTheSameRequestApplyOnce() throws Exception {
     long tool = publishWithUnits(provider, 2);
     long id = body(request(client, tool, 40, 41, 1)).get("id").asLong();
+    TestAccounts.pay(mvc, client, id);
 
     var start = new CountDownLatch(1);
     Callable<Integer> acceptIt = () -> accept(start, id);
@@ -237,6 +252,18 @@ class ReservationApiTest {
                 .param("start", TODAY.plusDays(40).toString())
                 .param("end", TODAY.plusDays(41).toString()))
         .andExpect(jsonPath("availableUnits").value(1));
+  }
+
+  private int pay(CountDownLatch start, String token, long reservationId) throws Exception {
+    start.await();
+    return mvc.perform(
+            post("/api/v1/reservations/" + reservationId + "/payments")
+                .header("Authorization", "Bearer " + token)
+                .contentType("application/json")
+                .content(TestAccounts.TEST_CARD))
+        .andReturn()
+        .getResponse()
+        .getStatus();
   }
 
   private int accept(CountDownLatch start, long reservationId) throws Exception {

@@ -97,8 +97,10 @@ public final class ReservationDtos {
               example = "2026-10-16T14:05:00Z",
               description = "Plazo del proveedor para responder; solo en SOLICITADA")
           Instant respondBy,
-      @Schema(example = "Motivo del rechazo, si lo hubo") String note, String rentalStatus) {
-    public static ReservationResponse from(ReservationDetails d, String rentalStatus) {
+      @Schema(example = "Motivo del rechazo, si lo hubo") String note, String rentalStatus,
+      @Schema(description = "El cliente ya pagó con la pasarela simulada y el pago no se reembolsó")
+          boolean paid) {
+    public static ReservationResponse from(ReservationDetails d, String rentalStatus, boolean paid) {
       var r = d.reservation();
       return new ReservationResponse(
           r.id(),
@@ -119,7 +121,7 @@ public final class ReservationDtos {
           r.unitIds().stream().sorted().toList(),
           r.requestedAt(),
           r.respondBy(),
-          r.note(), rentalStatus);
+          r.note(), rentalStatus, paid);
     }
   }
 }

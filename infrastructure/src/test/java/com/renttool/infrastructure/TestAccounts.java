@@ -100,4 +100,19 @@ final class TestAccounts {
   static String field(String json, String name) throws Exception {
     return JSON.readTree(json).get(name).asString();
   }
+
+  static final String TEST_CARD =
+      "{\"method\":\"TARJETA\",\"number\":\"4242 4242 4242 4242\",\"holder\":\"CLIENTE PRUEBA\","
+          + "\"expMonth\":12,\"expYear\":2099,\"cvv\":\"123\"}";
+
+  /** El cliente paga al solicitar con la tarjeta de prueba que siempre se aprueba. */
+  static void pay(MockMvc mvc, String clientToken, Object reservationId) throws Exception {
+    mvc.perform(
+            post("/api/v1/reservations/" + reservationId + "/payments")
+                .header("Authorization", "Bearer " + clientToken)
+                .contentType("application/json")
+                .content(TEST_CARD))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("status").value("APPROVED"));
+  }
 }

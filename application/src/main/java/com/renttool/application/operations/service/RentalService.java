@@ -17,6 +17,8 @@ import java.util.stream.Collectors;
 
 /** Coordina reservas, inventario y pago para registrar movimientos físicos reales. */
 public class RentalService implements ManageRentalsUseCase {
+  static final String AUTOMATIC = "Entrega automática en la fecha de inicio";
+
   private final ReservationRepository reservations;
   private final ToolRepository tools;
   private final UnitRepository units;
@@ -46,7 +48,7 @@ public class RentalService implements ManageRentalsUseCase {
       throw new ConflictException("Solo se entregan reservas aceptadas");
     if (records.operation(id).isPresent())
       throw new ConflictException("La entrega ya fue registrada");
-    if (!paid(id)) throw new ConflictException("Registra primero el pago de demostración aprobado");
+    if (!paid(id)) throw new ConflictException("La reserva no tiene un pago aprobado");
     var today = LocalDate.now(clock);
     if (today.isBefore(reservation.period().start()) || !today.isBefore(reservation.period().end()))
       throw new ConflictException("La entrega debe registrarse dentro de las fechas del alquiler");
@@ -60,6 +62,45 @@ public class RentalService implements ManageRentalsUseCase {
     }
     records.save(new RentalOperation(id, clock.instant(), actor.id(), notes, null, null, null));
     return summary(actor, reservation);
+  }
+
+  @Override public boolean deliverIfStarted(Long id) {
+    var reservation = reservations.findByIdForUpdate(id)
+        .orElseThrow(() -> new NotFoundException("Reserva no encontrada"));
+    var today = LocalDate.now(clock);
+    if (reservation.status() != ReservationStatus.ACEPTADA || records.operation(id).isPresent()
+        || today.isBefore(reservation.period().start()) || !today.isBefore(reservation.period().end())
+        || !paid(id)) return false;
+    var tool = tools.findByIdForUpdate(reservation.toolId()).orElseThrow();
+    var ready = readyUnits(reservation);
+    if (ready.size() < reservation.quantity()) return false;
+    if (!ready.equals(reservation.unitIds())) reservations.save(reservation.reassign(ready));
+    // El responsable es el proveedor de la herramienta: la entrega es parte de su servicio.
+    records.save(new RentalOperation(id, clock.instant(), tool.providerId(), AUTOMATIC, null, null, null));
+    return true;
+  }
+
+  @Override public List<Long> startedWithoutDelivery() {
+    return reservations.findAcceptedUndeliveredStartedBy(LocalDate.now(clock));
+  }
+
+  /**
+   * Unidades listas para entregar: primero las asignadas que sigan listas y después otras de la
+   * herramienta que nadie más tenga apartadas en esas fechas.
+   */
+  private Set<Long> readyUnits(Reservation reservation) {
+    var out = records.outUnitIds(reservation.toolId());
+    var heldByOthers = new HashSet<>(reservations.unitsHeldDuring(reservation.toolId(), reservation.period()));
+    heldByOthers.removeAll(reservation.unitIds());
+    java.util.function.Predicate<Unit> ready = unit -> unit.isOperational()
+        && !out.contains(unit.id()) && !records.hasBlockingIncident(unit.id());
+    var result = new LinkedHashSet<Long>();
+    for (Long unitId : reservation.unitIds())
+      units.findById(unitId).filter(ready).ifPresent(unit -> result.add(unit.id()));
+    for (var unit : units.findByToolId(reservation.toolId()))
+      if (result.size() < reservation.quantity() && !heldByOthers.contains(unit.id()) && ready.test(unit))
+        result.add(unit.id());
+    return result;
   }
 
   @Override public Summary returnEquipment(Participant actor, Long id, ReturnCommand command) {
@@ -101,9 +142,12 @@ public class RentalService implements ManageRentalsUseCase {
   }
 
   @Override public Incident report(Participant actor, Long id, IncidentCommand command) {
-    var reservation = managed(actor, id);
-    if (records.operation(id).isEmpty())
-      throw new ConflictException("Solo se registran incidencias después de la entrega");
+    var reservation = reporter(actor, id);
+    var operation = records.operation(id)
+        .orElseThrow(() -> new ConflictException("Solo se registran incidencias después de la entrega"));
+    // El cliente reporta un problema mientras tiene el equipo; después lo revisa el proveedor.
+    if (actor.isClient() && !operation.isOut())
+      throw new ConflictException("Solo puedes reportar un problema mientras tienes el equipo");
     if (command == null) throw new InvalidInputException("Describe la incidencia");
     if (command.unitId() != null) unit(reservation, command.unitId());
     var incident = new Incident(null, id, command.unitId(), command.type(), command.description(),
@@ -141,6 +185,14 @@ public class RentalService implements ManageRentalsUseCase {
     return records.openIncidents(page);
   }
 
+  /** Quien puede reportar: el proveedor de la herramienta, un administrador o el cliente de la reserva. */
+  private Reservation reporter(Participant actor, Long id) {
+    var reservation = reservations.findByIdForUpdate(id)
+        .orElseThrow(() -> new NotFoundException("Reserva no encontrada"));
+    if (actor.isClient() && reservation.clientId().equals(actor.id())) return reservation;
+    return managed(actor, id);
+  }
+
   private Reservation managed(Participant actor, Long id) {
     var reservation = reservations.findByIdForUpdate(id)
         .orElseThrow(() -> new NotFoundException("Reserva no encontrada"));
@@ -158,8 +210,11 @@ public class RentalService implements ManageRentalsUseCase {
     var today = LocalDate.now(clock);
     boolean canDeliver = manager && paid && operation == null && reservation.status() == ReservationStatus.ACEPTADA
         && !today.isBefore(reservation.period().start()) && today.isBefore(reservation.period().end());
+    // La entrega se registra sola el día de inicio; si ya empezó y no hay entrega, es porque
+    // ninguna unidad estaba lista: el proveedor o el admin pueden cancelarla con reembolso.
     String status = operation == null
-        ? reservation.status() == ReservationStatus.ACEPTADA ? "PENDIENTE_ENTREGA" : "NO_APLICA"
+        ? reservation.status() != ReservationStatus.ACEPTADA ? "NO_APLICA"
+            : today.isBefore(reservation.period().start()) ? "PENDIENTE_ENTREGA" : "ENTREGA_BLOQUEADA"
         : operation.isOut() ? "EN_USO" : "DEVUELTA";
     var returns = records.returns(reservation.id()).stream()
         .collect(Collectors.toMap(UnitReturn::unitId, item -> item));
@@ -169,7 +224,10 @@ public class RentalService implements ManageRentalsUseCase {
       return new UnitView(id, unit.code(), unit.status().name(),
           item == null ? null : item.condition(), item == null ? null : item.notes());
     }).toList();
-    return new Summary(status, manager, paid, canDeliver, operation, views, records.incidents(reservation.id()));
+    boolean client = actor.isClient() && reservation.clientId().equals(actor.id());
+    boolean canReport = operation != null && (manager || (client && operation.isOut()));
+    return new Summary(status, manager, paid, canDeliver, canReport, operation, views,
+        records.incidents(reservation.id()));
   }
 
   private boolean paid(Long id) {

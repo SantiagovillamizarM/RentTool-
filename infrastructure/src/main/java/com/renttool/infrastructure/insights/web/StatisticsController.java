@@ -20,7 +20,7 @@ public class StatisticsController {
   public StatisticsController(ViewStatisticsUseCase statistics) { this.statistics = statistics; }
   @GetMapping
   @Operation(summary = "Resumen de reservas solicitadas entre dos fechas",
-      description = "Administrador: toda la plataforma. Proveedor: solo sus herramientas, incluso retiradas. Pagos de demostración.")
+      description = "Solo proveedores: cada uno ve únicamente sus herramientas, incluso retiradas. Pagos de demostración.")
   public ViewStatisticsUseCase.Summary get(@AuthenticationPrincipal Jwt jwt,
       @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
       @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {

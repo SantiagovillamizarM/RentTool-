@@ -11,6 +11,7 @@ import com.renttool.domain.inventory.Tool;
 import com.renttool.domain.reservation.Participant;
 import com.renttool.domain.reservation.Reservation;
 import com.renttool.domain.reservation.ReservationEvent;
+import com.renttool.domain.reservation.ReservationStatus;
 import com.renttool.domain.shared.exception.ForbiddenOperationException;
 import com.renttool.domain.shared.exception.NotFoundException;
 import java.time.Clock;
@@ -74,10 +75,14 @@ public class ProviderRemovalService implements RemoveProviderUseCase {
     for (var found : open) {
       // Se bloquea antes de cambiarla; pudo cambiar desde la consulta.
       var reservation = reservations.findByIdForUpdate(found.id()).orElseThrow();
-      if (!reservation.isCancellableToday(today)) continue;
-      payments.ensureCancellationAllowed(reservation.id());
-      var cancelled = reservations.save(reservation.cancelBecause(today, REASON));
+      // Lo que ya se entregó sigue hasta la devolución; lo que empezó sin entrega también se cancela.
+      boolean undelivered = reservation.status() == ReservationStatus.ACEPTADA
+          && !reservations.hasDelivery(reservation.id());
+      if (!reservation.isCancellableToday(today) && !undelivered) continue;
+      var cancelled = reservations.save(reservation.isCancellableToday(today)
+          ? reservation.cancelBecause(today, REASON) : reservation.cancelUndelivered(REASON));
       events.append(ReservationEvent.by(admin, cancelled.id(), cancelled.status(), now, REASON));
+      payments.refundIfPaid(cancelled.id(), REASON);
     }
     return summarize(provider, retiring, open);
   }
@@ -87,7 +92,7 @@ public class ProviderRemovalService implements RemoveProviderUseCase {
     int pending = 0, upcoming = 0, inProgress = 0;
     for (var r : open) {
       if (r.isPending()) pending++;
-      else if (r.isInProgress(today)) inProgress++;
+      else if (reservations.hasDelivery(r.id())) inProgress++;
       else upcoming++;
     }
     var taxId =

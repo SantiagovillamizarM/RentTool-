@@ -16,7 +16,10 @@ interface ReservationJpaRepository extends JpaRepository<ReservationEntity, Long
   @Query("select r from ReservationEntity r where r.id = :id")
   Optional<ReservationEntity> findByIdForUpdate(@Param("id") Long id);
 
-  /** Rangos [inicio, fin) que se cruzan: inicio < fin del otro y fin > inicio del otro. */
+  /**
+   * Rangos [inicio, fin) que se cruzan: inicio < fin del otro y fin > inicio del otro. Una unidad
+   * entregada y vencida (ya pasó su devolución sin registrarla) bloquea además todo lo que sigue.
+   */
   @Query(value =
       """
       select ru.unit_id from reservation_units ru
@@ -25,13 +28,14 @@ interface ReservationJpaRepository extends JpaRepository<ReservationEntity, Long
       where r.tool_id = :toolId and r.status in (:statuses)
         and o.returned_at is null
         and ((r.start_date < :end and r.end_date > :start)
-          or (o.delivered_at is not null and r.start_date < :end))
+          or (o.delivered_at is not null and r.end_date <= :today and r.start_date < :end))
       """, nativeQuery = true)
   List<Long> findHeldUnits(
       @Param("toolId") Long toolId,
       @Param("statuses") Collection<String> statuses,
       @Param("start") LocalDate start,
-      @Param("end") LocalDate end);
+      @Param("end") LocalDate end,
+      @Param("today") LocalDate today);
 
   List<ReservationEntity> findByRequestedAtGreaterThanEqualAndRequestedAtLessThanOrderByRequestedAtAscIdAsc(
       LocalDateTime from, LocalDateTime to);
@@ -51,6 +55,17 @@ interface ReservationJpaRepository extends JpaRepository<ReservationEntity, Long
   Page<ReservationEntity> findByClientId(Long clientId, Pageable pageable);
 
   Page<ReservationEntity> findByToolIdIn(Collection<Long> toolIds, Pageable pageable);
+
+  @Query(value = "select count(*) from rental_operations where reservation_id = :id", nativeQuery = true)
+  long countDeliveries(@Param("id") Long reservationId);
+
+  @Query(value = """
+      select r.id from reservations r
+      left join rental_operations o on o.reservation_id = r.id
+      where r.status = 'ACEPTADA' and r.start_date <= :today and o.reservation_id is null
+      order by r.start_date, r.id
+      """, nativeQuery = true)
+  List<Long> findAcceptedUndeliveredStartedBy(@Param("today") LocalDate today);
 
   @Query("select r.id from ReservationEntity r where r.status = :status and r.respondBy <= :limit")
   List<Long> findIdsByStatusDueBy(

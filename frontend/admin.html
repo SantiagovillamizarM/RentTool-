@@ -28,17 +28,6 @@
       </div>
     </header>
     <main class="admin-main" id="admin-main" hidden>
-      <details class="statistics-panel" id="statistics-panel">
-        <summary>Estadísticas de reservas</summary>
-        <p class="muted">Incluye las reservas solicitadas entre ambas fechas y su estado actual. Los importes son pagos de demostración de esas reservas, sin cobros reales. Los proveedores ven únicamente sus herramientas.</p>
-        <form class="statistics-form">
-          <label>Solicitadas desde<input name="from" type="date" required></label>
-          <label>Hasta (incluido)<input name="to" type="date" required></label>
-          <button class="outline-button">Consultar</button>
-          <p class="form-error" role="alert"></p>
-        </form>
-        <div data-statistics aria-live="polite"></div>
-      </details>
       <section class="admin-intro">
         <div>
           <p class="eyebrow"><span></span> PANEL DE ADMINISTRACIÓN</p>
@@ -95,6 +84,20 @@
           </p>
           <div id="applications"></div>
         </div>
+        <section class="performance-box" id="performance" aria-labelledby="performance-title">
+          <h3 class="workspace-subtitle" id="performance-title">Rendimiento de proveedores</h3>
+          <p class="muted">
+            Compara las ventas y la respuesta de cada proveedor con el promedio de la plataforma
+            para decidir a quién citar. Venta es una reserva aceptada con pago aprobado, igual que en el panel de cada proveedor.
+          </p>
+          <form class="statistics-form" id="performance-form" novalidate>
+            <label>Solicitadas desde<input name="from" type="date" required></label>
+            <label>Hasta (incluido)<input name="to" type="date" required></label>
+            <button class="outline-button">Consultar</button>
+            <p class="form-error" role="alert"></p>
+          </form>
+          <div data-performance aria-live="polite"></div>
+        </section>
         <h3 class="workspace-subtitle providers-subtitle">Proveedores registrados</h3>
         <div id="providers"></div>
       </section>
@@ -363,8 +366,8 @@
     <script src="common.js" defer></script>
     <script src="billing.js" defer></script>
     <script src="operations.js" defer></script>
-    <script src="statistics.js" defer></script>
     <script src="tool-editor.js" defer></script>
     <script src="admin.js" defer></script>
+    <script src="provider-performance.js" defer></script>
   </body>
 </html>

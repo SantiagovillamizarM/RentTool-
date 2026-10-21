@@ -1,9 +1,10 @@
 # Entregas, devoluciones e incidencias
 
 ## Recorrido
-1. El cliente solicita una reserva y el proveedor la acepta.
-2. El cliente registra el pago de demostración aprobado.
-3. En «Entrega y devolución», el proveedor registra la entrega y sus observaciones.
+1. El cliente solicita una reserva y la paga con la pasarela simulada.
+2. El proveedor llama al cliente y acepta la reserva pagada.
+3. La entrega se registra automáticamente el día de inicio, a nombre del proveedor, con la nota «Entrega automática en la fecha de inicio». Si una unidad asignada no está lista, se reemplaza por otra libre; si ninguna lo está, la reserva queda en «Entrega bloqueada» (se reintenta en cada revisión) y el proveedor o el administrador pueden cancelarla con reembolso. Si termina el periodo sin entrega, se cancela y reembolsa sola.
+   Mientras tiene el equipo, el cliente puede pulsar **Reportar un problema** en su reserva para avisar de una falla, daño o pérdida. El proveedor lo ve en «Entrega y devolución» y lo resuelve como cualquier otra incidencia.
 4. Al recibir el equipo, revisa todas las unidades y elige: buen estado, dañada o perdida.
 5. RentTool registra la devolución, actualiza inventario y crea incidencias por daños o pérdidas.
 6. El proveedor o administrador resuelve las incidencias indicando qué se hizo.

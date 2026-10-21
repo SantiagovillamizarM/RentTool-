@@ -102,6 +102,7 @@ class ReportApiTest {
                                 + TODAY.plusDays(7)
                                 + "\",\"quantity\":1}"))
                 .andExpect(status().isCreated()));
+    TestAccounts.pay(mvc, client, reservation);
     mvc.perform(
             post("/api/v1/reservations/" + reservation + "/accept")
                 .header("Authorization", bearer(provider)))

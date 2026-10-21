@@ -150,6 +150,7 @@ class ProviderSelfServiceApiTest {
     mvc.perform(get("/api/v1/reservations/" + id).header("Authorization", "Bearer " + provider))
         .andExpect(jsonPath("clientEmail").value("self-client@test.example"))
         .andExpect(jsonPath("clientPhone").value("+57 300 765 4321"));
+    TestAccounts.pay(mvc, client, id);
     mvc.perform(post("/api/v1/reservations/" + id + "/accept").header("Authorization", "Bearer " + provider))
         .andExpect(status().isOk());
 

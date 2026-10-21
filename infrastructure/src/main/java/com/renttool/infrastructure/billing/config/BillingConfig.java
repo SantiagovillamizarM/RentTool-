@@ -21,8 +21,8 @@ public class BillingConfig {
     transaction.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
 
     return new ManagePaymentsUseCase() {
-      public Payment pay(Participant actor, Long id, boolean approved) {
-        return transaction.execute(status -> service.pay(actor, id, approved));
+      public Payment pay(Participant actor, Long id, Checkout checkout) {
+        return transaction.execute(status -> service.pay(actor, id, checkout));
       }
       public Summary get(Participant actor, Long id) {
         return transaction.execute(status -> service.get(actor, id));
@@ -30,8 +30,11 @@ public class BillingConfig {
       public Invoice invoice(Participant actor, Long id) {
         return transaction.execute(status -> service.invoice(actor, id));
       }
-      public void ensureCancellationAllowed(Long id) {
-        transaction.executeWithoutResult(status -> service.ensureCancellationAllowed(id));
+      public void ensurePaid(Long id) {
+        transaction.executeWithoutResult(status -> service.ensurePaid(id));
+      }
+      public void refundIfPaid(Long id, String reason) {
+        transaction.executeWithoutResult(status -> service.refundIfPaid(id, reason));
       }
     };
   }

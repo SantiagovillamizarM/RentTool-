@@ -31,7 +31,7 @@ El frontend y la API se sirven desde una misma aplicación. No necesitas iniciar
 | Rol | Funciones |
 | --- | --- |
 | Visitante | Consultar catálogo, imágenes, tarifas, proveedores y disponibilidad; buscar y ordenar herramientas. |
-| Cliente | Registrarse, editar su perfil y teléfono, solicitar reservas, consultar sus registros, simular pagos y descargar facturas. Puede solicitar convertirse en proveedor. |
+| Cliente | Registrarse, editar su perfil y teléfono, solicitar y pagar reservas con la pasarela simulada, consultar sus registros y descargar facturas. Puede solicitar convertirse en proveedor. |
 | Proveedor | Publicar y editar herramientas, gestionar unidades e imágenes, responder reservas, registrar entregas y devoluciones, gestionar incidencias y consultar estadísticas propias. |
 | Administrador | Gestionar proveedores y solicitudes, moderar herramientas, consultar todas las reservas, registrar operaciones, resolver incidencias y consultar estadísticas e informes CSV. |
 
@@ -52,9 +52,9 @@ El proveedor dispone de un panel propio con inventario, reservas y datos de su e
 
 1. El cliente busca una herramienta e indica fechas y cantidad.
 2. Inicia sesión y solicita la reserva. El servidor calcula el importe y conserva la tarifa pactada.
-3. El proveedor acepta o rechaza. Al aceptar, se comprueba nuevamente la disponibilidad y se asignan unidades.
-4. El cliente abre **Pagos y factura** y simula un resultado aprobado o rechazado. La aprobación genera automáticamente la factura; el rechazo permite reintentar.
-5. El proveedor o administrador registra la entrega dentro del período del alquiler, con pago aprobado y unidades aptas.
+3. El cliente paga con tarjeta o Nequi de prueba en la pasarela simulada. La aprobación genera automáticamente la factura; el rechazo permite reintentar.
+4. El proveedor llama al cliente y acepta o rechaza. Solo puede aceptar una reserva pagada; al aceptar, se comprueba nuevamente la disponibilidad y se asignan unidades. Si rechaza, el pago se reembolsa y la factura queda anulada.
+5. La entrega se registra automáticamente el día de inicio, a nombre del proveedor. Si una unidad asignada no está lista, se usa otra libre de la misma herramienta; si ninguna lo está, la reserva queda en «Entrega bloqueada» y el proveedor o el administrador pueden cancelarla con reembolso.
 6. Al devolver, revisa todas las unidades e indica buen estado, daño o pérdida.
 7. RentTool actualiza el inventario y registra incidencias. El responsable documenta después su resolución.
 8. Los participantes autorizados consultan historial, registros, pagos y factura.
@@ -66,12 +66,13 @@ La factura se descarga como HTML. Para obtener un PDF, abre el archivo en el nav
 - Fechas en la zona del negocio: `America/Bogota` por defecto.
 - Reservas de 1 a 20 unidades, máximo 90 días y sin inicio en el pasado.
 - El día de devolución no se cobra: del 10 al 12 son dos días.
-- El proveedor tiene 24 horas para responder; las solicitudes sin respuesta vencen automáticamente.
-- Consultar disponibilidad o enviar una solicitud no aparta unidades. Al aceptar se vuelve a comprobar bajo bloqueo para evitar asignaciones incompatibles.
-- Una reserva con pago aprobado no se puede cancelar en esta versión; no hay reembolsos.
+- El cliente paga y el proveedor responde dentro del mismo plazo: 24 horas, o hasta que termine el día de inicio si es antes. Cada solicitud muestra su hora límite. Pagar o aceptar después de ella se rechaza en el momento y la solicitud vence (con reembolso si se pagó). Para empezar el mismo día hay que solicitar antes de las 10:00 p. m.
+- Consultar disponibilidad o enviar una solicitud no aparta unidades. **Pagar sí las aparta**, bajo bloqueo de la herramienta: si dos clientes pagan la última unidad a la vez, solo uno lo logra y al otro no se le cobra. Aceptar confirma las unidades apartadas.
+- Si termina el periodo de una reserva aceptada sin que se haya podido entregar, se cancela y se reembolsa sola.
+- El cliente paga al solicitar y el proveedor solo acepta reservas pagadas. Si la reserva se rechaza, vence, se cancela o el proveedor sale de la plataforma, el pago se reembolsa (simulado) y la factura queda anulada.
 - No se permite entregar dos veces ni devolver antes de entregar. La devolución es completa.
 - Una unidad dañada pasa a mantenimiento; una perdida pasa a retirada. Los daños o pérdidas abiertos impiden habilitarla manualmente.
-- Las unidades entregadas y sin devolver siguen ocupadas, incluso después de la fecha prevista. Una devolución anticipada libera las unidades aptas.
+- Una unidad entregada ocupa las fechas de su alquiler. Si pasa su fecha de devolución sin registrarla, bloquea además las fechas siguientes hasta que se devuelva. Una devolución anticipada libera las unidades aptas.
 - El estado de reserva (`SOLICITADA`, `ACEPTADA`, `RECHAZADA`, `CANCELADA`, `VENCIDA`) se conserva separado del movimiento físico (`PENDIENTE_ENTREGA`, `EN_USO`, `DEVUELTA`).
 
 ### Estadísticas e informes
@@ -678,12 +679,11 @@ La contraseña de Midnight es la definida al crear esa cuenta. El inicializador 
 
 1. Carga el catálogo demo o crea un proveedor desde el administrador y publica una herramienta con unidades operativas.
 2. Registra un cliente desde el sitio público y completa su teléfono.
-3. Solicita una reserva que **comience hoy** y termine después.
+3. Solicita una reserva que **comience hoy** y termine después, y págala con la tarjeta de prueba `4242 4242 4242 4242` (cualquier fecha futura y CVV `123`). Descarga la factura.
 4. Como proveedor, acepta la solicitud.
-5. Como cliente, simula el pago aprobado y descarga la factura.
-6. Como proveedor, registra la entrega y después la devolución de todas las unidades.
-7. Para probar incidencias, devuelve una unidad como dañada, escribe el motivo y registra luego su resolución.
-8. Consulta estadísticas con un rango que incluya el día de solicitud de la reserva.
+5. La entrega queda registrada sola al aceptar (empieza hoy). Como proveedor, registra después la devolución de todas las unidades.
+6. Para probar incidencias, devuelve una unidad como dañada, escribe el motivo y registra luego su resolución.
+7. Consulta estadísticas con un rango que incluya el día de solicitud de la reserva.
 
 Puedes usar otra ventana privada u otro navegador para mantener sesiones de distintos roles.
 
@@ -799,7 +799,7 @@ En Java local, revisa la terminal del JAR: el error final suele identificar la c
 | [Arquitectura](docs/ARQUITECTURA.md) | Capas, contextos, puertos y adaptadores. |
 | [Modelo de datos](docs/MODELO_DATOS.md) | Tablas y relaciones. |
 | [API](docs/API_MVP1.md) | Rutas y contratos. |
-| [Pagos demo](docs/PAGOS_DEMO.md) | Simulación y factura. |
+| [Pagos demo](docs/PAGOS_DEMO.md) | Pasarela simulada, datos de prueba, reembolsos y factura. |
 | [Entregas y devoluciones](docs/ENTREGAS_DEVOLUCIONES.md) | Operación física, daños y pérdidas. |
 | [Estadísticas y disponibilidad](docs/ESTADISTICAS_DISPONIBILIDAD.md) | Filtros, permisos e interpretación. |
 | [Planeación](docs/PLANEACION_PROYECTO.md) | Incrementos previstos. |

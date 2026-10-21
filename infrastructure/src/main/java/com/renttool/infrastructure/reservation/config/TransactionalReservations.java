@@ -51,20 +51,34 @@ class TransactionalReservations implements ManageReservationsUseCase, ExpireRese
 
   @Override
   public ReservationDetails accept(Participant provider, Long reservationId) {
-    return write.execute(s -> service.accept(provider, reservationId));
+    // El cliente paga al solicitar: aceptar confirma una reserva ya pagada. El pago se comprueba
+    // después de aceptar, con la reserva ya bloqueada; si falta, la excepción revierte todo. Leerla
+    // antes del bloqueo dejaría en caché una copia vieja y dos aceptaciones simultáneas pasarían.
+    // Si el plazo ya pasó, se vence (y reembolsa) en su propia transacción antes de intentarlo.
+    if (expireIfDue(reservationId))
+      throw new com.renttool.domain.shared.exception.ConflictException(
+          "El plazo para responder esta solicitud ya venció");
+    return write.execute(s -> {
+      var accepted = service.accept(provider, reservationId);
+      payments.ensurePaid(reservationId);
+      return accepted;
+    });
   }
 
   @Override
   public ReservationDetails reject(Participant provider, Long reservationId, String reason) {
-    return write.execute(s -> service.reject(provider, reservationId, reason));
+    return write.execute(s -> {
+      var rejected = service.reject(provider, reservationId, reason);
+      payments.refundIfPaid(reservationId, "El proveedor rechazó la solicitud");
+      return rejected;
+    });
   }
 
   @Override
   public void cancel(Participant participant, Long reservationId) {
     write.executeWithoutResult(s -> {
-      service.get(participant, reservationId);
-      payments.ensureCancellationAllowed(reservationId);
       service.cancel(participant, reservationId);
+      payments.refundIfPaid(reservationId, "La reserva fue cancelada");
     });
   }
 
@@ -74,7 +88,29 @@ class TransactionalReservations implements ManageReservationsUseCase, ExpireRese
   }
 
   @Override
+  public boolean expireIfDue(Long reservationId) {
+    return Boolean.TRUE.equals(write.execute(s -> {
+      boolean expired = service.expireIfDue(reservationId);
+      if (expired) payments.refundIfPaid(reservationId, "El proveedor no respondió a tiempo");
+      return expired;
+    }));
+  }
+
+  @Override
+  public int cancelUndeliveredEnded() {
+    return write.execute(s -> {
+      var cancelled = service.cancelUndeliveredEndedIds();
+      cancelled.forEach(id -> payments.refundIfPaid(id, ReservationService.UNDELIVERED));
+      return cancelled.size();
+    });
+  }
+
+  @Override
   public int expireOverdue() {
-    return write.execute(s -> service.expireOverdue());
+    return write.execute(s -> {
+      var expired = service.expireOverdueIds();
+      expired.forEach(id -> payments.refundIfPaid(id, "El proveedor no respondió a tiempo"));
+      return expired.size();
+    });
   }
 }

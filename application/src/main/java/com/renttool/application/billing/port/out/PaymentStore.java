@@ -9,4 +9,6 @@ public interface PaymentStore {
   Payment save(Payment payment);
   Optional<Invoice> invoice(Long reservationId);
   void issue(Invoice invoice);
+  /** Sustituye la copia guardada de una factura ya emitida, por ejemplo al anularla. */
+  void replace(Invoice invoice);
 }

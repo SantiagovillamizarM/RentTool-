@@ -73,6 +73,39 @@ public record Reservation(
         null);
   }
 
+  /** Al pagarse, la solicitud aparta unidades concretas hasta que el proveedor responda. */
+  public Reservation hold(Set<Long> units) {
+    ensureStatus(ReservationStatus.SOLICITADA, "Solo se apartan unidades de una solicitud pendiente");
+    if (units.size() != quantity)
+      throw new ConflictException("Ya no hay unidades disponibles para esas fechas");
+    return with(ReservationStatus.SOLICITADA, units, note);
+  }
+
+  public boolean holdsUnits() {
+    return unitIds.size() == quantity;
+  }
+
+  /** Cambia las unidades asignadas, por ejemplo si una entró a mantenimiento antes de la entrega. */
+  public Reservation reassign(Set<Long> units) {
+    ensureStatus(ReservationStatus.ACEPTADA, "Solo se reasignan unidades de una reserva aceptada");
+    if (units.size() != quantity) throw new ConflictException("No hay unidades suficientes para esas fechas");
+    return with(ReservationStatus.ACEPTADA, units, note);
+  }
+
+  /** El plazo para pagar y responder ya pasó. */
+  public boolean isDue(Instant now) {
+    return status == ReservationStatus.SOLICITADA && respondBy != null && !respondBy.isAfter(now);
+  }
+
+  /**
+   * Cancela una reserva aceptada cuyo equipo nunca se entregó, aunque ya haya empezado: por ejemplo
+   * porque ninguna unidad estaba disponible o porque terminó el periodo sin entrega.
+   */
+  public Reservation cancelUndelivered(String reason) {
+    ensureStatus(ReservationStatus.ACEPTADA, "Solo se cancela así una reserva aceptada");
+    return with(ReservationStatus.CANCELADA, Set.of(), reason);
+  }
+
   /** El proveedor acepta y la reserva queda con unidades concretas asignadas. */
   public Reservation accept(Set<Long> assignedUnits) {
     ensureStatus(ReservationStatus.SOLICITADA, "Solo se puede aceptar una solicitud pendiente");
@@ -111,7 +144,10 @@ public record Reservation(
         || (status == ReservationStatus.ACEPTADA && today.isBefore(period.start()));
   }
 
-  /** Aceptada y con la fecha de inicio ya alcanzada: el equipo está en manos del cliente. */
+  /**
+   * Aceptada y con la fecha de inicio ya alcanzada. No garantiza que el equipo se haya entregado:
+   * para eso está el registro de entrega.
+   */
   public boolean isInProgress(LocalDate today) {
     return status == ReservationStatus.ACEPTADA && !today.isBefore(period.start());
   }

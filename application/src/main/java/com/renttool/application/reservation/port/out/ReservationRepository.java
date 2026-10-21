@@ -39,4 +39,10 @@ public interface ReservationRepository {
 
   /** Ids de las solicitudes pendientes cuyo plazo de respuesta ya pasó. */
   List<Long> findPendingIdsDueBy(Instant now);
+
+  /** Si el equipo de la reserva llegó a entregarse (esté o no devuelto). */
+  boolean hasDelivery(Long reservationId);
+
+  /** Ids de las reservas aceptadas cuya fecha de inicio ya llegó y que aún no tienen entrega. */
+  List<Long> findAcceptedUndeliveredStartedBy(java.time.LocalDate today);
 }

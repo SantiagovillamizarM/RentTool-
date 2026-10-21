@@ -1,6 +1,7 @@
 package com.renttool.infrastructure.identity.security;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Duration;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,12 +26,15 @@ public class JwtConfig {
   }
 
   @Bean
-  JwtDecoder jwtDecoder(SecretKeySpec jwtKey) {
+  JwtDecoder jwtDecoder(SecretKeySpec jwtKey, Clock clock) {
     var decoder = NimbusJwtDecoder.withSecretKey(jwtKey).macAlgorithm(MacAlgorithm.HS256).build();
     // Tolerancia de reloj corta: el token del administrador dura 10 minutos y debe caducar a tiempo.
+    // Valida con el reloj de la aplicación, el mismo que fija el vencimiento al emitir.
+    var timestamps = new JwtTimestampValidator(Duration.ofSeconds(5));
+    timestamps.setClock(clock);
     decoder.setJwtValidator(
         new DelegatingOAuth2TokenValidator<>(
-            new JwtTimestampValidator(Duration.ofSeconds(5)),
+            timestamps,
             new JwtIssuerValidator(JwtTokenIssuer.ISSUER)));
     return decoder;
   }

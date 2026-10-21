@@ -11,4 +11,7 @@ class PaymentEntity {
   @Column(unique=true,length=100) String transactionId;
   Instant createdAt;
   Instant updatedAt;
+  @Column(length=20) String method;
+  @Column(length=60) String detail;
+  @Column(length=200) String message;
 }

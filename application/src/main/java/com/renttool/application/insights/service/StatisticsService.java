@@ -26,29 +26,25 @@ public class StatisticsService implements ViewStatisticsUseCase {
     this.operations = operations; this.clock = clock;
   }
   public Summary get(Participant actor, Range range) {
-    if (!actor.isAdministrator() && !actor.isProvider())
-      throw new ForbiddenOperationException("Solo el administrador y los proveedores consultan estadísticas");
-    Set<Long> own = actor.isProvider() ? new HashSet<>(tools.findIdsByProviderId(actor.id())) : Set.of();
+    // Cada proveedor ve solo sus herramientas; el administrador no tiene panel de estadísticas.
+    if (!actor.isProvider())
+      throw new ForbiddenOperationException("Solo los proveedores consultan estadísticas");
+    Set<Long> own = new HashSet<>(tools.findIdsByProviderId(actor.id()));
     var found = reservations.findRequestedBetween(
         range.from().atStartOfDay(clock.getZone()).toInstant(),
         range.to().plusDays(1).atStartOfDay(clock.getZone()).toInstant(), null).stream()
-        .filter(r -> actor.isAdministrator() || own.contains(r.toolId())).toList();
+        .filter(r -> own.contains(r.toolId())).toList();
     var statuses = new EnumMap<ReservationStatus, Long>(ReservationStatus.class);
     for (var status : ReservationStatus.values()) statuses.put(status, 0L);
-    BigDecimal amount = BigDecimal.ZERO;
-    long paid = 0, inUse = 0, returned = 0, overdue = 0, incidents = 0;
+    BigDecimal sales = BigDecimal.ZERO, awaiting = BigDecimal.ZERO;
+    long inUse = 0, incidents = 0;
     for (var reservation : found) {
       statuses.merge(reservation.status(), 1L, Long::sum);
-      var approved = payments.history(reservation.id()).stream()
-          .filter(p -> p.status() == Payment.Status.APPROVED).findFirst();
-      if (approved.isPresent()) { paid++; amount = amount.add(approved.get().amount()); }
-      var operation = operations.operation(reservation.id());
-      if (operation.isPresent()) {
-        if (operation.get().isOut()) {
-          inUse++;
-          if (!reservation.period().end().isAfter(LocalDate.now(clock))) overdue++;
-        } else returned++;
-      }
+      var history = payments.history(reservation.id());
+      sales = sales.add(Sales.of(reservation, history));
+      awaiting = awaiting.add(Sales.awaitingAcceptance(reservation, history));
+      // La entrega se registra sola el día de inicio: en uso es lo entregado y no devuelto.
+      if (operations.operation(reservation.id()).map(o -> o.isOut()).orElse(false)) inUse++;
       incidents += operations.incidents(reservation.id()).stream().filter(i -> i.isOpen()).count();
     }
     var grouped = found.stream().collect(Collectors.groupingBy(Reservation::toolId));
@@ -57,6 +53,6 @@ public class StatisticsService implements ViewStatisticsUseCase {
         e.getValue().size(), e.getValue().stream().mapToLong(Reservation::quantity).sum()))
         .sorted(Comparator.comparingLong(PopularTool::reservations).reversed()
             .thenComparing(PopularTool::toolId)).limit(5).toList();
-    return new Summary(range, found.size(), statuses, paid, amount, inUse, returned, overdue, incidents, popular);
+    return new Summary(range, found.size(), statuses, sales, awaiting, inUse, incidents, popular);
   }
 }

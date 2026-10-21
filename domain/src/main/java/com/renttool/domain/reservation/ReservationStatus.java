@@ -3,8 +3,8 @@ package com.renttool.domain.reservation;
 import java.util.Set;
 
 /**
- * Ciclo de vida de una reserva. Solo las aceptadas ocupan unidades; una solicitud todavía no
- * bloquea inventario y puede chocar con otra al momento de aceptarla.
+ * Ciclo de vida de una reserva. Una solicitud aparta unidades en cuanto el cliente la paga, y las
+ * conserva al aceptarse; una solicitud sin pagar no aparta nada.
  */
 public enum ReservationStatus {
   SOLICITADA,
@@ -13,6 +13,9 @@ public enum ReservationStatus {
   CANCELADA,
   VENCIDA;
 
-  /** Estados cuyas unidades asignadas no pueden entregarse a otra reserva en las mismas fechas. */
-  public static final Set<ReservationStatus> HOLDING_UNITS = Set.of(ACEPTADA);
+  /**
+   * Estados cuyas unidades asignadas no pueden entregarse a otra reserva en las mismas fechas. Una
+   * SOLICITADA solo tiene unidades asignadas si ya se pagó.
+   */
+  public static final Set<ReservationStatus> HOLDING_UNITS = Set.of(SOLICITADA, ACEPTADA);
 }

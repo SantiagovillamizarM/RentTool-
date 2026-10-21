@@ -86,6 +86,7 @@ class ProviderRemovalApiTest {
   }
 
   void accept(long reservation) throws Exception {
+    TestAccounts.pay(mvc, client, reservation);
     mvc.perform(
             post("/api/v1/reservations/" + reservation + "/accept")
                 .header("Authorization", "Bearer " + provider))

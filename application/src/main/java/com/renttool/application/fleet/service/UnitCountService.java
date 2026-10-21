@@ -79,7 +79,7 @@ public class UnitCountService implements SetUnitCountUseCase {
           "Solo puedes bajar hasta "
               + minimum
               + (minimum == 1 ? " unidad" : " unidades")
-              + ": las demás están asignadas a reservas aceptadas que aún no terminan");
+              + ": las demás están apartadas por reservas pagadas o aceptadas que aún no terminan");
     }
     free.stream().limit(howMany).forEach(u -> units.save(u.retire()));
   }
@@ -87,7 +87,8 @@ public class UnitCountService implements SetUnitCountUseCase {
   private Set<Long> committedUnits(Long toolId) {
     var today = LocalDate.now(clock);
     return reservations.findOpenByTools(List.of(toolId)).stream()
-        .filter(r -> r.status() == ReservationStatus.ACEPTADA)
+        // Aceptadas o solicitudes ya pagadas: ambas tienen unidades apartadas.
+        .filter(r -> !r.unitIds().isEmpty())
         .filter(r -> r.period().end().isAfter(today)
             || records.operation(r.id()).map(operation -> operation.isOut()).orElse(false))
         .map(Reservation::unitIds)

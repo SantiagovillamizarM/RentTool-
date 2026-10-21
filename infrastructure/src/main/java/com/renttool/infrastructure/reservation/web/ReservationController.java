@@ -113,7 +113,11 @@ public class ReservationController {
       description = "Ya no está pendiente, la fecha pasó o no quedan unidades libres")
   public ReservationResponse accept(
       @PathVariable Long id, @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
-    return response(ParticipantResolver.from(jwt), reservations.accept(ParticipantResolver.from(jwt), id));
+    var actor = ParticipantResolver.from(jwt);
+    var accepted = reservations.accept(actor, id);
+    // Si el alquiler empieza hoy, la entrega se registra en el momento, sin esperar a la revisión.
+    if (operations.deliverIfStarted(id)) accepted = reservations.get(actor, id);
+    return response(actor, accepted);
   }
 
   @PostMapping("/{id}/reject")
@@ -149,7 +153,7 @@ public class ReservationController {
   }
   private ReservationResponse response(com.renttool.domain.reservation.Participant actor,
       com.renttool.application.reservation.port.in.ReservationDetails details) {
-    String status = operations.get(actor, details.reservation().id()).status();
-    return ReservationResponse.from(details, status);
+    var rental = operations.get(actor, details.reservation().id());
+    return ReservationResponse.from(details, rental.status(), rental.paid());
   }
 }

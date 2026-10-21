@@ -23,7 +23,9 @@ import tools.jackson.databind.*;
     "spring.datasource.driver-class-name=org.h2.Driver",
     "spring.datasource.username=sa", "spring.datasource.password=",
     "renttool.jwt-secret=test-only-secret-at-least-32-characters-long",
-    TestAccounts.ADMIN_EMAIL_PROPERTY, TestAccounts.ADMIN_PASSWORD_PROPERTY
+    TestAccounts.ADMIN_EMAIL_PROPERTY, TestAccounts.ADMIN_PASSWORD_PROPERTY,
+    // El reloj de la prueba se mueve a mano: las revisiones automáticas se llaman explícitamente.
+    "renttool.reservations.delivery-check=PT1000H", "renttool.reservations.expiry-check=PT1000H"
 })
 @Import(RentalOperationsApiTest.TimeConfig.class)
 class RentalOperationsApiTest {
@@ -42,7 +44,7 @@ class RentalOperationsApiTest {
   @Autowired TestClock clock;
   @Autowired UnitRepository units;
   MockMvc mvc;
-  String provider, client, other, tool;
+  String provider, providerEmail, client, other, tool;
   List<Long> unitIds;
   LocalDate today = LocalDate.of(2026, 10, 20);
 
@@ -50,7 +52,8 @@ class RentalOperationsApiTest {
     clock.now = Instant.parse("2026-10-20T15:00:00Z");
     mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
     int n = SEQ.incrementAndGet();
-    provider = TestAccounts.provider(mvc, "operations-provider-" + n + "@test.example");
+    providerEmail = "operations-provider-" + n + "@test.example";
+    provider = TestAccounts.provider(mvc, providerEmail);
     client = TestAccounts.client(mvc, "operations-client-" + n + "@test.example");
     other = TestAccounts.client(mvc, "operations-other-" + n + "@test.example");
     String response = mvc.perform(post("/api/v1/tools").header("Authorization", "Bearer " + provider)
@@ -70,6 +73,7 @@ class RentalOperationsApiTest {
             "\",\"end\":\"" + end + "\",\"quantity\":2}"))
         .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
     String id = TestAccounts.field(response, "id");
+    TestAccounts.pay(mvc, client, id);
     mvc.perform(post("/api/v1/reservations/" + id + "/accept").header("Authorization", "Bearer " + provider))
         .andExpect(status().isOk());
     return id;
@@ -77,7 +81,7 @@ class RentalOperationsApiTest {
 
   void pay(String id) throws Exception {
     mvc.perform(post("/api/v1/reservations/" + id + "/payments").header("Authorization", "Bearer " + client)
-        .contentType("application/json").content("{\"result\":\"APROBADO\"}")).andExpect(status().isOk());
+        .contentType("application/json").content(TestAccounts.TEST_CARD)).andExpect(status().isOk());
   }
 
   org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder delivery(String id, String token) {
@@ -93,12 +97,14 @@ class RentalOperationsApiTest {
 
   @Test void paidDeliveryDamagedReturnAndResolutionUpdateAvailability() throws Exception {
     String id = reserve(today, today.plusDays(2));
-    mvc.perform(post("/api/v1/reservations/" + id + "/return").header("Authorization", "Bearer " + provider)
-        .contentType("application/json").content(returnBody("BUENO", ""))).andExpect(status().isConflict());
-    mvc.perform(delivery(id, provider)).andExpect(status().isConflict());
-    pay(id);
+    pay(id); // reintentar el pago devuelve el mismo pago aprobado
+    // Empieza hoy: al aceptarla, la entrega se registró sola a nombre del proveedor.
+    mvc.perform(get("/api/v1/reservations/" + id + "/operations").header("Authorization", "Bearer " + client))
+        .andExpect(jsonPath("status").value("EN_USO"))
+        .andExpect(jsonPath("operation.deliveryNotes").value("Entrega automática en la fecha de inicio"));
+    mvc.perform(get("/api/v1/reservations/" + id).header("Authorization", "Bearer " + client))
+        .andExpect(jsonPath("rentalStatus").value("EN_USO"));
     mvc.perform(delivery(id, client)).andExpect(status().isForbidden());
-    mvc.perform(delivery(id, provider)).andExpect(status().isOk()).andExpect(jsonPath("status").value("EN_USO"));
     mvc.perform(delivery(id, provider)).andExpect(status().isConflict());
     mvc.perform(get("/api/v1/reservations/" + id + "/operations").header("Authorization", "Bearer " + other))
         .andExpect(status().isForbidden());
@@ -144,12 +150,13 @@ class RentalOperationsApiTest {
   }
 
   @Test void overdueEquipmentCannotBeDeliveredAgainOrRemovedByCount() throws Exception {
-    String first = reserve(today, today.plusDays(2));
-    pay(first);
     String next = reserve(today.plusDays(3), today.plusDays(4));
-    pay(next);
-    mvc.perform(delivery(first, provider)).andExpect(status().isOk());
+    String first = reserve(today, today.plusDays(2)); // empieza hoy: se entrega sola al aceptarla
+    // Mientras no venza, la unidad entregada no bloquea fechas posteriores a su devolución.
+    mvc.perform(get("/api/v1/tools/" + tool + "/availability").param("start", today.plusDays(6).toString())
+        .param("end", today.plusDays(7).toString())).andExpect(jsonPath("availableUnits").value(2));
     clock.now = clock.now.plus(Duration.ofDays(3));
+    provider = TestAccounts.login(mvc, providerEmail, TestAccounts.PASSWORD); // el token anterior ya venció
     mvc.perform(get("/api/v1/tools/" + tool + "/availability").param("start", today.plusDays(6).toString())
         .param("end", today.plusDays(7).toString())).andExpect(status().isOk())
         .andExpect(jsonPath("availableUnits").value(0));
@@ -162,12 +169,10 @@ class RentalOperationsApiTest {
   }
 
   @Test void lostUnitStaysRetiredAndReportsRemainInHistory() throws Exception {
-    String id = reserve(today, today.plusDays(2));
-    pay(id);
-    mvc.perform(delivery(id, provider)).andExpect(status().isOk());
-    mvc.perform(post("/api/v1/reservations/" + id + "/incidents").header("Authorization", "Bearer " + client)
+    String id = reserve(today, today.plusDays(2)); // se entrega sola al aceptarla
+    mvc.perform(post("/api/v1/reservations/" + id + "/incidents").header("Authorization", "Bearer " + other)
         .contentType("application/json").content("{\"type\":\"OTRO\",\"description\":\"Observación\"}"))
-        .andExpect(status().isForbidden());
+        .andExpect(status().isForbidden()); // solo el cliente de la reserva, no otro cliente
     mvc.perform(post("/api/v1/reservations/" + id + "/incidents").header("Authorization", "Bearer " + provider)
         .contentType("application/json").content("{\"type\":\"OTRO\",\"description\":\"Accesorio pendiente\"}"))
         .andExpect(status().isOk());
@@ -216,6 +221,7 @@ class RentalOperationsApiTest {
         .andExpect(jsonPath("$.content.length()").value(0)).andExpect(jsonPath("$.totalElements").value(1));
     reserve(today, today.plusDays(2));
     mvc.perform(get(filter)).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0));
+    // La devolución del día +2 libera las unidades aunque el equipo esté entregado y sin devolver.
     mvc.perform(get("/api/v1/tools?providerId=" + providerId() + "&start=" + today.plusDays(2) +
         "&end=" + today.plusDays(3) + "&quantity=2")).andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(1));
@@ -232,34 +238,93 @@ class RentalOperationsApiTest {
   }
 
   @Test void statisticsRespectOwnershipAndCountApprovedPaymentsOnce() throws Exception {
-    String id = reserve(today, today.plusDays(2));
+    String id = reserve(today, today.plusDays(2)); // se entrega sola al aceptarla
     pay(id);
     pay(id); // reintentar no duplica el importe ni las reservas pagadas.
-    mvc.perform(delivery(id, provider)).andExpect(status().isOk());
     String url = "/api/v1/statistics?from=" + today + "&to=" + today;
     mvc.perform(get(url)).andExpect(status().isUnauthorized());
     mvc.perform(get(url).header("Authorization", "Bearer " + client)).andExpect(status().isForbidden());
     mvc.perform(get(url).header("Authorization", "Bearer " + provider))
         .andExpect(status().isOk()).andExpect(jsonPath("$.reservations").value(1))
         .andExpect(jsonPath("$.byStatus.ACEPTADA").value(1))
-        .andExpect(jsonPath("$.paidReservations").value(1)).andExpect(jsonPath("$.approvedAmount").value(400))
-        .andExpect(jsonPath("$.inUse").value(1)).andExpect(jsonPath("$.returned").value(0))
+        .andExpect(jsonPath("$.sales").value(400))
+        .andExpect(jsonPath("$.inUse").value(1))
         .andExpect(jsonPath("$.popularTools[0].toolId").value(Long.valueOf(tool)));
     String otherProvider = TestAccounts.provider(mvc, "stats-other-" + SEQ.incrementAndGet() + "@test.example");
     mvc.perform(get(url).header("Authorization", "Bearer " + otherProvider))
         .andExpect(status().isOk()).andExpect(jsonPath("$.reservations").value(0))
-        .andExpect(jsonPath("$.approvedAmount").value(0));
+        .andExpect(jsonPath("$.sales").value(0));
     mvc.perform(post("/api/v1/reservations/" + id + "/return").header("Authorization", "Bearer " + provider)
         .contentType("application/json").content(returnBody("DANADO", "Cable dañado")))
         .andExpect(status().isOk());
     mvc.perform(get(url).header("Authorization", "Bearer " + provider))
         .andExpect(status().isOk()).andExpect(jsonPath("$.inUse").value(0))
-        .andExpect(jsonPath("$.returned").value(1)).andExpect(jsonPath("$.openIncidents").value(1));
+        .andExpect(jsonPath("$.openIncidents").value(1));
     mvc.perform(get(url).header("Authorization", "Bearer " + TestAccounts.admin(mvc)))
-        .andExpect(status().isOk());
+        .andExpect(status().isForbidden());
     mvc.perform(get("/api/v1/statistics?from=" + today + "&to=" + today.minusDays(1))
         .header("Authorization", "Bearer " + provider)).andExpect(status().isBadRequest());
     mvc.perform(get("/api/v1/statistics?from=" + today + "&to=" + today.plusDays(366))
         .header("Authorization", "Bearer " + provider)).andExpect(status().isBadRequest());
+  }
+
+  @Test void providerPerformanceIsAdminOnlyAndCountsAcceptedReservationsAsSales() throws Exception {
+    reserve(today, today.plusDays(2));
+    String url = "/api/v1/admin/provider-performance?from=" + today + "&to=" + today;
+    mvc.perform(get(url).header("Authorization", "Bearer " + provider)).andExpect(status().isForbidden());
+    mvc.perform(get(url).header("Authorization", "Bearer " + client)).andExpect(status().isForbidden());
+    String row = "$.providers[?(@.email == '" + providerEmail + "')]";
+    mvc.perform(get(url).header("Authorization", "Bearer " + TestAccounts.admin(mvc)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath(row + ".sales").value(400.0))
+        .andExpect(jsonPath(row + ".accepted").value(1))
+        .andExpect(jsonPath(row + ".requests").value(1))
+        .andExpect(jsonPath(row + ".acceptanceRate").value(1.0))
+        .andExpect(jsonPath(row + ".activeTools").value(1));
+    // Al día siguiente la reserva queda fuera del rango consultado.
+    mvc.perform(get("/api/v1/admin/provider-performance?from=" + today.plusDays(1) + "&to=" + today.plusDays(1))
+        .header("Authorization", "Bearer " + TestAccounts.admin(mvc)))
+        .andExpect(status().isOk()).andExpect(jsonPath(row + ".requests").value(0))
+        .andExpect(jsonPath(row + ".alerts[0]").value("No recibió solicitudes en el período"));
+  }
+
+  @Test void cancelledReservationsAreCountedInStatistics() throws Exception {
+    String response = mvc.perform(post("/api/v1/reservations").header("Authorization", "Bearer " + client)
+        .contentType("application/json").content("{\"toolId\":" + tool + ",\"start\":\"" + today.plusDays(5) +
+            "\",\"end\":\"" + today.plusDays(6) + "\",\"quantity\":1}"))
+        .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+    String pending = TestAccounts.field(response, "id");
+    TestAccounts.pay(mvc, client, pending);
+    String accepted = reserve(today.plusDays(8), today.plusDays(9));
+    for (String id : List.of(pending, accepted))
+      mvc.perform(delete("/api/v1/reservations/" + id).header("Authorization", "Bearer " + client))
+          .andExpect(status().isNoContent());
+    mvc.perform(get("/api/v1/statistics?from=" + today + "&to=" + today).header("Authorization", "Bearer " + provider))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.byStatus.CANCELADA").value(2))
+        .andExpect(jsonPath("$.byStatus.ACEPTADA").value(0))
+        .andExpect(jsonPath("$.sales").value(0)) // los pagos se reembolsaron
+        .andExpect(jsonPath("$.paidAwaitingAcceptance").value(0));
+  }
+
+  @Test void clientReportsAProblemWhileUsingTheEquipment() throws Exception {
+    String body = "{\"type\":\"OTRO\",\"description\":\"El taladro se apaga solo\"}";
+    String future = reserve(today.plusDays(5), today.plusDays(6));
+    mvc.perform(post("/api/v1/reservations/" + future + "/incidents").header("Authorization", "Bearer " + client)
+        .contentType("application/json").content(body)).andExpect(status().isConflict()); // aún sin entregar
+    String id = reserve(today, today.plusDays(2)); // se entrega sola al aceptarla
+    mvc.perform(get("/api/v1/reservations/" + id + "/operations").header("Authorization", "Bearer " + client))
+        .andExpect(jsonPath("canReport").value(true)).andExpect(jsonPath("canManage").value(false));
+    mvc.perform(post("/api/v1/reservations/" + id + "/incidents").header("Authorization", "Bearer " + other)
+        .contentType("application/json").content(body)).andExpect(status().isForbidden());
+    mvc.perform(post("/api/v1/reservations/" + id + "/incidents").header("Authorization", "Bearer " + client)
+        .contentType("application/json").content(body)).andExpect(status().isOk())
+        .andExpect(jsonPath("description").value("El taladro se apaga solo"));
+    mvc.perform(get("/api/v1/statistics?from=" + today + "&to=" + today).header("Authorization", "Bearer " + provider))
+        .andExpect(jsonPath("$.openIncidents").value(1));
+    mvc.perform(post("/api/v1/reservations/" + id + "/return").header("Authorization", "Bearer " + provider)
+        .contentType("application/json").content(returnBody("BUENO", ""))).andExpect(status().isOk());
+    mvc.perform(post("/api/v1/reservations/" + id + "/incidents").header("Authorization", "Bearer " + client)
+        .contentType("application/json").content(body)).andExpect(status().isConflict()); // ya lo devolvió
   }
 }

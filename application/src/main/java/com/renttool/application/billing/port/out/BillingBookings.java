@@ -7,6 +7,8 @@ import java.time.LocalDate;
 public interface BillingBookings {
   Booking find(Long id);
   Booking lock(Long id);
+  /** Aparta las unidades de la solicitud; falla si ya no quedan para esas fechas. */
+  void holdUnits(Long id);
   record Booking(Long id, Long clientId, Long providerId, String status,
       LocalDate start, LocalDate end, int quantity, BigDecimal dailyRate, BigDecimal total,
       String toolName, String buyerName, String buyerEmail, String sellerName,

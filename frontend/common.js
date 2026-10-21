@@ -491,11 +491,18 @@ const reservationStatus = {
 };
 function reservationRow(r) {
   const role = state.user.role;
-  const actions = [`<button class="outline-button" data-billing="${r.id}">Pagos y factura</button>`,
+  // El cliente paga al solicitar; el proveedor solo puede aceptar una solicitud ya pagada.
+  const mustPay = role === "CLIENTE" && r.status === "SOLICITADA" && !r.paid;
+  const actions = [mustPay
+    ? `<button class="button compact" data-billing="${r.id}">Pagar ${money(r.total)}</button>`
+    : `<button class="outline-button" data-billing="${r.id}">Pagos y factura</button>`,
     `<button class="outline-button" data-operations="${r.id}">Entrega y devolución</button>`];
+  // Mientras tiene el equipo, el cliente puede avisar al proveedor de una falla o daño.
+  if (role === "CLIENTE" && r.rentalStatus === "EN_USO")
+    actions.push(`<button class="outline-button" data-report="${r.id}">Reportar un problema</button>`);
   if (role === "PROVEEDOR" && r.status === "SOLICITADA")
     actions.push(
-      `<button class="button compact" data-accept="${r.id}">Aceptar</button>`,
+      r.paid ? `<button class="button compact" data-accept="${r.id}">Aceptar</button>` : "",
       `<button class="outline-button" data-reject="${r.id}">Rechazar</button>`,
     );
   const cancellable =
@@ -504,6 +511,11 @@ function reservationRow(r) {
   if (role !== "PROVEEDOR" && cancellable)
     actions.push(
       `<button class="outline-button" data-cancel="${r.id}">Cancelar</button>`,
+    );
+  // Empezó y ninguna unidad estaba lista: el proveedor o el admin la cancelan con reembolso.
+  if (role !== "CLIENTE" && r.rentalStatus === "ENTREGA_BLOQUEADA")
+    actions.push(
+      `<button class="outline-button danger-outline" data-cancel="${r.id}">Cancelar y reembolsar</button>`,
     );
   actions.push(
     `<button class="outline-button" data-history="${r.id}">Historial</button>`,
@@ -517,13 +529,16 @@ function reservationRow(r) {
     role !== "CLIENTE" && (r.clientPhone || r.clientEmail)
       ? `<p class="client-contact">${r.clientPhone ? `<a href="tel:${esc(r.clientPhone.replace(/ /g, ""))}">☎ ${esc(r.clientPhone)}</a>` : ""}${r.clientEmail ? `<a href="mailto:${esc(r.clientEmail)}">✉ ${esc(r.clientEmail)}</a>` : ""}</p>`
       : "";
+  const waitingPayment = r.status === "SOLICITADA" && !r.paid
+    ? `<p class="muted">${role === "CLIENTE" ? "Paga para que el proveedor pueda aceptar tu solicitud." : "Esperando el pago del cliente: podrás aceptarla cuando pague."}</p>`
+    : "";
   const extra =
     r.status === "SOLICITADA" && r.respondBy
-      ? `<p class="muted">Respuesta antes del ${dateTime(r.respondBy)}</p>`
+      ? `${waitingPayment}<p class="muted">${r.paid ? "El proveedor debe responder" : "Plazo para pagar y para que el proveedor responda"}: hasta el ${dateTime(r.respondBy)}</p>`
       : r.note
         ? `<p class="muted">Motivo: ${esc(r.note)}</p>`
         : "";
-  return `<article class="inventory-row reservation-row"><div><h3><span class="reservation-id">#${r.id}</span> ${esc(r.toolName)} <span class="status-chip status-${r.status.toLowerCase()}">${r.rentalStatus === "EN_USO" ? "Entregada / en uso" : r.rentalStatus === "DEVUELTA" ? "Devuelta" : reservationStatus[r.status]}</span></h3><p class="muted">${shortDate(r.start)} → ${shortDate(r.end)} · ${r.days} ${r.days === 1 ? "día" : "días"} · ${r.quantity} ${r.quantity === 1 ? "unidad" : "unidades"} · ${money(r.total)}${who}</p>${contact}${extra}</div>${actions.length ? `<div class="inventory-actions">${actions.join("")}</div>` : ""}</article>`;
+  return `<article class="inventory-row reservation-row"><div><h3><span class="reservation-id">#${r.id}</span> ${esc(r.toolName)} <span class="status-chip status-${r.status.toLowerCase()}">${r.rentalStatus === "EN_USO" ? "Entregada / en uso" : r.rentalStatus === "DEVUELTA" ? "Devuelta" : r.rentalStatus === "ENTREGA_BLOQUEADA" ? "Entrega bloqueada" : reservationStatus[r.status]}</span>${r.paid ? ' <span class="status-chip status-aceptada">Pagada</span>' : ""}</h3><p class="muted">${shortDate(r.start)} → ${shortDate(r.end)} · ${r.days} ${r.days === 1 ? "día" : "días"} · ${r.quantity} ${r.quantity === 1 ? "unidad" : "unidades"} · ${money(r.total)}${who}</p>${contact}${extra}</div>${actions.length ? `<div class="inventory-actions">${actions.filter(Boolean).join("")}</div>` : ""}</article>`;
 }
 async function loadReservations() {
   const box = $("#reservations");
@@ -555,6 +570,7 @@ async function loadReservations() {
       .querySelectorAll("[data-history]")
       .forEach((b) => (b.onclick = () => openHistory(b.dataset.history)));
     box.querySelectorAll("[data-operations]").forEach(b => b.onclick = () => openOperations(b.dataset.operations));
+    box.querySelectorAll("[data-report]").forEach(b => b.onclick = () => openOperations(b.dataset.report, true));
     box.querySelectorAll("[data-billing]").forEach(b => b.onclick = () => openBilling(b.dataset.billing));
     box.querySelectorAll("[data-accept]").forEach(
       (b) =>
@@ -562,7 +578,7 @@ async function loadReservations() {
           const r = data.content.find((r) => String(r.id) === b.dataset.accept);
           if (!(await confirmAction({
             title: `¿Aceptar la reserva #${r.id}?`,
-            message: `${r.toolName} · ${r.quantity} unidades · ${shortDate(r.start)} → ${shortDate(r.end)}.\nSe asignarán unidades concretas y quedarán ocupadas durante esas fechas. Total: ${money(r.total)}.`,
+            message: `${r.toolName} · ${r.quantity} unidades · ${shortDate(r.start)} → ${shortDate(r.end)}.\nEl cliente ya pagó ${money(r.total)}. Se asignarán unidades concretas y quedarán ocupadas durante esas fechas.`,
             confirmLabel: "Aceptar reserva",
           }))) return;
           act(
@@ -581,7 +597,7 @@ async function loadReservations() {
           const r = data.content.find((r) => String(r.id) === b.dataset.reject);
           const confirmation = await confirmAction({
             title: `¿Rechazar la reserva #${r.id}?`,
-            message: `${r.toolName} · ${shortDate(r.start)} → ${shortDate(r.end)}.\nLa solicitud quedará rechazada. El cliente podrá consultar el motivo. Esta solicitud todavía no ocupa unidades.`,
+            message: `${r.toolName} · ${shortDate(r.start)} → ${shortDate(r.end)}.\nLa solicitud quedará rechazada. El cliente podrá consultar el motivo${r.paid ? " y se le reembolsará el pago" : ""}. Esta solicitud todavía no ocupa unidades.`,
             confirmLabel: "Rechazar solicitud", danger: true, reason: true,
           });
           if (!confirmation) return;
@@ -600,10 +616,17 @@ async function loadReservations() {
       (b) =>
         (b.onclick = async () => {
           const r = data.content.find((r) => String(r.id) === b.dataset.cancel);
+          const own = state.user.role === "CLIENTE";
+          const stuck = r.rentalStatus === "ENTREGA_BLOQUEADA";
           if (!(await confirmAction({
             title: `¿Cancelar la reserva #${r.id}?`,
-            message: `${r.toolName} · ${r.quantity} unidades · ${shortDate(r.start)} → ${shortDate(r.end)}.\n${r.status === "ACEPTADA" ? "Las unidades asignadas quedarán libres para otras reservas." : "La solicitud dejará de estar pendiente; todavía no tiene unidades asignadas."} Para reservar de nuevo tendrás que enviar otra solicitud.`,
-            confirmLabel: "Cancelar reserva", danger: true,
+            message: `${r.toolName} · ${r.quantity} unidades · ${shortDate(r.start)} → ${shortDate(r.end)}.\n` +
+              (stuck ? "El alquiler empezó pero ninguna unidad estaba lista para entregarse. "
+                : r.unitIds?.length ? "Las unidades apartadas quedarán libres para otras reservas. "
+                : "La solicitud dejará de estar pendiente. ") +
+              (r.paid ? (own ? "Se te reembolsará el pago" : "Se reembolsará el pago al cliente") + " y la factura quedará anulada. " : "") +
+              (own ? "Para reservar de nuevo tendrás que enviar otra solicitud." : ""),
+            confirmLabel: stuck ? "Cancelar y reembolsar" : "Cancelar reserva", danger: true,
           }))) return;
           act(
             b,

@@ -19,9 +19,11 @@ class ReservationPersistenceAdapter implements ReservationRepository {
       ReservationStatus.HOLDING_UNITS.stream().map(Enum::name).toList();
 
   private final ReservationJpaRepository jpa;
+  private final java.time.Clock clock;
 
-  ReservationPersistenceAdapter(ReservationJpaRepository jpa) {
+  ReservationPersistenceAdapter(ReservationJpaRepository jpa, java.time.Clock clock) {
     this.jpa = jpa;
+    this.clock = clock;
   }
 
   @Override
@@ -41,7 +43,8 @@ class ReservationPersistenceAdapter implements ReservationRepository {
 
   @Override
   public Set<Long> unitsHeldDuring(Long toolId, RentalPeriod period) {
-    return new HashSet<>(jpa.findHeldUnits(toolId, HOLDING, period.start(), period.end()));
+    return new HashSet<>(jpa.findHeldUnits(
+        toolId, HOLDING, period.start(), period.end(), java.time.LocalDate.now(clock)));
   }
 
   @Override
@@ -86,6 +89,16 @@ class ReservationPersistenceAdapter implements ReservationRepository {
   @Override
   public List<Long> findPendingIdsDueBy(Instant now) {
     return jpa.findIdsByStatusDueBy(ReservationStatus.SOLICITADA.name(), utc(now));
+  }
+
+  @Override
+  public boolean hasDelivery(Long reservationId) {
+    return jpa.countDeliveries(reservationId) > 0;
+  }
+
+  @Override
+  public List<Long> findAcceptedUndeliveredStartedBy(java.time.LocalDate today) {
+    return jpa.findAcceptedUndeliveredStartedBy(today);
   }
 
   private static PageRequest newestFirst(PageQuery page) {

@@ -375,6 +375,18 @@ class ReservationServiceTest {
           .toList();
     }
 
+    /** En estas pruebas no se registran entregas. */
+    public boolean hasDelivery(Long reservationId) {
+      return false;
+    }
+
+    public List<Long> findAcceptedUndeliveredStartedBy(java.time.LocalDate today) {
+      return data.values().stream()
+          .filter(r -> r.status() == ReservationStatus.ACEPTADA && !r.period().start().isAfter(today))
+          .map(Reservation::id)
+          .toList();
+    }
+
     private static PageResult<Reservation> page(List<Reservation> all) {
       return new PageResult<>(all, all.size(), 1, 0);
     }

@@ -1,7 +1,7 @@
 "use strict";
 const rentalStateLabel = {
   PENDIENTE_ENTREGA: "Pendiente de entrega", EN_USO: "Entregada / en uso",
-  DEVUELTA: "Devuelta", NO_APLICA: "Sin movimiento físico",
+  DEVUELTA: "Devuelta", NO_APLICA: "Sin movimiento físico", ENTREGA_BLOQUEADA: "Entrega bloqueada",
 };
 const incidentTypeLabel = { DANO: "Daño", PERDIDA: "Pérdida", OTRO: "Otra incidencia" };
 const returnConditionLabel = { BUENO: "Buen estado", DANADO: "Dañada", PERDIDO: "Perdida" };
@@ -39,7 +39,8 @@ function incidentMarkup(incident, summary) {
         : "") + "</article>";
 }
 
-async function openOperations(id) {
+// reportOpen: abre directamente el formulario para reportar un problema.
+async function openOperations(id, reportOpen = false) {
   const request = ++operationsRequest;
   const dialog = $("#operations-dialog");
   const box = $("#operations-content");
@@ -62,14 +63,14 @@ async function openOperations(id) {
               " · Usuario #" + operation.returnedBy + '</p><p class="preserve-lines">' +
               esc(operation.returnNotes || "Sin observaciones") + "</p>"
             : "")
-        : '<p class="muted">No hay entrega registrada. Se requiere reserva aceptada, pago aprobado y estar dentro de las fechas del alquiler.</p>') +
+        : '<p class="muted">' + ({
+            PENDIENTE_ENTREGA: "La entrega se registrará automáticamente el día de inicio.",
+            ENTREGA_BLOQUEADA: "El alquiler empezó, pero ninguna unidad estaba lista para entregarse (por ejemplo, por mantenimiento). Se intentará de nuevo automáticamente; si no se resuelve, el proveedor o el administrador pueden cancelarla con reembolso.",
+          }[summary.status] || "Esta reserva no tiene entrega.") + "</p>") +
       '<div class="operation-units">' + summary.units.map(unit =>
         '<p><strong>' + esc(unit.code) + '</strong> · ' + esc(unit.status) +
         (unit.returnedCondition ? " · Devuelta: " + esc(returnConditionLabel[unit.returnedCondition]) : "") +
         (unit.notes ? '<br><span class="muted">' + esc(unit.notes) + "</span>" : "") + "</p>").join("") + "</div>" +
-      (summary.canDeliver
-        ? '<form id="delivery-form"><label>Observaciones de entrega<textarea name="notes" maxlength="500" rows="2" placeholder="Estado del equipo y accesorios entregados"></textarea></label><button class="button">Registrar entrega</button></form>'
-        : "") +
       (summary.canManage && summary.status === "EN_USO"
         ? '<h3>Revisión de devolución</h3><form id="return-form">' +
           summary.units.map(unit =>
@@ -81,14 +82,18 @@ async function openOperations(id) {
           '<label>Observaciones generales<textarea name="notes" maxlength="500" rows="2"></textarea></label>' +
           '<button class="button">Registrar devolución</button></form>'
         : "") +
-      (summary.canManage && operation
-        ? '<details class="incident-report"><summary>Reportar una incidencia</summary><form id="incident-form">' +
-          '<label>Tipo<select name="type"><option value="OTRO">Otra incidencia</option>' +
+      (summary.canReport
+        ? '<details class="incident-report"' + (reportOpen ? " open" : "") + '><summary>' +
+          (summary.canManage ? "Reportar una incidencia" : "Reportar un problema con el equipo") +
+          '</summary><form id="incident-form">' +
+          (summary.canManage ? "" : '<p class="muted">Cuéntale al proveedor qué pasó. Lo revisará y te contactará.</p>') +
+          '<label>Tipo<select name="type"><option value="OTRO">' + (summary.canManage ? "Otra incidencia" : "Falla o problema de uso") + '</option>' +
           '<option value="DANO">Daño</option><option value="PERDIDA">Pérdida</option></select></label>' +
           '<label>Unidad<select name="unitId"><option value="">Sin unidad específica</option>' +
           summary.units.map(unit => '<option value="' + unit.id + '">' + esc(unit.code) + "</option>").join("") +
-          '</select></label><label>Descripción<textarea name="description" required maxlength="1000" rows="3"></textarea></label>' +
-          '<button class="outline-button">Registrar incidencia</button></form></details>'
+          '</select></label><label>Descripción<textarea name="description" required maxlength="1000" rows="3"' +
+          (summary.canManage ? "" : ' placeholder="Por ejemplo: el taladro se apaga solo después de unos minutos"') + '></textarea></label>' +
+          '<button class="outline-button">' + (summary.canManage ? "Registrar incidencia" : "Enviar reporte") + '</button></form></details>'
         : "") +
       '<h3>Incidencias e historial de revisión</h3>' +
       (summary.incidents.length ? summary.incidents.map(item => incidentMarkup(item, summary)).join("")
@@ -113,13 +118,6 @@ async function openOperations(id) {
         button.disabled = false;
       }
     };
-    const delivery = box.querySelector("#delivery-form");
-    if (delivery) delivery.onsubmit = event => {
-      event.preventDefault();
-      submitAction(delivery, "/reservations/" + id + "/delivery",
-        { notes: delivery.elements.notes.value }, "¿Registrar la entrega?",
-        "Se dejará constancia de que las unidades fueron entregadas al cliente. Seguirán ocupadas hasta registrar su devolución.");
-    };
     const returns = box.querySelector("#return-form");
     if (returns) {
       returns.querySelectorAll("[data-condition]").forEach(select => {
@@ -139,6 +137,7 @@ async function openOperations(id) {
       };
     }
     const report = box.querySelector("#incident-form");
+    if (report && reportOpen) report.elements.description.focus();
     if (report) {
       report.elements.type.onchange = () => {
         report.elements.unitId.required = report.elements.type.value !== "OTRO";

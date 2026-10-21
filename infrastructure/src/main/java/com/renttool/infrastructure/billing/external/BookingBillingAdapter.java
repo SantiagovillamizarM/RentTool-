@@ -12,9 +12,12 @@ class BookingBillingAdapter implements BillingBookings {
   private final ToolRepository tools;
   private final AccountRepository accounts;
   private final ProviderProfileRepository profiles;
-  BookingBillingAdapter(ReservationRepository bookings, ToolRepository tools, AccountRepository accounts, ProviderProfileRepository profiles) {
-    this.bookings=bookings; this.tools=tools; this.accounts=accounts; this.profiles=profiles;
+  private final com.renttool.application.reservation.port.in.HoldUnitsUseCase holds;
+  BookingBillingAdapter(ReservationRepository bookings, ToolRepository tools, AccountRepository accounts,
+      ProviderProfileRepository profiles, com.renttool.application.reservation.port.in.HoldUnitsUseCase holds) {
+    this.bookings=bookings; this.tools=tools; this.accounts=accounts; this.profiles=profiles; this.holds=holds;
   }
+  public void holdUnits(Long id) { holds.holdUnits(id); }
   public Booking find(Long id) { return snapshot(bookings.findById(id).orElseThrow(() -> new NotFoundException("Reserva no encontrada"))); }
   public Booking lock(Long id) { return snapshot(bookings.findByIdForUpdate(id).orElseThrow(() -> new NotFoundException("Reserva no encontrada"))); }
   private Booking snapshot(Reservation r) {

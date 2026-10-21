@@ -19,9 +19,16 @@ import java.util.List;
  * reserva y aceptar bloquea además la herramienta ({@link RentalInventory#lockForAllocation}); al
  * obtener el bloqueo, las lecturas siguientes deben ver lo que confirmó quien lo tenía antes.
  */
-public class ReservationService implements ManageReservationsUseCase, ExpireReservationsUseCase {
-  /** Plazo del proveedor para responder, acotado además al día de inicio del alquiler. */
+public class ReservationService
+    implements ManageReservationsUseCase, ExpireReservationsUseCase, HoldUnitsUseCase {
+  /** Plazo para pagar y para que el proveedor responda, acotado además al día de inicio. */
   static final Duration RESPONSE_WINDOW = Duration.ofHours(24);
+  /**
+   * Una reserva que empieza hoy necesita al menos este margen antes de medianoche; si no, el plazo
+   * para pagar y aceptar sería de pocos minutos.
+   */
+  static final Duration MIN_SAME_DAY_WINDOW = Duration.ofHours(2);
+  public static final String UNDELIVERED = "No se pudo entregar el equipo";
 
   /** Importes como se leen en Colombia: 150.000 o 12.500,5. NumberFormat no es seguro entre hilos. */
   private static final ThreadLocal<NumberFormat> PESOS =
@@ -68,6 +75,9 @@ public class ReservationService implements ManageReservationsUseCase, ExpireRese
       throw new ConflictException("No hay unidades suficientes para esas fechas");
     var now = clock.instant();
     var endOfStartDay = period.start().plusDays(1).atStartOfDay(clock.getZone()).toInstant();
+    if (now.plus(MIN_SAME_DAY_WINDOW).isAfter(endOfStartDay))
+      throw new InvalidInputException(
+          "Para empezar hoy, solicita antes de las 10:00 p. m.; si no, elige desde mañana");
     var respondBy = min(now.plus(RESPONSE_WINDOW), endOfStartDay);
     var saved =
         reservations.save(
@@ -115,14 +125,13 @@ public class ReservationService implements ManageReservationsUseCase, ExpireRese
     reservation.ensureDecidableBy(provider, tool.providerId());
     if (!reservation.isPending())
       throw new ConflictException("Solo se puede aceptar una solicitud pendiente");
+    if (reservation.isDue(clock.instant()))
+      throw new ConflictException("El plazo para responder esta solicitud ya venció");
     if (reservation.period().startsBefore(today()))
       throw new ConflictException("La fecha de inicio ya pasó; rechaza la solicitud");
-    // Con la herramienta bloqueada, nadie más puede asignar sus unidades hasta el commit.
-    var units =
-        new LinkedHashSet<>(
-            allocator.freeUnits(tool.id(), reservation.period()).stream()
-                .limit(reservation.quantity())
-                .toList());
+    // Con la herramienta bloqueada, nadie más puede asignar sus unidades hasta el commit. Una
+    // solicitud pagada ya apartó sus unidades; se conservan si siguen operativas.
+    var units = unitsFor(reservation, tool.id());
     var accepted = reservations.save(reservation.accept(units));
     record(
         provider,
@@ -145,9 +154,51 @@ public class ReservationService implements ManageReservationsUseCase, ExpireRese
     return details(rejected, tool);
   }
 
+  /**
+   * Aparta unidades al pagar una solicitud. Lo invoca el pago, dentro de su misma transacción: si
+   * no quedan unidades, la excepción revierte también el cobro.
+   */
+  @Override
+  public void holdUnits(Long reservationId) {
+    var reservation = lockedForChange(reservationId);
+    if (!reservation.isPending() || reservation.holdsUnits()) return;
+    if (reservation.isDue(clock.instant()))
+      throw new ConflictException("El plazo para pagar esta solicitud ya venció");
+    var tool =
+        inventory
+            .lockForAllocation(reservation.toolId())
+            .orElseThrow(() -> new NotFoundException("Herramienta no encontrada"));
+    reservations.save(reservation.hold(unitsFor(reservation, tool.id())));
+  }
+
+  /** Unidades para la reserva: las que ya apartó si siguen operativas, o las primeras libres. */
+  private LinkedHashSet<Long> unitsFor(Reservation reservation, Long toolId) {
+    var operational = inventory.operationalUnitIds(toolId);
+    if (reservation.holdsUnits() && operational.containsAll(reservation.unitIds()))
+      return new LinkedHashSet<>(reservation.unitIds());
+    var own = reservation.unitIds();
+    var candidates = new LinkedHashSet<Long>(own.stream().filter(operational::contains).toList());
+    candidates.addAll(allocator.freeUnits(toolId, reservation.period()));
+    return new LinkedHashSet<>(candidates.stream().limit(reservation.quantity()).toList());
+  }
+
   @Override
   public void cancel(Participant participant, Long reservationId) {
     var reservation = lockedForChange(reservationId);
+    var tool = tool(reservation.toolId());
+    // Una reserva aceptada que empezó sin poder entregarse la cancela el proveedor o el admin.
+    boolean stuck = reservation.status() == ReservationStatus.ACEPTADA
+        && !today().isBefore(reservation.period().start())
+        && !reservations.hasDelivery(reservationId);
+    if (stuck) {
+      if (!participant.isAdministrator()
+          && !(participant.isProvider() && tool.providerId().equals(participant.id())))
+        throw new ForbiddenOperationException(
+            "El alquiler ya comenzó; el proveedor o el administrador pueden cancelarlo si no se entregó");
+      var cancelled = reservations.save(reservation.cancelUndelivered(UNDELIVERED));
+      record(participant, cancelled, UNDELIVERED);
+      return;
+    }
     reservation.ensureCancellableBy(participant);
     var cancelled = reservations.save(reservation.cancel(today()));
     record(
@@ -167,8 +218,47 @@ public class ReservationService implements ManageReservationsUseCase, ExpireRese
 
   @Override
   public int expireOverdue() {
+    return expireOverdueIds().size();
+  }
+
+  /** Vence la solicitud ya mismo si su plazo pasó, sin esperar a la revisión periódica. */
+  @Override
+  public boolean expireIfDue(Long reservationId) {
+    var reservation = lockedForChange(reservationId);
+    if (!reservation.isDue(clock.instant())) return false;
+    var saved = reservations.save(reservation.expire());
+    events.append(ReservationEvent.bySystem(
+        saved.id(), saved.status(), clock.instant(), "Sin respuesta del proveedor dentro del plazo"));
+    return true;
+  }
+
+  /**
+   * Cancela las reservas aceptadas que llegaron a su fecha de devolución sin entrega registrada,
+   * para que el pago no quede retenido. Devuelve sus ids, para reembolsarlas.
+   */
+  @Override
+  public int cancelUndeliveredEnded() {
+    return cancelUndeliveredEndedIds().size();
+  }
+
+  public List<Long> cancelUndeliveredEndedIds() {
+    var cancelled = new java.util.ArrayList<Long>();
+    for (var id : reservations.findAcceptedUndeliveredStartedBy(today())) {
+      var reservation = lockedForChange(id);
+      if (reservation.status() != ReservationStatus.ACEPTADA
+          || reservation.period().end().isAfter(today()) || reservations.hasDelivery(id)) continue;
+      var saved = reservations.save(reservation.cancelUndelivered(UNDELIVERED));
+      events.append(ReservationEvent.bySystem(saved.id(), saved.status(), clock.instant(),
+          "Terminó el periodo sin entrega registrada"));
+      cancelled.add(saved.id());
+    }
+    return cancelled;
+  }
+
+  /** Igual que {@link #expireOverdue}, pero devuelve qué reservas vencieron (para reembolsarlas). */
+  public List<Long> expireOverdueIds() {
     var now = clock.instant();
-    int expired = 0;
+    var expired = new java.util.ArrayList<Long>();
     for (var id : reservations.findPendingIdsDueBy(now)) {
       // Pudo aceptarse entre la consulta y el bloqueo: se vuelve a comprobar ya bloqueada.
       var reservation = lockedForChange(id);
@@ -177,7 +267,7 @@ public class ReservationService implements ManageReservationsUseCase, ExpireRese
         events.append(
             ReservationEvent.bySystem(
                 saved.id(), saved.status(), now, "Sin respuesta del proveedor dentro del plazo"));
-        expired++;
+        expired.add(saved.id());
       }
     }
     return expired;

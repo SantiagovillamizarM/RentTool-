@@ -260,6 +260,7 @@ function renderAccount() {
     return;
   }
   loadApplications();
+  loadPerformance();
   loadProviders().then(() => {
     loadCatalog();
     loadReservations().then(countReservations);

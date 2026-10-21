@@ -28,6 +28,12 @@ public class OperationsConfig {
       public Summary deliver(Participant actor, Long id, String notes) {
         return transaction.execute(s -> service.deliver(actor, id, notes));
       }
+      public boolean deliverIfStarted(Long id) {
+        return Boolean.TRUE.equals(transaction.execute(s -> service.deliverIfStarted(id)));
+      }
+      public java.util.List<Long> startedWithoutDelivery() {
+        return transaction.execute(s -> service.startedWithoutDelivery());
+      }
       public Summary returnEquipment(Participant actor, Long id, ReturnCommand command) {
         return transaction.execute(s -> service.returnEquipment(actor, id, command));
       }

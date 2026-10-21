@@ -157,7 +157,7 @@ async function detail(id) {
     const quantity = $("#available-start").value ? $("#available-quantity").value : "1";
     $("#detail-content").innerHTML =
       `<div class="detail-image">${imageMarkup(t)}</div><div class="detail-summary"><p class="eyebrow">${esc(t.category)}</p><h2>${esc(t.name)}</h2>${providerOf(t) ? `<p class="detail-provider">Ofrecido por <strong>${esc(providerOf(t))}</strong></p>` : ""}<p class="muted">${esc(t.description)}</p><p class="detail-price">${money(t.dailyRate)} <small>COP / día</small></p><p class="stock">${unitsLabel(t.operationalUnits)}</p></div>` +
-      `<form id="reserve-form" class="reserve-form" novalidate><h3>Reserva por fechas</h3><div class="reserve-fields"><label>Entrega<input type="date" name="start" required min="${businessToday()}" value="${start}"></label><label>Devolución<input type="date" name="end" required min="${addDays(start, 1)}" value="${end}"></label><label>Unidades<input type="number" name="quantity" required min="1" max="20" value="${quantity}"></label></div><p class="reserve-quote" aria-live="polite"></p><p class="form-error" role="alert"></p><button class="button full">Solicitar reserva →</button><p class="muted reserve-hint">El día de devolución no se cobra. El proveedor tiene 24 horas para aceptar.</p></form>`;
+      `<form id="reserve-form" class="reserve-form" novalidate><h3>Reserva por fechas</h3><div class="reserve-fields"><label>Entrega<input type="date" name="start" required min="${businessToday()}" value="${start}"></label><label>Devolución<input type="date" name="end" required min="${addDays(start, 1)}" value="${end}"></label><label>Unidades<input type="number" name="quantity" required min="1" max="20" value="${quantity}"></label></div><p class="reserve-quote" aria-live="polite"></p><p class="form-error" role="alert"></p><button class="button full">Solicitar reserva →</button><p class="muted reserve-hint">El día de devolución no se cobra. Pagas al solicitar y tus unidades quedan apartadas. El proveedor responde dentro del plazo que verás (hasta 24 horas); si no acepta, se te reembolsa.</p></form>`;
     wireImages($("#detail-content"));
     wireReservation(t);
     $("#detail-dialog").showModal();
@@ -224,7 +224,7 @@ function wireReservation(tool) {
       error.textContent = "Las reservas se hacen con una cuenta de cliente.";
       return;
     }
-    // El proveedor llama al cliente para acordar el pago y la entrega.
+    // El proveedor llama al cliente para coordinar la entrega.
     if (!state.user.phone) {
       $("#detail-dialog").close();
       location.hash = "workspace";
@@ -246,10 +246,11 @@ function wireReservation(tool) {
       });
       $("#detail-dialog").close();
       notify(
-        `Solicitud enviada. El proveedor tiene hasta el ${dateTime(r.respondBy)} para responder.`,
+        `Solicitud enviada. Paga antes del ${dateTime(r.respondBy)}; el proveedor tiene hasta esa hora para aceptarla.`,
       );
       loadReservations();
       location.hash = "workspace";
+      openBilling(r.id);
     } catch (err) {
       showFormError(form, err, error);
     } finally {
