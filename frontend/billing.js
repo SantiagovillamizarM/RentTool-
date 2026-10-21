@@ -38,12 +38,11 @@ const checkoutForm = (amount) =>
   '<label>CVV<input name="cvv" inputmode="numeric" maxlength="4" placeholder="123" autocomplete="off"></label></div>' +
   '<div class="pay-fields" data-method="NEQUI" hidden>' +
   '<label class="wide">Celular registrado en Nequi<input name="phone" type="tel" inputmode="numeric" maxlength="12" placeholder="300 123 4567" autocomplete="off"></label></div>' +
-  '<details class="test-data"><summary>Datos de prueba</summary><ul>' +
-  '<li><code>4242 4242 4242 4242</code> o <code>5555 5555 5555 4444</code>: aprobada</li>' +
-  '<li><code>4000 0000 0000 0002</code>: fondos insuficientes</li>' +
-  '<li><code>4000 0000 0000 0127</code>: rechazada por el banco</li>' +
-  '<li>Cualquier fecha futura y CVV de 3 dígitos.</li>' +
-  '<li>Nequi: cualquier celular; <code>399 222 2222</code> se rechaza.</li></ul></details>' +
+  '<details class="test-data"><summary>Tarjetas aceptadas</summary><ul>' +
+  '<li>Visa <code>4242 4242 4242 4242</code></li>' +
+  '<li>Mastercard <code>5555 5555 5555 4444</code></li>' +
+  '<li>Con cualquier fecha de vencimiento futura y CVV de 3 dígitos.</li>' +
+  '<li>Nequi: tu celular registrado.</li></ul></details>' +
   '<p class="pay-status" aria-live="polite"></p>' +
   `<button class="button">Pagar ${money(amount)}</button></form>`;
 
@@ -135,7 +134,7 @@ function showReceipt(id, payment) {
     `<p class="muted">Referencia ${esc(payment.reference)}</p>` +
     '<p>El proveedor ya puede aceptar tu reserva. Te llamará para coordinar la entrega. Si la rechaza o no responde a tiempo, el pago se reembolsa.</p>' +
     '<button type="button" class="button" data-invoice>Descargar factura</button></div>';
-  bindInvoice(box, id, "RT-DEMO-" + id, $("#billing-error"));
+  bindInvoice(box, id, "RT-" + id, $("#billing-error"));
 }
 
 function bindInvoice(box, id, invoiceNumber, error) {

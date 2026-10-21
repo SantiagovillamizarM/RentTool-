@@ -47,7 +47,7 @@ public final class SimulatedGateway {
     var outcome = TEST_CARDS.get(digits);
     if (outcome == null)
       throw new InvalidInputException(
-          "En esta simulación solo se aceptan las tarjetas de prueba indicadas. No uses una tarjeta real");
+          "Tarjeta no aceptada. Usa una de las tarjetas aceptadas que aparecen en el formulario");
     var detail = brand(digits) + " •••• " + digits.substring(digits.length() - 4);
     return new Authorization(Method.TARJETA, detail, outcome.isEmpty(), outcome.isEmpty() ? null : outcome);
   }

@@ -59,14 +59,14 @@ public class PaymentService implements ManagePaymentsUseCase {
     if (result.approved() && "SOLICITADA".equals(booking.status())) bookings.holdUnits(id);
     var now = clock.instant();
     var payment = new Payment(
-        "DEMO-" + UUID.randomUUID(), id, booking.total(),
+        "PAY-" + UUID.randomUUID(), id, booking.total(),
         result.approved() ? Payment.Status.APPROVED : Payment.Status.DECLINED,
         null, now, now, result.method().name(), result.detail(), result.message());
     store.save(payment);
 
     if (result.approved()) {
       store.issue(new Invoice(
-          "RT-DEMO-" + id, payment.reference(), id, now,
+          "RT-" + id, payment.reference(), id, now,
           booking.sellerName(), booking.sellerTaxId(), booking.sellerAddress(),
           booking.buyerName(), booking.buyerEmail(), booking.toolName(),
           booking.start(), booking.end(), booking.quantity(), booking.dailyRate(), booking.total(),

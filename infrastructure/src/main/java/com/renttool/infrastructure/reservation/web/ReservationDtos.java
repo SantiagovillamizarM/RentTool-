@@ -98,7 +98,7 @@ public final class ReservationDtos {
               description = "Plazo del proveedor para responder; solo en SOLICITADA")
           Instant respondBy,
       @Schema(example = "Motivo del rechazo, si lo hubo") String note, String rentalStatus,
-      @Schema(description = "El cliente ya pagó con la pasarela simulada y el pago no se reembolsó")
+      @Schema(description = "El cliente ya pagó y el pago no se reembolsó")
           boolean paid) {
     public static ReservationResponse from(ReservationDetails d, String rentalStatus, boolean paid) {
       var r = d.reservation();

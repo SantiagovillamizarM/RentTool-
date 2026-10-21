@@ -77,7 +77,7 @@ class PaymentApiTest {
     pay(id, client, "{}").andExpect(status().isBadRequest());
     pay(id, client, card("4242424242424241")).andExpect(status().isBadRequest()); // Luhn
     pay(id, client, card("4111111111111111")).andExpect(status().isBadRequest()) // tarjeta no de prueba
-        .andExpect(jsonPath("detail").value(containsString("tarjetas de prueba")));
+        .andExpect(jsonPath("detail").value(containsString("Tarjeta no aceptada")));
     pay(id, client, "{\"method\":\"TARJETA\",\"number\":\"4242424242424242\",\"holder\":\"ANA\","
         + "\"expMonth\":1,\"expYear\":2020,\"cvv\":\"123\"}").andExpect(status().isBadRequest());
 

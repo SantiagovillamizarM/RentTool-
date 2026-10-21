@@ -117,7 +117,7 @@ public class DemoDataInitializer {
       var actor = new Actor(midnight.id(), true, false);
       if (activeToolsOf(catalog, actor) == 0) {
         for (var demo : TOOLS) publish(demo, actor, tools, units, images);
-        log.info("Midnight publicó {} herramientas de demostración", TOOLS.length);
+        log.info("Midnight publicó {} herramientas en el catálogo", TOOLS.length);
       }
       retireLegacyDemo(accounts, catalog, tools);
     };

@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1")
-@Tag(name = "Pagos y facturas", description = "Simulación escolar sin dinero real")
+@Tag(name = "Pagos y facturas", description = "Pago de reservas con tarjeta o Nequi y factura")
 public class PaymentController {
   private final ManagePaymentsUseCase payments;
   private final com.renttool.application.reservation.port.in.ExpireReservationsUseCase expiry;
@@ -45,8 +45,8 @@ public class PaymentController {
   }
 
   @PostMapping("/reservations/{id}/payments")
-  @Operation(summary = "Pagar una reserva con la pasarela simulada",
-      description = "Tarjetas de prueba: 4242 4242 4242 4242 y 5555 5555 5555 4444 se aprueban; "
+  @Operation(summary = "Pagar una reserva con tarjeta o Nequi",
+      description = "Tarjetas aceptadas: 4242 4242 4242 4242 y 5555 5555 5555 4444 se aprueban; "
           + "4000 0000 0000 0002 y 4000 0000 0000 0127 se rechazan. Nequi: 399 222 2222 se rechaza, "
           + "cualquier otro celular válido se aprueba.")
   public Payment pay(
@@ -60,13 +60,13 @@ public class PaymentController {
   }
 
   @GetMapping("/reservations/{id}/payments")
-  @Operation(summary = "Consultar pagos de demostración y factura")
+  @Operation(summary = "Consultar pagos y factura")
   public ManagePaymentsUseCase.Summary get(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
     return payments.get(actor(jwt), id);
   }
 
   @GetMapping("/reservations/{id}/invoice")
-  @Operation(summary = "Descargar factura de demostración")
+  @Operation(summary = "Descargar factura")
   public ResponseEntity<String> invoice(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
     var invoice = payments.invoice(actor(jwt), id);
     return ResponseEntity.ok().contentType(MediaType.TEXT_HTML)
