@@ -22,11 +22,16 @@ public interface ReservationRepository {
   /** Unidades de la herramienta ocupadas por reservas que se cruzan con el periodo. */
   Set<Long> unitsHeldDuring(Long toolId, RentalPeriod period);
 
-  PageResult<Reservation> findByClient(Long clientId, PageQuery page);
+  /** Como {@link #unitsHeldDuring}, pero sin contar la reserva indicada. */
+  Set<Long> unitsHeldByOthers(Long toolId, RentalPeriod period, Long exceptReservationId);
 
-  PageResult<Reservation> findByTools(Collection<Long> toolIds, PageQuery page);
+  /** En estas tres consultas {@code status} null incluye todos los estados. */
+  PageResult<Reservation> findByClient(Long clientId, ReservationStatus status, PageQuery page);
 
-  PageResult<Reservation> findAll(PageQuery page);
+  PageResult<Reservation> findByTools(
+      Collection<Long> toolIds, ReservationStatus status, PageQuery page);
+
+  PageResult<Reservation> findAll(ReservationStatus status, PageQuery page);
 
   /**
    * Reservas solicitadas en [from, to), de la más antigua a la más reciente. {@code status} null
@@ -42,6 +47,9 @@ public interface ReservationRepository {
 
   /** Si el equipo de la reserva llegó a entregarse (esté o no devuelto). */
   boolean hasDelivery(Long reservationId);
+
+  /** Si ya se registró la devolución del equipo de la reserva. */
+  boolean hasReturn(Long reservationId);
 
   /** Ids de las reservas aceptadas cuya fecha de inicio ya llegó y que aún no tienen entrega. */
   List<Long> findAcceptedUndeliveredStartedBy(java.time.LocalDate today);

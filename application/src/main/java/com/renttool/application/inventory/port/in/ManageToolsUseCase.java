@@ -11,5 +11,11 @@ public interface ManageToolsUseCase {
 
   void retire(Actor actor, Long toolId);
 
-  record Command(Long categoryId, String name, String description, BigDecimal dailyRate) {}
+  /** @param deposit garantía por unidad; null equivale a cero */
+  record Command(
+      Long categoryId, String name, String description, BigDecimal dailyRate, BigDecimal deposit) {
+    public Command(Long categoryId, String name, String description, BigDecimal dailyRate) {
+      this(categoryId, name, description, dailyRate, BigDecimal.ZERO);
+    }
+  }
 }

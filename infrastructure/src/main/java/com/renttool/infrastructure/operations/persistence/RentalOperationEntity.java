@@ -1,5 +1,6 @@
 package com.renttool.infrastructure.operations.persistence;
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity @Table(name = "rental_operations")
@@ -11,4 +12,6 @@ class RentalOperationEntity {
   Instant returnedAt;
   Long returnedBy;
   @Column(length = 500) String returnNotes;
+  int lateDays;
+  @Column(precision = 14, scale = 2) BigDecimal lateFee;
 }

@@ -21,7 +21,8 @@ public class ToolManagementService implements ManageToolsUseCase {
     actor.ensureCanManageInventory();
     ensureCategory(c.categoryId());
     return tools.save(
-        Tool.publish(actor, c.categoryId(), c.name(), c.description(), c.dailyRate()));
+        Tool.publish(
+            actor, c.categoryId(), c.name(), c.description(), c.dailyRate(), c.deposit()));
   }
 
   @Override
@@ -29,7 +30,10 @@ public class ToolManagementService implements ManageToolsUseCase {
     actor.ensureCanManageInventory();
     ensureCategory(c.categoryId());
     var tool = access.manageable(toolId, actor);
-    return tools.save(tool.edit(c.categoryId(), c.name(), c.description(), c.dailyRate()));
+    // Sin depósito en la petición se conserva el que ya tenía.
+    var deposit = c.deposit() == null ? tool.deposit() : c.deposit();
+    return tools.save(
+        tool.edit(c.categoryId(), c.name(), c.description(), c.dailyRate(), deposit));
   }
 
   @Override

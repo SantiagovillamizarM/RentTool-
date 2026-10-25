@@ -70,7 +70,25 @@ async function openOperations(id, reportOpen = false) {
       '<div class="operation-units">' + summary.units.map(unit =>
         '<p><strong>' + esc(unit.code) + '</strong> · ' + esc(unit.status) +
         (unit.returnedCondition ? " · Devuelta: " + esc(returnConditionLabel[unit.returnedCondition]) : "") +
+        (unit.charge > 0 ? " · Cobro: " + money(unit.charge) : "") +
         (unit.notes ? '<br><span class="muted">' + esc(unit.notes) + "</span>" : "") + "</p>").join("") + "</div>" +
+      (operation && operation.returnedAt
+        ? '<h3>Cargos adicionales</h3><div class="charges-box"><p>Retraso en la devolución: ' +
+          (summary.charges.lateDays
+            ? summary.charges.lateDays + (summary.charges.lateDays === 1 ? " día" : " días") +
+              " · " + money(summary.charges.lateFee)
+            : "a tiempo, sin recargo") +
+          "</p><p>Daños o pérdidas: " + money(summary.charges.damageCharges) +
+          (summary.charges.extensionBalance > 0
+            ? "</p><p>Saldo por extensión de la reserva: " + money(summary.charges.extensionBalance) : "") +
+          "</p><p><strong>Total de cargos: " + money(summary.charges.total) + "</strong></p>" +
+          (summary.charges.deposit > 0
+            ? "<p>Depósito de garantía entregado: " + money(summary.charges.deposit) + "</p>" +
+              "<p><strong>Depósito a devolver al cliente: " + money(summary.charges.depositRefund) + "</strong></p>"
+            : "") +
+          "<p><strong>Pendiente por pagar el cliente: " + money(summary.charges.amountDue) + "</strong></p></div>"
+        : "") +
+      (summary.status === "DEVUELTA" ? '<div id="review-box"></div>' : "") +
       (summary.canManage && summary.status === "EN_USO"
         ? '<h3>Revisión de devolución</h3><form id="return-form">' +
           summary.units.map(unit =>
@@ -78,7 +96,9 @@ async function openOperations(id, reportOpen = false) {
             '<select name="condition-' + unit.id + '" data-condition="' + unit.id + '">' +
             '<option value="BUENO">Buen estado</option><option value="DANADO">Dañada</option>' +
             '<option value="PERDIDO">Perdida</option></select></label><label>Observaciones de la unidad' +
-            '<textarea name="notes-' + unit.id + '" maxlength="500" rows="2"></textarea></label></fieldset>').join("") +
+            '<textarea name="notes-' + unit.id + '" maxlength="500" rows="2"></textarea></label>' +
+            '<label>Cobro por daño o pérdida (COP)<input type="number" name="charge-' + unit.id +
+            '" min="0" step="1" value="0" disabled></label></fieldset>').join("") +
           '<label>Observaciones generales<textarea name="notes" maxlength="500" rows="2"></textarea></label>' +
           '<button class="button">Registrar devolución</button></form>'
         : "") +
@@ -122,7 +142,11 @@ async function openOperations(id, reportOpen = false) {
     if (returns) {
       returns.querySelectorAll("[data-condition]").forEach(select => {
         select.onchange = () => {
-          returns.elements["notes-" + select.dataset.condition].required = select.value !== "BUENO";
+          const damaged = select.value !== "BUENO";
+          const charge = returns.elements["charge-" + select.dataset.condition];
+          returns.elements["notes-" + select.dataset.condition].required = damaged;
+          charge.disabled = !damaged;
+          if (!damaged) charge.value = 0;
         };
       });
       returns.onsubmit = event => {
@@ -130,10 +154,11 @@ async function openOperations(id, reportOpen = false) {
         const units = summary.units.map(unit => ({
           unitId: unit.id, condition: returns.elements["condition-" + unit.id].value,
           notes: returns.elements["notes-" + unit.id].value,
+          charge: Number(returns.elements["charge-" + unit.id].value) || 0,
         }));
         submitAction(returns, "/reservations/" + id + "/return", { notes: returns.elements.notes.value, units },
           "¿Confirmar la devolución de todas las unidades?",
-          "Las unidades en buen estado quedarán disponibles. Las dañadas pasarán a mantenimiento y las perdidas quedarán retiradas. La revisión se conservará en el historial.");
+          "Las unidades en buen estado quedarán disponibles. Las dañadas pasarán a mantenimiento y las perdidas quedarán retiradas. Si se devuelve después de la fecha pactada, se cobra un recargo por cada día de retraso. La revisión se conservará en el historial.");
       };
     }
     const report = box.querySelector("#incident-form");
@@ -150,6 +175,8 @@ async function openOperations(id, reportOpen = false) {
         }, "¿Registrar la incidencia?", "El reporte quedará en el historial. Un daño o pérdida bloqueará la unidad hasta su revisión.");
       };
     }
+    const reviewBox = box.querySelector("#review-box");
+    if (reviewBox) loadReview(id, reviewBox);
     box.querySelectorAll("[data-resolve]").forEach(form => {
       form.onsubmit = event => {
         event.preventDefault();
@@ -162,6 +189,42 @@ async function openOperations(id, reportOpen = false) {
     if (request !== operationsRequest) return;
     box.textContent = "";
     error.textContent = failure.message;
+  }
+}
+
+// Calificación del alquiler: el cliente la deja una vez devuelto el equipo; los demás la consultan.
+async function loadReview(id, box) {
+  try {
+    const data = await api("/reservations/" + id + "/review");
+    if (!data.canReview) {
+      box.innerHTML = "<h3>Calificación del cliente</h3>" + (data.review ? reviewMarkup(data.review)
+        : '<p class="muted">El cliente aún no ha calificado este alquiler.</p>');
+      return;
+    }
+    box.innerHTML = '<h3>Califica tu alquiler</h3><form id="review-form">' +
+      '<label>Calificación<select name="rating" required>' +
+      [5, 4, 3, 2, 1].map(n => '<option value="' + n + '">' + stars(n) + " · " + n + "/5</option>").join("") +
+      '</select></label><label>Comentario (opcional)<textarea name="comment" maxlength="500" rows="3"' +
+      ' placeholder="¿Cómo funcionó la herramienta?"></textarea></label>' +
+      '<button class="button">Enviar calificación</button></form>';
+    const form = box.querySelector("#review-form");
+    form.onsubmit = async event => {
+      event.preventDefault();
+      const button = form.querySelector("button");
+      button.disabled = true;
+      try {
+        await api("/reservations/" + id + "/review", { method: "POST", body: JSON.stringify({
+          rating: Number(form.elements.rating.value), comment: form.elements.comment.value,
+        }) });
+        notify("¡Gracias! Tu calificación quedó publicada en la herramienta.");
+        loadReview(id, box);
+      } catch (failure) {
+        showFormError(form, failure, $("#operations-error"));
+        button.disabled = false;
+      }
+    };
+  } catch {
+    box.textContent = "";
   }
 }
 

@@ -28,19 +28,21 @@ class RentalRecordsAdapter implements RentalRecords {
     entity.deliveredAt = operation.deliveredAt(); entity.deliveredBy = operation.deliveredBy();
     entity.deliveryNotes = operation.deliveryNotes(); entity.returnedAt = operation.returnedAt();
     entity.returnedBy = operation.returnedBy(); entity.returnNotes = operation.returnNotes();
+    entity.lateDays = operation.lateFee().days(); entity.lateFee = operation.lateFee().amount();
     operations.saveAndFlush(entity);
   }
 
   public List<UnitReturn> returns(Long id) {
     return returns.findByReservationIdOrderByUnitId(id).stream()
         .map(entity -> new UnitReturn(entity.reservationId, entity.unitId,
-            UnitReturn.Condition.valueOf(entity.condition), entity.notes)).toList();
+            UnitReturn.Condition.valueOf(entity.condition), entity.notes, entity.damageCharge)).toList();
   }
 
   public void save(UnitReturn item) {
     var entity = new UnitReturnEntity();
     entity.reservationId = item.reservationId(); entity.unitId = item.unitId();
     entity.condition = item.condition().name(); entity.notes = item.notes();
+    entity.damageCharge = item.charge();
     returns.saveAndFlush(entity);
   }
 
@@ -70,8 +72,10 @@ class RentalRecordsAdapter implements RentalRecords {
   }
 
   private RentalOperation domain(RentalOperationEntity entity) {
+    var late = entity.lateDays == 0 || entity.lateFee == null ? LateFee.NONE
+        : new LateFee(entity.lateDays, entity.lateFee);
     return new RentalOperation(entity.reservationId, entity.deliveredAt, entity.deliveredBy,
-        entity.deliveryNotes, entity.returnedAt, entity.returnedBy, entity.returnNotes);
+        entity.deliveryNotes, entity.returnedAt, entity.returnedBy, entity.returnNotes, late);
   }
   private Incident domain(IncidentEntity entity) {
     return new Incident(entity.id, entity.reservationId, entity.unitId, Incident.Type.valueOf(entity.type),

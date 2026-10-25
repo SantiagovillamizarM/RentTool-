@@ -156,14 +156,63 @@ async function detail(id) {
     const end = $("#available-end").value || addDays(start, 2);
     const quantity = $("#available-start").value ? $("#available-quantity").value : "1";
     $("#detail-content").innerHTML =
-      `<div class="detail-image">${imageMarkup(t)}</div><div class="detail-summary"><p class="eyebrow">${esc(t.category)}</p><h2>${esc(t.name)}</h2>${providerOf(t) ? `<p class="detail-provider">Ofrecido por <strong>${esc(providerOf(t))}</strong></p>` : ""}<p class="muted">${esc(t.description)}</p><p class="detail-price">${money(t.dailyRate)} <small>COP / día</small></p><p class="stock">${unitsLabel(t.operationalUnits)}</p></div>` +
+      `<div class="detail-image">${imageMarkup(t)}</div><div class="detail-summary"><p class="eyebrow">${esc(t.category)}</p><h2>${esc(t.name)}</h2>${providerOf(t) ? `<p class="detail-provider">Ofrecido por <strong>${esc(providerOf(t))}</strong></p>` : ""}<p class="muted">${esc(t.description)}</p><p class="detail-price">${money(t.dailyRate)} <small>COP / día</small></p><p class="stock">${unitsLabel(t.operationalUnits)}</p>${Number(t.deposit) > 0 ? `<p class="muted deposit-note">Depósito de garantía: <strong>${money(t.deposit)}</strong> por unidad. Lo entregas al recibir el equipo y se te devuelve al devolverlo, descontando multas o daños.</p>` : ""}${state.user?.role === "CLIENTE" ? favoriteButton(t.id) : ""}</div>` +
       `<form id="reserve-form" class="reserve-form" novalidate><h3>Reserva por fechas</h3><div class="reserve-fields"><label>Entrega<input type="date" name="start" required min="${businessToday()}" value="${start}"></label><label>Devolución<input type="date" name="end" required min="${addDays(start, 1)}" value="${end}"></label><label>Unidades<input type="number" name="quantity" required min="1" max="20" value="${quantity}"></label></div><p class="reserve-quote" aria-live="polite"></p><p class="form-error" role="alert"></p><button class="button full">Solicitar reserva →</button><p class="muted reserve-hint">El día de devolución no se cobra. Pagas al solicitar y tus unidades quedan apartadas. El proveedor responde dentro del plazo que verás (hasta 24 horas); si no acepta, se te reembolsa.</p></form>`;
     wireImages($("#detail-content"));
     wireReservation(t);
+    wireFavorite(t.id);
     $("#detail-dialog").showModal();
+    loadToolReviews(t.id);
   } catch (e) {
     notify(e.message);
   }
+}
+// Lista de deseos del cliente: se guarda desde el detalle y se muestra en "Mis favoritos".
+const favoriteButton = (id) => {
+  const saved = state.favorites?.has(id);
+  return `<button type="button" class="outline-button favorite-toggle${saved ? " saved" : ""}" id="favorite-toggle" aria-pressed="${saved}">${saved ? "♥ En mis favoritos" : "♡ Guardar en favoritos"}</button>`;
+};
+function wireFavorite(toolId) {
+  const button = $("#favorite-toggle");
+  if (!button) return;
+  button.onclick = async () => {
+    const saved = Boolean(state.favorites?.has(toolId));
+    button.disabled = true;
+    try {
+      await api(`/me/favorites/${toolId}`, { method: saved ? "DELETE" : "POST" });
+      notify(saved ? "Quitada de tus favoritos." : "Guardada en tus favoritos.");
+      await loadFavorites();
+      button.outerHTML = favoriteButton(toolId);
+      wireFavorite(toolId);
+    } catch (e) {
+      notify(e.message);
+      button.disabled = false;
+    }
+  };
+}
+async function loadFavorites() {
+  const box = $("#favorites");
+  try {
+    const tools = await api("/me/favorites");
+    state.favorites = new Set(tools.map((t) => t.id));
+    box.innerHTML = tools.length
+      ? tools.map(productCard).join("")
+      : '<p class="muted">Aún no guardas herramientas. Abre una del catálogo y pulsa «♡ Guardar en favoritos».</p>';
+    wireProducts(box);
+  } catch (e) {
+    box.innerHTML = `<p class="muted">${esc(e.message)}</p>`;
+  }
+}
+// Calificaciones públicas de la herramienta, debajo del formulario de reserva.
+async function loadToolReviews(toolId) {
+  try {
+    const data = await api(`/tools/${toolId}/reviews`);
+    const content = $("#detail-content");
+    content.insertAdjacentHTML(
+      "beforeend",
+      `<section class="tool-reviews"><h3>Calificaciones${data.count ? ` · <span class="review-stars">${stars(Math.round(data.average))}</span> ${data.average.toFixed(1)} (${data.count})` : ""}</h3>${data.count ? data.reviews.slice(0, 5).map(reviewMarkup).join("") : '<p class="muted">Esta herramienta todavía no tiene calificaciones.</p>'}</section>`,
+    );
+  } catch {}
 }
 function wireReservation(tool) {
   const form = $("#reserve-form");
@@ -193,7 +242,7 @@ function wireReservation(tool) {
       submit.disabled = !a.available;
       quote.className = "reserve-quote " + (a.available ? "ok" : "warn");
       quote.innerHTML = a.available
-        ? `<strong>${a.availableUnits} ${a.availableUnits === 1 ? "libre" : "libres"}</strong> · ${a.days} ${a.days === 1 ? "día" : "días"} · Total <strong>${money(a.total)}</strong>`
+        ? `<strong>${a.availableUnits} ${a.availableUnits === 1 ? "libre" : "libres"}</strong> · ${a.days} ${a.days === 1 ? "día" : "días"} · Total <strong>${money(a.total)}</strong>${Number(tool.deposit) > 0 ? ` · Depósito ${money(tool.deposit * a.quantity)} al recibir` : ""}`
         : a.availableUnits
           ? `Solo ${a.availableUnits === 1 ? "queda 1 unidad libre" : `quedan ${a.availableUnits} unidades libres`} en esas fechas.`
           : "No hay unidades libres en esas fechas. Prueba otro rango.";
@@ -355,6 +404,7 @@ function renderAccount() {
   $("#profile-avatar").classList.remove("photo");
   $("#reservations-title").textContent = "Mis reservas";
   loadReservations();
+  loadFavorites();
   renderProviderCta();
 }
 // Solicitud para ser proveedor: estado visible en el espacio del cliente.

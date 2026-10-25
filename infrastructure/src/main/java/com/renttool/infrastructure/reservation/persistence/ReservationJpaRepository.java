@@ -37,6 +37,28 @@ interface ReservationJpaRepository extends JpaRepository<ReservationEntity, Long
       @Param("end") LocalDate end,
       @Param("today") LocalDate today);
 
+  /** La misma regla que {@link #findHeldUnits}, sin contar la reserva {@code except}. */
+  @Query(value =
+      """
+      select ru.unit_id from reservation_units ru
+      join reservations r on r.id = ru.reservation_id
+      left join rental_operations o on o.reservation_id = r.id
+      where r.tool_id = :toolId and r.status in (:statuses) and r.id <> :except
+        and o.returned_at is null
+        and ((r.start_date < :end and r.end_date > :start)
+          or (o.delivered_at is not null and r.end_date <= :today and r.start_date < :end))
+      """, nativeQuery = true)
+  List<Long> findHeldUnitsExcept(
+      @Param("toolId") Long toolId,
+      @Param("statuses") Collection<String> statuses,
+      @Param("start") LocalDate start,
+      @Param("end") LocalDate end,
+      @Param("today") LocalDate today,
+      @Param("except") Long except);
+
+  @Query(value = "select count(*) from rental_operations where reservation_id = :id and returned_at is not null", nativeQuery = true)
+  long countReturns(@Param("id") Long reservationId);
+
   List<ReservationEntity> findByRequestedAtGreaterThanEqualAndRequestedAtLessThanOrderByRequestedAtAscIdAsc(
       LocalDateTime from, LocalDateTime to);
 
@@ -54,7 +76,14 @@ interface ReservationJpaRepository extends JpaRepository<ReservationEntity, Long
 
   Page<ReservationEntity> findByClientId(Long clientId, Pageable pageable);
 
+  Page<ReservationEntity> findByClientIdAndStatus(Long clientId, String status, Pageable pageable);
+
   Page<ReservationEntity> findByToolIdIn(Collection<Long> toolIds, Pageable pageable);
+
+  Page<ReservationEntity> findByToolIdInAndStatus(
+      Collection<Long> toolIds, String status, Pageable pageable);
+
+  Page<ReservationEntity> findByStatus(String status, Pageable pageable);
 
   @Query(value = "select count(*) from rental_operations where reservation_id = :id", nativeQuery = true)
   long countDeliveries(@Param("id") Long reservationId);

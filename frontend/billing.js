@@ -150,7 +150,7 @@ function bindInvoice(box, id, invoiceNumber, error) {
       const url = URL.createObjectURL(await response.blob());
       const link = document.createElement("a");
       link.href = url;
-      link.download = invoiceNumber + ".html";
+      link.download = invoiceNumber + ".pdf";
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (failure) {

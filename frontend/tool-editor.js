@@ -32,6 +32,7 @@ document.body.insertAdjacentHTML(
         ><label>Categoría<select name="categoryId" required></select></label
         ><label>Descripción<textarea name="description" required maxlength="3000" rows="3"></textarea></label
         ><label>Tarifa diaria · COP<input name="dailyRate" type="number" min="1" max="999999999999.99" step="0.01" required /></label
+        ><label>Depósito de garantía por unidad · COP<input name="deposit" type="number" min="0" max="999999999999.99" step="0.01" value="0" /><small class="muted">El cliente lo entrega al recibir el equipo y se le devuelve al devolverlo, descontando multas o daños. Deja 0 si no pides garantía.</small></label
         ><label id="tool-units-field">Unidades que tienes<input name="units" type="number" min="0" max="200" step="1" inputmode="numeric" /><small class="muted">Se crean o retiran solas. Al bajar nunca se retiran las asignadas a reservas aceptadas.</small></label>
         <p class="muted price-note" id="tool-price-note">Las reservas ya solicitadas conservan la tarifa con que se pidieron; el precio nuevo aplica a las siguientes.</p>
         <p class="form-error" id="tool-edit-error" role="alert"></p>
@@ -71,7 +72,7 @@ async function openToolEditor(id, button, options = {}) {
     $("#tool-edit-error").textContent = "";
     form.elements.categoryId.innerHTML = categories;
     if (t)
-      for (const field of ["name", "categoryId", "description", "dailyRate"])
+      for (const field of ["name", "categoryId", "description", "dailyRate", "deposit"])
         form.elements[field].value = t[field];
     if (toolEditor.preview) URL.revokeObjectURL(toolEditor.preview);
     Object.assign(toolEditor, {
@@ -128,6 +129,7 @@ function toolProblem(form) {
   const rate = Number(v("dailyRate"));
   if (!v("dailyRate") || !(rate > 0)) return ["dailyRate", "La tarifa debe ser mayor que cero."];
   if (rate > 999999999999.99) return ["dailyRate", "La tarifa es demasiado alta."];
+  if (Number(v("deposit")) < 0) return ["deposit", "El depósito no puede ser negativo."];
   if (toolEditor.units !== null && !(/^\d{1,3}$/.test(v("units")) && Number(v("units")) <= 200))
     return ["units", "Escribe cuántas unidades tienes, de 0 a 200."];
   return null;
@@ -158,6 +160,7 @@ $("#tool-edit-form").onsubmit = async (e) => {
         categoryId: Number(form.elements.categoryId.value),
         description: form.elements.description.value.trim(),
         dailyRate: Number(form.elements.dailyRate.value),
+        deposit: Number(form.elements.deposit.value) || 0,
       }),
     });
     // Ya existe: si algo falla después, se sigue editando la misma herramienta.

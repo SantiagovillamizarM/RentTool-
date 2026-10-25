@@ -9,7 +9,8 @@ import java.util.Set;
 
 /**
  * Agregado Reserva: un cliente pide unidades de una herramienta para un rango de fechas. Guarda la
- * tarifa del momento de la solicitud para que un cambio posterior en el catálogo no la altere.
+ * tarifa y el depósito de garantía del momento de la solicitud para que un cambio posterior en el
+ * catálogo no los altere. {@code deposit} es el total de la garantía (por unidad × cantidad).
  */
 public record Reservation(
     Long id,
@@ -23,7 +24,8 @@ public record Reservation(
     Set<Long> unitIds,
     Instant requestedAt,
     Instant respondBy,
-    String note) {
+    String note,
+    BigDecimal deposit) {
   public static final int MAX_QUANTITY = 20;
   public static final int MAX_NOTE = 500;
 
@@ -39,6 +41,16 @@ public record Reservation(
     unitIds = unitIds == null ? Set.of() : Set.copyOf(unitIds);
     if (note != null && note.length() > MAX_NOTE)
       throw new InvalidInputException("El motivo admite hasta " + MAX_NOTE + " caracteres");
+    if (deposit == null) deposit = BigDecimal.ZERO;
+    if (deposit.signum() < 0)
+      throw new InvalidInputException("El depósito de garantía no puede ser negativo");
+  }
+
+  public Reservation(Long id, Long clientId, Long toolId, RentalPeriod period, int quantity,
+      BigDecimal dailyRate, BigDecimal total, ReservationStatus status, Set<Long> unitIds,
+      Instant requestedAt, Instant respondBy, String note) {
+    this(id, clientId, toolId, period, quantity, dailyRate, total, status, unitIds, requestedAt,
+        respondBy, note, BigDecimal.ZERO);
   }
 
   /** Importe del alquiler: tarifa diaria por días cobrados por cantidad de unidades. */
@@ -70,7 +82,24 @@ public record Reservation(
         Set.of(),
         now,
         respondBy,
-        null);
+        null,
+        tool.deposit().multiply(BigDecimal.valueOf(quantity)).setScale(2, RoundingMode.HALF_UP));
+  }
+
+  /**
+   * Amplía la fecha de devolución de una reserva aceptada y recalcula el total con la tarifa
+   * pactada. La disponibilidad de las unidades en los días nuevos la comprueba quien la invoca.
+   */
+  public Reservation extendTo(LocalDate newEnd, LocalDate today) {
+    ensureStatus(ReservationStatus.ACEPTADA, "Solo se puede extender una reserva aceptada");
+    if (newEnd == null || !newEnd.isAfter(period.end()))
+      throw new InvalidInputException("La nueva devolución debe ser posterior a la actual");
+    if (period.end().isBefore(today))
+      throw new ConflictException("La fecha de devolución ya pasó; registra la devolución");
+    var extended = new RentalPeriod(period.start(), newEnd);
+    return new Reservation(id, clientId, toolId, extended, quantity, dailyRate,
+        totalFor(dailyRate, extended, quantity), status, unitIds, requestedAt, respondBy, note,
+        deposit);
   }
 
   /** Al pagarse, la solicitud aparta unidades concretas hasta que el proveedor responda. */
@@ -191,6 +220,6 @@ public record Reservation(
   private Reservation with(ReservationStatus newStatus, Set<Long> units, String newNote) {
     return new Reservation(
         id, clientId, toolId, period, quantity, dailyRate, total, newStatus, units, requestedAt,
-        newStatus == ReservationStatus.SOLICITADA ? respondBy : null, newNote);
+        newStatus == ReservationStatus.SOLICITADA ? respondBy : null, newNote, deposit);
   }
 }

@@ -88,7 +88,6 @@ public class ProviderRemovalService implements RemoveProviderUseCase {
   }
 
   private Summary summarize(Account provider, List<Tool> active, List<Reservation> open) {
-    var today = LocalDate.now(clock);
     int pending = 0, upcoming = 0, inProgress = 0;
     for (var r : open) {
       if (r.isPending()) pending++;

@@ -51,4 +51,17 @@ public class IdentityConfig {
     return new TransactionalProviders(
         new ProviderAdministrationService(accounts, profiles, passwords, logos), transactions);
   }
+
+  @Bean
+  TransactionalAdministrators administratorUseCases(
+      AccountRepository accounts, PasswordHasher passwords, PlatformTransactionManager transactions) {
+    return new TransactionalAdministrators(
+        new AdministratorManagementService(accounts, passwords), transactions);
+  }
+
+  @Bean
+  TransactionalClients clientUseCases(
+      AccountRepository accounts, PlatformTransactionManager transactions) {
+    return new TransactionalClients(new ClientAdministrationService(accounts), transactions);
+  }
 }

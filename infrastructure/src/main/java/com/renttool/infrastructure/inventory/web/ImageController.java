@@ -54,7 +54,7 @@ public class ImageController {
   @ApiResponse(responseCode = "400", description = "No es una imagen válida o supera 5 MB")
   public ImageResponse upload(
       @PathVariable Long toolId,
-      @RequestParam("file") MultipartFile file,
+      @RequestParam MultipartFile file,
       @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt)
       throws IOException {
     return ImageResponse.from(images.upload(ActorResolver.from(jwt), toolId, file.getBytes()));
@@ -70,7 +70,7 @@ public class ImageController {
   @ApiResponse(responseCode = "400", description = "No es una imagen válida o supera 5 MB")
   public ImageResponse replaceMain(
       @PathVariable Long toolId,
-      @RequestParam("file") MultipartFile file,
+      @RequestParam MultipartFile file,
       @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt)
       throws IOException {
     return ImageResponse.from(

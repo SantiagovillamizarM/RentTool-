@@ -48,18 +48,43 @@ class ReservationPersistenceAdapter implements ReservationRepository {
   }
 
   @Override
-  public PageResult<Reservation> findByClient(Long clientId, PageQuery page) {
-    return toResult(jpa.findByClientId(clientId, newestFirst(page)), page);
+  public Set<Long> unitsHeldByOthers(Long toolId, RentalPeriod period, Long exceptReservationId) {
+    return new HashSet<>(jpa.findHeldUnitsExcept(toolId, HOLDING, period.start(), period.end(),
+        java.time.LocalDate.now(clock), exceptReservationId));
   }
 
   @Override
-  public PageResult<Reservation> findByTools(Collection<Long> toolIds, PageQuery page) {
-    return toResult(jpa.findByToolIdIn(toolIds, newestFirst(page)), page);
+  public boolean hasReturn(Long reservationId) {
+    return jpa.countReturns(reservationId) > 0;
   }
 
   @Override
-  public PageResult<Reservation> findAll(PageQuery page) {
-    return toResult(jpa.findAll(newestFirst(page)), page);
+  public PageResult<Reservation> findByClient(
+      Long clientId, ReservationStatus status, PageQuery page) {
+    var request = newestFirst(page);
+    return toResult(
+        status == null
+            ? jpa.findByClientId(clientId, request)
+            : jpa.findByClientIdAndStatus(clientId, status.name(), request),
+        page);
+  }
+
+  @Override
+  public PageResult<Reservation> findByTools(
+      Collection<Long> toolIds, ReservationStatus status, PageQuery page) {
+    var request = newestFirst(page);
+    return toResult(
+        status == null
+            ? jpa.findByToolIdIn(toolIds, request)
+            : jpa.findByToolIdInAndStatus(toolIds, status.name(), request),
+        page);
+  }
+
+  @Override
+  public PageResult<Reservation> findAll(ReservationStatus status, PageQuery page) {
+    var request = newestFirst(page);
+    return toResult(
+        status == null ? jpa.findAll(request) : jpa.findByStatus(status.name(), request), page);
   }
 
   @Override
@@ -134,7 +159,8 @@ class ReservationPersistenceAdapter implements ReservationRepository {
         e.unitIds,
         instant(e.requestedAt),
         instant(e.respondBy),
-        e.note);
+        e.note,
+        e.deposit);
   }
 
   private static ReservationEntity toEntity(Reservation r) {
@@ -151,6 +177,7 @@ class ReservationPersistenceAdapter implements ReservationRepository {
     e.requestedAt = utc(r.requestedAt());
     e.respondBy = utc(r.respondBy());
     e.note = r.note();
+    e.deposit = r.deposit();
     e.unitIds = new HashSet<>(r.unitIds());
     return e;
   }

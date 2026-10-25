@@ -64,6 +64,22 @@ class PaymentApiTest {
         + "\"expMonth\":12,\"expYear\":2099,\"cvv\":\"123\"}";
   }
 
+  /** Descarga la factura del cliente y devuelve el texto de su primera página. */
+  String invoiceText(String id) throws Exception {
+    byte[] pdf = mvc.perform(get("/api/v1/reservations/" + id + "/invoice")
+            .header("Authorization", "Bearer " + client))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType("application/pdf"))
+        .andExpect(header().string("Content-Disposition", containsString(".pdf")))
+        .andReturn().getResponse().getContentAsByteArray();
+    var reader = new com.lowagie.text.pdf.PdfReader(pdf);
+    try {
+      return new com.lowagie.text.pdf.parser.PdfTextExtractor(reader).getTextFromPage(1);
+    } finally {
+      reader.close();
+    }
+  }
+
   ResultActions pay(String id, String token, String body) throws Exception {
     return mvc.perform(post("/api/v1/reservations/" + id + "/payments")
         .header("Authorization", "Bearer " + token).contentType("application/json").content(body));
@@ -108,12 +124,11 @@ class PaymentApiTest {
             .contentType("application/json")
             .content("{\"categoryId\":1,\"name\":\"Nombre nuevo\",\"description\":\"Equipo\",\"dailyRate\":99999}"))
         .andExpect(status().isOk());
-    mvc.perform(get("/api/v1/reservations/" + id + "/invoice").header("Authorization", "Bearer " + client))
-        .andExpect(status().isOk())
-        .andExpect(content().string(containsString("Taladro original")))
-        .andExpect(content().string(containsString("50000")))
-        .andExpect(content().string(containsString("Nequi")))
-        .andExpect(content().string(containsString("Total pagado")));
+    String pdf = invoiceText(id);
+    assertTrue(pdf.contains("Taladro original"), pdf);
+    assertTrue(pdf.contains("50.000"), pdf);
+    assertTrue(pdf.contains("Nequi"), pdf);
+    assertTrue(pdf.contains("Total pagado"), pdf);
     mvc.perform(get("/api/v1/reservations/" + id + "/invoice")
         .header("Authorization", "Bearer " + other)).andExpect(status().isForbidden());
     assertEquals(reference, store.invoice(Long.valueOf(id)).orElseThrow().paymentReference());
@@ -131,8 +146,7 @@ class PaymentApiTest {
         .andExpect(jsonPath("payments[0].message").value("El proveedor rechazó la solicitud"));
     mvc.perform(get("/api/v1/reservations/" + id).header("Authorization", "Bearer " + client))
         .andExpect(jsonPath("paid").value(false));
-    mvc.perform(get("/api/v1/reservations/" + id + "/invoice").header("Authorization", "Bearer " + client))
-        .andExpect(content().string(containsString("FACTURA ANULADA")));
+    assertTrue(invoiceText(id).contains("FACTURA ANULADA"));
     // Solo se guarda la franquicia y los últimos 4 dígitos, nunca el número completo.
     for (Payment p : store.history(Long.valueOf(id)))
       assertFalse(p.toString().contains("4242424242424242"));

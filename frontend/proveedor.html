@@ -39,6 +39,18 @@
         </form>
         <div data-statistics aria-live="polite"></div>
       </details>
+      <details class="statistics-panel" id="revenue-panel">
+        <summary>Ingresos y rentabilidad</summary>
+        <p class="muted">Cuentan las ventas (reservas aceptadas con pago aprobado) solicitadas entre ambas fechas: su total, con extensiones, más las multas y los cobros por daño registrados al devolver. «Ingreso por día-unidad» indica cuánto rinde cada unidad por día alquilado.</p>
+        <form class="statistics-form">
+          <label>Solicitadas desde<input name="from" type="date" required></label>
+          <label>Hasta (incluido)<input name="to" type="date" required></label>
+          <label>Agrupar por<select name="groupBy"><option value="TOOL">Herramienta</option><option value="MONTH">Mes</option></select></label>
+          <button class="outline-button">Consultar</button>
+          <p class="form-error" role="alert"></p>
+        </form>
+        <div data-revenue aria-live="polite"></div>
+      </details>
       <section class="admin-intro">
         <div>
           <p class="eyebrow"><span></span> PANEL DE PROVEEDOR</p>
@@ -247,6 +259,7 @@
     <script src="billing.js" defer></script>
     <script src="operations.js" defer></script>
     <script src="statistics.js" defer></script>
+    <script src="revenue.js" defer></script>
     <script src="tool-editor.js" defer></script>
     <script src="proveedor.js" defer></script>
   </body>

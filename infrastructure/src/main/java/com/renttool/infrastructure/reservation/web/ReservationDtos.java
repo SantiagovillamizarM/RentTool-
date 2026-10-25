@@ -55,6 +55,10 @@ public final class ReservationDtos {
     }
   }
 
+  public record ExtendRequest(
+      @Schema(example = "2026-10-30", description = "Nueva fecha de devolución") @NotNull
+          LocalDate end) {}
+
   public record HistoryResponse(
       @Schema(example = "2026-10-15T14:30:00Z", description = "Null si no quedó registrado")
           Instant at,
@@ -99,7 +103,9 @@ public final class ReservationDtos {
           Instant respondBy,
       @Schema(example = "Motivo del rechazo, si lo hubo") String note, String rentalStatus,
       @Schema(description = "El cliente ya pagó y el pago no se reembolsó")
-          boolean paid) {
+          boolean paid,
+      @Schema(example = "200000.00", description = "Garantía total que se entrega al recibir")
+          BigDecimal deposit) {
     public static ReservationResponse from(ReservationDetails d, String rentalStatus, boolean paid) {
       var r = d.reservation();
       return new ReservationResponse(
@@ -121,7 +127,7 @@ public final class ReservationDtos {
           r.unitIds().stream().sorted().toList(),
           r.requestedAt(),
           r.respondBy(),
-          r.note(), rentalStatus, paid);
+          r.note(), rentalStatus, paid, r.deposit());
     }
   }
 }

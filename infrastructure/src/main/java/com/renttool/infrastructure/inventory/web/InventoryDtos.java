@@ -24,9 +24,13 @@ public final class InventoryDtos {
           @NotNull
           @DecimalMin("0.01")
           @Digits(integer = 12, fraction = 2)
-          BigDecimal dailyRate) {
+          BigDecimal dailyRate,
+      @Schema(example = "100000", description = "Garantía por unidad; opcional, 0 si no se pide")
+          @PositiveOrZero
+          @Digits(integer = 12, fraction = 2)
+          BigDecimal deposit) {
     public ManageToolsUseCase.Command toCommand() {
-      return new ManageToolsUseCase.Command(categoryId, name, description, dailyRate);
+      return new ManageToolsUseCase.Command(categoryId, name, description, dailyRate, deposit);
     }
   }
 
@@ -53,11 +57,12 @@ public final class InventoryDtos {
       @Schema(example = "Incluye maletín, broca para concreto y mandril de 13 mm.")
           String description,
       @Schema(example = "25000.00") BigDecimal dailyRate,
-      @Schema(example = "true") boolean active) {
+      @Schema(example = "true") boolean active,
+      @Schema(example = "100000.00", description = "Garantía por unidad") BigDecimal deposit) {
     public static ToolResponse from(Tool t) {
       return new ToolResponse(
           t.id(), t.providerId(), t.categoryId(), t.name(), t.description(), t.dailyRate(),
-          t.active());
+          t.active(), t.deposit());
     }
   }
 
@@ -72,7 +77,8 @@ public final class InventoryDtos {
       @Schema(example = "25000.00") BigDecimal dailyRate,
       @Schema(example = "true") boolean active,
       List<ImageResponse> images,
-      @Schema(example = "3", description = "Unidades en estado OPERATIVA") long operationalUnits) {
+      @Schema(example = "3", description = "Unidades en estado OPERATIVA") long operationalUnits,
+      @Schema(example = "100000.00", description = "Garantía por unidad") BigDecimal deposit) {
     public static ToolDetailsResponse from(ToolDetails d) {
       var t = d.tool();
       return new ToolDetailsResponse(
@@ -85,7 +91,8 @@ public final class InventoryDtos {
           t.dailyRate(),
           t.active(),
           d.images().stream().map(ImageResponse::from).toList(),
-          d.operationalUnits());
+          d.operationalUnits(),
+          t.deposit());
     }
   }
 

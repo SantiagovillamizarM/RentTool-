@@ -46,6 +46,9 @@ class ReservationEntity {
   @Column(length = 500)
   String note;
 
+  @Column(precision = 14, scale = 2)
+  BigDecimal deposit;
+
   @ElementCollection(fetch = FetchType.EAGER)
   @CollectionTable(name = "reservation_units", joinColumns = @JoinColumn(name = "reservation_id"))
   @Column(name = "unit_id")

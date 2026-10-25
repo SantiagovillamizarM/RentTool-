@@ -11,6 +11,7 @@ import com.renttool.domain.inventory.*;
 import com.renttool.domain.reservation.*;
 import com.renttool.domain.billing.Payment;
 import com.renttool.domain.shared.exception.*;
+import java.math.BigDecimal;
 import java.time.*;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -117,8 +118,12 @@ public class RentalService implements ManageRentalsUseCase {
 
     // Se validan todos los estados antes de cambiar el inventario.
     var items = command.units().stream()
-        .map(item -> new UnitReturn(id, item.unitId(), item.condition(), item.notes())).toList();
-    records.save(operation.returnEquipment(actor.id(), clock.instant(), command.notes()));
+        .map(item -> new UnitReturn(id, item.unitId(), item.condition(), item.notes(), item.charge()))
+        .toList();
+    // Devolver después de la fecha pactada genera un recargo por cada día de retraso.
+    var late = LateFee.of(reservation.period().end(), LocalDate.now(clock),
+        reservation.dailyRate(), reservation.quantity());
+    records.save(operation.returnEquipment(actor.id(), clock.instant(), command.notes(), late));
     for (var item : items) {
       var unit = unit(reservation, item.unitId());
       records.save(item);
@@ -222,12 +227,29 @@ public class RentalService implements ManageRentalsUseCase {
       var unit = unit(reservation, id);
       var item = returns.get(id);
       return new UnitView(id, unit.code(), unit.status().name(),
-          item == null ? null : item.condition(), item == null ? null : item.notes());
+          item == null ? null : item.condition(), item == null ? null : item.notes(),
+          item == null ? BigDecimal.ZERO : item.charge());
     }).toList();
     boolean client = actor.isClient() && reservation.clientId().equals(actor.id());
     boolean canReport = operation != null && (manager || (client && operation.isOut()));
     return new Summary(status, manager, paid, canDeliver, canReport, operation, views,
-        records.incidents(reservation.id()));
+        records.incidents(reservation.id()), charges(reservation, operation, returns.values()));
+  }
+
+  private Charges charges(Reservation reservation, RentalOperation operation,
+      Collection<UnitReturn> returns) {
+    var late = operation == null ? LateFee.NONE : operation.lateFee();
+    var damages = returns.stream().map(UnitReturn::charge).reduce(BigDecimal.ZERO, BigDecimal::add);
+    // Una extensión sube el total de la reserva; la diferencia con lo pagado queda pendiente.
+    var paidAmount = payments.history(reservation.id()).stream()
+        .filter(payment -> payment.status() == Payment.Status.APPROVED)
+        .map(Payment::amount).findFirst().orElse(null);
+    var extension = paidAmount == null ? BigDecimal.ZERO
+        : reservation.total().subtract(paidAmount).max(BigDecimal.ZERO);
+    var total = late.amount().add(damages).add(extension);
+    var deposit = reservation.deposit();
+    return new Charges(late.days(), late.amount(), damages, extension, total, deposit,
+        deposit.subtract(total).max(BigDecimal.ZERO), total.subtract(deposit).max(BigDecimal.ZERO));
   }
 
   private boolean paid(Long id) {

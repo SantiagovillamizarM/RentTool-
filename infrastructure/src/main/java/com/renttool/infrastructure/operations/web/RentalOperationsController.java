@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
+import java.math.BigDecimal;
 import java.util.List;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -23,7 +24,8 @@ public class RentalOperationsController {
 
   public record DeliveryRequest(@Size(max = 500) String notes) {}
   public record ReturnItem(@NotNull Long unitId, @NotNull UnitReturn.Condition condition,
-      @Size(max = 500) String notes) {}
+      @Size(max = 500) String notes,
+      @PositiveOrZero @Digits(integer = 12, fraction = 2) BigDecimal charge) {}
   public record ReturnRequest(@Size(max = 500) String notes,
       @NotEmpty @Size(max = 20) List<@NotNull @Valid ReturnItem> units) {}
   public record IncidentRequest(Long unitId, @NotNull Incident.Type type,
@@ -42,12 +44,15 @@ public class RentalOperationsController {
     return operations.deliver(actor(jwt), id, request.notes());
   }
   @PostMapping("/reservations/{id}/return")
-  @Operation(summary = "Registrar devolución y revisar cada unidad")
+  @Operation(summary = "Registrar devolución y revisar cada unidad",
+      description = "Calcula el recargo si se devuelve después de la fecha pactada. Cada unidad"
+          + " dañada o perdida puede llevar un cobro (charge).")
   public ManageRentalsUseCase.Summary returnEquipment(@AuthenticationPrincipal Jwt jwt,
       @PathVariable Long id, @Valid @RequestBody ReturnRequest request) {
     return operations.returnEquipment(actor(jwt), id, new ManageRentalsUseCase.ReturnCommand(request.notes(),
         request.units().stream().map(item ->
-            new ManageRentalsUseCase.ReturnItem(item.unitId(), item.condition(), item.notes())).toList()));
+            new ManageRentalsUseCase.ReturnItem(item.unitId(), item.condition(), item.notes(),
+                item.charge())).toList()));
   }
   @PostMapping("/reservations/{id}/incidents")
   @Operation(summary = "Reportar daño, pérdida u otra incidencia")

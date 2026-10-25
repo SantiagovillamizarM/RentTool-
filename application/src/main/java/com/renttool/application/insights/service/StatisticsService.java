@@ -6,7 +6,6 @@ import com.renttool.application.reservation.port.out.ReservationRepository;
 import com.renttool.application.inventory.port.out.ToolRepository;
 import com.renttool.application.billing.port.out.PaymentStore;
 import com.renttool.application.operations.port.out.RentalRecords;
-import com.renttool.domain.billing.Payment;
 import com.renttool.domain.reservation.*;
 import com.renttool.domain.shared.exception.ForbiddenOperationException;
 import java.math.BigDecimal;

@@ -19,11 +19,14 @@ import org.springframework.web.bind.annotation.*;
 public class PaymentController {
   private final ManagePaymentsUseCase payments;
   private final com.renttool.application.reservation.port.in.ExpireReservationsUseCase expiry;
+  private final java.time.ZoneId zone;
 
   public PaymentController(ManagePaymentsUseCase payments,
-      com.renttool.application.reservation.port.in.ExpireReservationsUseCase expiry) {
+      com.renttool.application.reservation.port.in.ExpireReservationsUseCase expiry,
+      java.time.Clock clock) {
     this.payments = payments;
     this.expiry = expiry;
+    this.zone = clock.getZone();
   }
 
   /**
@@ -66,15 +69,14 @@ public class PaymentController {
   }
 
   @GetMapping("/reservations/{id}/invoice")
-  @Operation(summary = "Descargar factura")
-  public ResponseEntity<String> invoice(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
+  @Operation(summary = "Descargar factura en PDF")
+  public ResponseEntity<byte[]> invoice(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
     var invoice = payments.invoice(actor(jwt), id);
-    return ResponseEntity.ok().contentType(MediaType.TEXT_HTML)
-        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + invoice.number() + ".html\"")
+    return ResponseEntity.ok().contentType(MediaType.APPLICATION_PDF)
+        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + invoice.number() + ".pdf\"")
         .header(HttpHeaders.CACHE_CONTROL, "no-store")
         .header("X-Content-Type-Options", "nosniff")
-        .header("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'")
-        .body(InvoiceHtml.render(invoice));
+        .body(InvoicePdf.render(invoice, zone));
   }
 
   private Participant actor(Jwt jwt) {

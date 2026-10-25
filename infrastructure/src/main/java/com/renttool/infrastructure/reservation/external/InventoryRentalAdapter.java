@@ -59,6 +59,7 @@ class InventoryRentalAdapter implements RentalInventory {
   }
 
   private static RentableTool rentable(Tool t) {
-    return new RentableTool(t.id(), t.providerId(), t.name(), t.dailyRate(), t.active());
+    return new RentableTool(
+        t.id(), t.providerId(), t.name(), t.dailyRate(), t.active(), t.deposit());
   }
 }

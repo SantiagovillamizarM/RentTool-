@@ -73,7 +73,8 @@ class ToolPersistenceAdapter implements ToolRepository {
   }
 
   private static Tool toDomain(ToolEntity e) {
-    return new Tool(e.id, e.providerId, e.categoryId, e.name, e.description, e.dailyRate, e.active);
+    return new Tool(
+        e.id, e.providerId, e.categoryId, e.name, e.description, e.dailyRate, e.active, e.deposit);
   }
 
   private static ToolEntity toEntity(Tool t) {
@@ -85,6 +86,7 @@ class ToolPersistenceAdapter implements ToolRepository {
     e.description = t.description();
     e.dailyRate = t.dailyRate();
     e.active = t.active();
+    e.deposit = t.deposit();
     return e;
   }
 }

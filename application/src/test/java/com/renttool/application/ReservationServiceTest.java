@@ -127,12 +127,14 @@ class ReservationServiceTest {
     service.request(client, days(5, 6, 1));
     service.request(secondClient, days(5, 6, 1));
     var page = new PageQuery(0, 10);
-    assertEquals(1, service.list(client, page).totalElements());
-    assertEquals(2, service.list(provider, page).totalElements());
+    assertEquals(1, service.list(client, null, page).totalElements());
+    assertEquals(2, service.list(provider, null, page).totalElements());
+    assertEquals(2, service.list(provider, ReservationStatus.SOLICITADA, page).totalElements());
+    assertEquals(0, service.list(provider, ReservationStatus.ACEPTADA, page).totalElements());
     assertEquals(
-        0, service.list(new Participant(50L, Participant.Role.PROVEEDOR), page).totalElements());
+        0, service.list(new Participant(50L, Participant.Role.PROVEEDOR), null, page).totalElements());
     assertThrows(
-        ForbiddenOperationException.class, () -> service.list(Participant.anonymous(), page));
+        ForbiddenOperationException.class, () -> service.list(Participant.anonymous(), null, page));
   }
 
   @Test
@@ -340,16 +342,40 @@ class ReservationServiceTest {
       return held;
     }
 
-    public PageResult<Reservation> findByClient(Long clientId, PageQuery page) {
-      return page(data.values().stream().filter(r -> r.clientId().equals(clientId)).toList());
+    public Set<Long> unitsHeldByOthers(Long toolId, RentalPeriod period, Long except) {
+      var held = new HashSet<Long>();
+      data.values().stream()
+          .filter(r -> r.toolId().equals(toolId) && !r.id().equals(except))
+          .filter(r -> ReservationStatus.HOLDING_UNITS.contains(r.status()))
+          .filter(r -> r.period().overlaps(period))
+          .forEach(r -> held.addAll(r.unitIds()));
+      return held;
     }
 
-    public PageResult<Reservation> findByTools(Collection<Long> toolIds, PageQuery page) {
-      return page(data.values().stream().filter(r -> toolIds.contains(r.toolId())).toList());
+    public boolean hasReturn(Long reservationId) {
+      return false;
     }
 
-    public PageResult<Reservation> findAll(PageQuery page) {
-      return page(List.copyOf(data.values()));
+    public PageResult<Reservation> findByClient(
+        Long clientId, ReservationStatus status, PageQuery page) {
+      return page(data.values().stream()
+          .filter(r -> r.clientId().equals(clientId))
+          .filter(r -> status == null || r.status() == status)
+          .toList());
+    }
+
+    public PageResult<Reservation> findByTools(
+        Collection<Long> toolIds, ReservationStatus status, PageQuery page) {
+      return page(data.values().stream()
+          .filter(r -> toolIds.contains(r.toolId()))
+          .filter(r -> status == null || r.status() == status)
+          .toList());
+    }
+
+    public PageResult<Reservation> findAll(ReservationStatus status, PageQuery page) {
+      return page(data.values().stream()
+          .filter(r -> status == null || r.status() == status)
+          .toList());
     }
 
     public List<Reservation> findRequestedBetween(

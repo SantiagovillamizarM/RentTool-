@@ -19,8 +19,10 @@
       <nav class="admin-tabs" aria-label="Secciones del panel">
         <a href="#proveedores" data-tab="proveedores"
           >Proveedores<span class="tab-badge" id="tab-applications" hidden></span></a
+        ><a href="#clientes" data-tab="clientes">Clientes</a
         ><a href="#catalogo" data-tab="catalogo">Catálogo</a
-        ><a href="#reservas" data-tab="reservas">Reservas</a>
+        ><a href="#reservas" data-tab="reservas">Reservas</a
+        ><a href="#administradores" data-tab="administradores">Agregar admin</a>
       </nav>
       <div class="header-actions">
         <a class="outline-button" href="/">Ver sitio público ↗</a
@@ -98,8 +100,58 @@
           </form>
           <div data-performance aria-live="polite"></div>
         </section>
+        <details class="statistics-panel" id="revenue-panel">
+          <summary>Ingresos y rentabilidad de la plataforma</summary>
+          <p class="muted">Cuentan las ventas (reservas aceptadas con pago aprobado) solicitadas entre ambas fechas: su total, con extensiones, más las multas y los cobros por daño registrados al devolver.</p>
+          <form class="statistics-form">
+            <label>Solicitadas desde<input name="from" type="date" required></label>
+            <label>Hasta (incluido)<input name="to" type="date" required></label>
+            <label>Agrupar por<select name="groupBy"><option value="TOOL">Herramienta</option><option value="MONTH">Mes</option></select></label>
+            <button class="outline-button">Consultar</button>
+            <p class="form-error" role="alert"></p>
+          </form>
+          <div data-revenue aria-live="polite"></div>
+        </details>
         <h3 class="workspace-subtitle providers-subtitle">Proveedores registrados</h3>
         <div id="providers"></div>
+      </section>
+      <section class="admin-panel" id="tab-clientes" data-panel="clientes" hidden>
+        <div class="panel-heading">
+          <div>
+            <h2>Clientes <span class="status-chip" id="clients-count"></span></h2>
+            <p class="muted">
+              Personas registradas desde el sitio público. Desactivar un cliente le
+              cierra el acceso de inmediato; no cancela sus reservas.
+            </p>
+          </div>
+        </div>
+        <div id="clients"></div>
+        <div class="pagination admin-pagination">
+          <button class="outline-button" id="clients-prev">← Anterior</button
+          ><span id="clients-page" class="muted"></span
+          ><button class="outline-button" id="clients-next">Siguiente →</button>
+        </div>
+      </section>
+      <section class="admin-panel" id="tab-administradores" data-panel="administradores" hidden>
+        <div class="panel-heading">
+          <div>
+            <h2>Agregar admin</h2>
+            <p class="muted">
+              El nuevo administrador tendrá tus mismos permisos. Recibe una contraseña
+              temporal que deberá cambiar la primera vez que entre; entrégasela por un
+              medio seguro.
+            </p>
+          </div>
+        </div>
+        <form class="statistics-form" id="admin-form" novalidate>
+          <label>Nombre<input name="name" required maxlength="120" autocomplete="off" /></label>
+          <label>Correo<input name="email" type="email" required maxlength="190" autocomplete="off" /></label>
+          <label>Contraseña temporal<input name="temporaryPassword" type="text" required minlength="12" maxlength="64" autocomplete="off" placeholder="Entre 12 y 64 caracteres" /></label>
+          <button class="button compact">+ Agregar administrador</button>
+          <p class="form-error" id="admin-form-error" role="alert"></p>
+        </form>
+        <h3 class="workspace-subtitle">Administradores registrados</h3>
+        <div id="administrators"></div>
       </section>
       <section class="admin-panel" id="tab-catalogo" data-panel="catalogo" hidden>
         <div class="panel-heading">
@@ -369,5 +421,6 @@
     <script src="tool-editor.js" defer></script>
     <script src="admin.js" defer></script>
     <script src="provider-performance.js" defer></script>
+    <script src="revenue.js" defer></script>
   </body>
 </html>

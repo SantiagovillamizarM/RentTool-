@@ -230,6 +230,7 @@ $("#upload-form").onsubmit = async (e) => {
 // Solicitudes: cuántas esperan respuesta y cuántas reservas están aceptadas. Se recalcula cada vez
 // que la lista se recarga, también tras aceptar o rechazar.
 document.addEventListener("reservations:loaded", (e) => {
+  if (e.detail.filtered) return;
   const reservations = e.detail.content;
   const pending = reservations.filter((r) => r.status === "SOLICITADA").length;
   $("#stat-pending").textContent = pending;

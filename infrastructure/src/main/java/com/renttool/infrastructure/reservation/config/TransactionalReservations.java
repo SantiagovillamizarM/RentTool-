@@ -5,6 +5,8 @@ import com.renttool.application.reservation.service.ReservationService;
 import com.renttool.application.shared.PageQuery;
 import com.renttool.application.shared.PageResult;
 import com.renttool.domain.reservation.Participant;
+import com.renttool.domain.reservation.ReservationStatus;
+import java.time.LocalDate;
 import java.util.List;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -45,8 +47,9 @@ class TransactionalReservations implements ManageReservationsUseCase, ExpireRese
   }
 
   @Override
-  public PageResult<ReservationDetails> list(Participant participant, PageQuery page) {
-    return read.execute(s -> service.list(participant, page));
+  public PageResult<ReservationDetails> list(
+      Participant participant, ReservationStatus status, PageQuery page) {
+    return read.execute(s -> service.list(participant, status, page));
   }
 
   @Override
@@ -63,6 +66,11 @@ class TransactionalReservations implements ManageReservationsUseCase, ExpireRese
       payments.ensurePaid(reservationId);
       return accepted;
     });
+  }
+
+  @Override
+  public ReservationDetails extend(Participant client, Long reservationId, LocalDate newEnd) {
+    return write.execute(s -> service.extend(client, reservationId, newEnd));
   }
 
   @Override

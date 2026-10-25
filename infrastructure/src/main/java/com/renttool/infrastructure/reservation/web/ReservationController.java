@@ -5,6 +5,7 @@ import static com.renttool.infrastructure.config.OpenApiConfig.BEARER;
 import com.renttool.application.reservation.port.in.ManageReservationsUseCase;
 import com.renttool.application.shared.PageQuery;
 import com.renttool.infrastructure.inventory.web.InventoryDtos.PageResponse;
+import com.renttool.domain.reservation.ReservationStatus;
 import com.renttool.infrastructure.reservation.web.ReservationDtos.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -59,9 +60,14 @@ public class ReservationController {
   @Operation(
       summary = "Listar reservas",
       description =
-          "CLIENTE ve las suyas, PROVEEDOR las de sus herramientas y ADMINISTRADOR todas.")
+          "CLIENTE ve las suyas, PROVEEDOR las de sus herramientas y ADMINISTRADOR todas."
+              + " Con status se filtran por estado.")
   @ApiResponse(responseCode = "200", description = "Página de reservas, la más reciente primero")
+  @ApiResponse(responseCode = "400", description = "Estado desconocido")
   public PageResponse<ReservationResponse> list(
+      @Parameter(description = "Estado de la reserva; sin valor incluye todos")
+          @RequestParam(required = false)
+          ReservationStatus status,
       @Parameter(description = "Página, desde 0") @RequestParam(defaultValue = "0") int page,
       @Parameter(description = "Tamaño de página, máximo " + PageQuery.MAX_SIZE)
           @RequestParam(defaultValue = "20")
@@ -69,7 +75,7 @@ public class ReservationController {
       @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
     return PageResponse.from(
         reservations
-            .list(ParticipantResolver.from(jwt), new PageQuery(page, size))
+            .list(ParticipantResolver.from(jwt), status, new PageQuery(page, size))
             .map(details -> response(ParticipantResolver.from(jwt), details)));
   }
 
@@ -118,6 +124,27 @@ public class ReservationController {
     // Si el alquiler empieza hoy, la entrega se registra en el momento, sin esperar a la revisión.
     if (operations.deliverIfStarted(id)) accepted = reservations.get(actor, id);
     return response(actor, accepted);
+  }
+
+  @PostMapping("/{id}/extension")
+  @Operation(
+      summary = "Extender una reserva aceptada",
+      description =
+          "Solo el CLIENTE de la reserva, antes de devolver el equipo. Comprueba que sus unidades"
+              + " sigan libres en los días nuevos y recalcula el total; la diferencia con lo"
+              + " pagado queda pendiente y se liquida al devolver.")
+  @ApiResponse(responseCode = "200", description = "Reserva extendida")
+  @ApiResponse(responseCode = "400", description = "La nueva fecha no es posterior o supera 90 días")
+  @ApiResponse(responseCode = "403", description = "No es el cliente de la reserva")
+  @ApiResponse(
+      responseCode = "409",
+      description = "No está aceptada, ya se devolvió o las unidades están ocupadas")
+  public ReservationResponse extend(
+      @PathVariable Long id,
+      @Valid @RequestBody ExtendRequest r,
+      @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
+    var actor = ParticipantResolver.from(jwt);
+    return response(actor, reservations.extend(actor, id, r.end()));
   }
 
   @PostMapping("/{id}/reject")

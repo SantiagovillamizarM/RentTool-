@@ -6,7 +6,6 @@ import com.renttool.application.inventory.port.out.UnitRepository;
 import com.renttool.application.reservation.port.out.ReservationRepository;
 import com.renttool.domain.inventory.*;
 import com.renttool.domain.reservation.Reservation;
-import com.renttool.domain.reservation.ReservationStatus;
 import com.renttool.domain.shared.exception.*;
 import java.time.Clock;
 import java.time.LocalDate;

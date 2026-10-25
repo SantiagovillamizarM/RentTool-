@@ -32,6 +32,7 @@ public class SecurityConfig {
                         "/api/v1/tools",
                         "/api/v1/tools/{id}",
                         "/api/v1/tools/{id}/availability",
+                        "/api/v1/tools/{id}/reviews",
                         "/api/v1/categories",
                         "/api/v1/providers")
                     .permitAll()

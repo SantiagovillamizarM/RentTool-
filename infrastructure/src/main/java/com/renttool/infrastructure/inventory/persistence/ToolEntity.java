@@ -25,4 +25,7 @@ class ToolEntity {
   BigDecimal dailyRate;
 
   boolean active;
+
+  @Column(precision = 14, scale = 2)
+  BigDecimal deposit;
 }

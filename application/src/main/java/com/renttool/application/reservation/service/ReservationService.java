@@ -101,17 +101,18 @@ public class ReservationService
   }
 
   @Override
-  public PageResult<ReservationDetails> list(Participant participant, PageQuery page) {
+  public PageResult<ReservationDetails> list(
+      Participant participant, ReservationStatus status, PageQuery page) {
     participant.ensureAuthenticated();
     PageResult<Reservation> result;
-    if (participant.isAdministrator()) result = reservations.findAll(page);
+    if (participant.isAdministrator()) result = reservations.findAll(status, page);
     else if (participant.isProvider()) {
       var toolIds = inventory.toolIdsOf(participant.id());
       result =
           toolIds.isEmpty()
               ? new PageResult<>(List.of(), 0, 0, page.page())
-              : reservations.findByTools(toolIds, page);
-    } else result = reservations.findByClient(participant.id(), page);
+              : reservations.findByTools(toolIds, status, page);
+    } else result = reservations.findByClient(participant.id(), status, page);
     return result.map(r -> details(r, tool(r.toolId())));
   }
 
@@ -152,6 +153,37 @@ public class ReservationService
     var rejected = reservations.save(reservation.reject(reason));
     record(provider, rejected, rejected.note());
     return details(rejected, tool);
+  }
+
+  @Override
+  public ReservationDetails extend(Participant client, Long reservationId, LocalDate newEnd) {
+    var reservation = lockedForChange(reservationId);
+    if (!client.isClient() || !reservation.clientId().equals(client.id()))
+      throw new ForbiddenOperationException("Solo el cliente de la reserva puede extenderla");
+    if (reservations.hasReturn(reservationId))
+      throw new ConflictException("El equipo ya se devolvió; haz una reserva nueva");
+    var tool =
+        inventory
+            .lockForAllocation(reservation.toolId())
+            .orElseThrow(() -> new NotFoundException("Herramienta no encontrada"));
+    var extended = reservation.extendTo(newEnd, today());
+    // Con la herramienta bloqueada, comprueba que nadie más tenga esas unidades en los días nuevos.
+    var added = new RentalPeriod(reservation.period().end(), extended.period().end());
+    boolean taken =
+        reservations.unitsHeldByOthers(tool.id(), added, reservation.id()).stream()
+            .anyMatch(reservation.unitIds()::contains);
+    if (taken)
+      throw new ConflictException(
+          "La herramienta ya está reservada por otra persona en esas fechas; elige una fecha anterior");
+    var saved = reservations.save(extended);
+    record(
+        client,
+        saved,
+        "Extendida hasta el "
+            + saved.period().end()
+            + " · nuevo total $"
+            + PESOS.get().format(saved.total()));
+    return details(saved, tool);
   }
 
   /**

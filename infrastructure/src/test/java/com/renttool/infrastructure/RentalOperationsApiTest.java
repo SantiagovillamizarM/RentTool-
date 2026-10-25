@@ -327,4 +327,159 @@ class RentalOperationsApiTest {
     mvc.perform(post("/api/v1/reservations/" + id + "/incidents").header("Authorization", "Bearer " + client)
         .contentType("application/json").content(body)).andExpect(status().isConflict()); // ya lo devolvió
   }
+
+  @Test void lateReturnAndDamageAreChargedAndClientRatesOnce() throws Exception {
+    String id = reserve(today, today.plusDays(2));
+    String rate = "{\"rating\":4,\"comment\":\"Buen taladro\"}";
+    mvc.perform(post("/api/v1/reservations/" + id + "/review").header("Authorization", "Bearer " + client)
+        .contentType("application/json").content(rate)).andExpect(status().isConflict()); // aún no devuelve
+    // Una unidad en buen estado no admite cobro.
+    String goodWithCharge = "{\"units\":[{\"unitId\":" + unitIds.get(0) + ",\"condition\":\"BUENO\",\"charge\":10},"
+        + "{\"unitId\":" + unitIds.get(1) + ",\"condition\":\"BUENO\"}]}";
+    mvc.perform(post("/api/v1/reservations/" + id + "/return").header("Authorization", "Bearer " + provider)
+        .contentType("application/json").content(goodWithCharge)).andExpect(status().isBadRequest());
+
+    clock.now = Instant.parse("2026-10-24T15:00:00Z"); // dos días después de la fecha de devolución
+    // Los tokens anteriores ya vencieron.
+    provider = TestAccounts.login(mvc, providerEmail, TestAccounts.PASSWORD);
+    client = TestAccounts.login(mvc, "operations-client-" + SEQ.get() + "@test.example", TestAccounts.PASSWORD);
+    other = TestAccounts.login(mvc, "operations-other-" + SEQ.get() + "@test.example", TestAccounts.PASSWORD);
+    String body = "{\"units\":[{\"unitId\":" + unitIds.get(0) + ",\"condition\":\"BUENO\"},"
+        + "{\"unitId\":" + unitIds.get(1) + ",\"condition\":\"DANADO\",\"notes\":\"Mandril roto\",\"charge\":5000}]}";
+    String response = mvc.perform(post("/api/v1/reservations/" + id + "/return")
+        .header("Authorization", "Bearer " + provider).contentType("application/json").content(body))
+        .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+    var charges = json.readTree(response).path("charges");
+    assertEquals(2, charges.path("lateDays").asInt());
+    assertEquals(400.0, charges.path("lateFee").asDouble()); // 100 por día × 2 días × 2 unidades
+    assertEquals(5000.0, charges.path("damageCharges").asDouble());
+    assertEquals(5400.0, charges.path("total").asDouble());
+
+    mvc.perform(post("/api/v1/reservations/" + id + "/review").header("Authorization", "Bearer " + other)
+        .contentType("application/json").content(rate)).andExpect(status().isForbidden());
+    mvc.perform(post("/api/v1/reservations/" + id + "/review").header("Authorization", "Bearer " + client)
+        .contentType("application/json").content("{\"rating\":6}")).andExpect(status().isBadRequest());
+    mvc.perform(get("/api/v1/reservations/" + id + "/review").header("Authorization", "Bearer " + client))
+        .andExpect(jsonPath("canReview").value(true));
+    mvc.perform(post("/api/v1/reservations/" + id + "/review").header("Authorization", "Bearer " + client)
+        .contentType("application/json").content(rate)).andExpect(status().isCreated());
+    mvc.perform(post("/api/v1/reservations/" + id + "/review").header("Authorization", "Bearer " + client)
+        .contentType("application/json").content(rate)).andExpect(status().isConflict());
+    mvc.perform(get("/api/v1/reservations/" + id + "/review").header("Authorization", "Bearer " + provider))
+        .andExpect(jsonPath("canReview").value(false)).andExpect(jsonPath("review.rating").value(4));
+    mvc.perform(get("/api/v1/tools/" + tool + "/reviews")) // público
+        .andExpect(status().isOk()).andExpect(jsonPath("count").value(1))
+        .andExpect(jsonPath("reviews[0].comment").value("Buen taladro"));
+  }
+
+  @Test void extensionChecksAvailabilityAndDepositSettlesTheCharges() throws Exception {
+    mvc.perform(put("/api/v1/tools/" + tool).header("Authorization", "Bearer " + provider)
+        .contentType("application/json")
+        .content("{\"categoryId\":1,\"name\":\"Taladro operaciones\",\"description\":\"Equipo\",\"dailyRate\":100,\"deposit\":1000}"))
+        .andExpect(status().isOk()).andExpect(jsonPath("deposit").value(1000));
+    String id = reserve(today, today.plusDays(2)); // 2 unidades: depósito 2000, total 400
+    var reservation = json.readTree(mvc.perform(get("/api/v1/reservations/" + id)
+        .header("Authorization", "Bearer " + client)).andReturn().getResponse().getContentAsString());
+    assertEquals(2000.0, reservation.path("deposit").asDouble());
+
+    // Otro cliente aparta una unidad del 23 al 25.
+    String response = mvc.perform(post("/api/v1/reservations").header("Authorization", "Bearer " + other)
+        .contentType("application/json").content("{\"toolId\":" + tool + ",\"start\":\"" + today.plusDays(3)
+            + "\",\"end\":\"" + today.plusDays(5) + "\",\"quantity\":1}"))
+        .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+    String second = TestAccounts.field(response, "id");
+    TestAccounts.pay(mvc, other, second);
+    mvc.perform(post("/api/v1/reservations/" + second + "/accept").header("Authorization", "Bearer " + provider))
+        .andExpect(status().isOk());
+
+    String extendTo = "{\"end\":\"%s\"}";
+    mvc.perform(post("/api/v1/reservations/" + id + "/extension").header("Authorization", "Bearer " + other)
+        .contentType("application/json").content(extendTo.formatted(today.plusDays(3))))
+        .andExpect(status().isForbidden());
+    mvc.perform(post("/api/v1/reservations/" + id + "/extension").header("Authorization", "Bearer " + client)
+        .contentType("application/json").content(extendTo.formatted(today.plusDays(1))))
+        .andExpect(status().isBadRequest());
+    mvc.perform(post("/api/v1/reservations/" + id + "/extension").header("Authorization", "Bearer " + client)
+        .contentType("application/json").content(extendTo.formatted(today.plusDays(4))))
+        .andExpect(status().isConflict()); // el 23 ya lo tiene el otro cliente
+    mvc.perform(post("/api/v1/reservations/" + id + "/extension").header("Authorization", "Bearer " + client)
+        .contentType("application/json").content(extendTo.formatted(today.plusDays(3))))
+        .andExpect(status().isOk()).andExpect(jsonPath("end").value(today.plusDays(3).toString()))
+        .andExpect(jsonPath("days").value(3));
+
+    String body = "{\"units\":[{\"unitId\":" + unitIds.get(0) + ",\"condition\":\"BUENO\"},"
+        + "{\"unitId\":" + unitIds.get(1) + ",\"condition\":\"BUENO\"}]}";
+    response = mvc.perform(post("/api/v1/reservations/" + id + "/return")
+        .header("Authorization", "Bearer " + provider).contentType("application/json").content(body))
+        .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+    var charges = json.readTree(response).path("charges");
+    assertEquals(200.0, charges.path("extensionBalance").asDouble()); // 600 nuevo total - 400 pagado
+    assertEquals(200.0, charges.path("total").asDouble());
+    assertEquals(1800.0, charges.path("depositRefund").asDouble());
+    assertEquals(0.0, charges.path("amountDue").asDouble());
+    mvc.perform(post("/api/v1/reservations/" + id + "/extension").header("Authorization", "Bearer " + client)
+        .contentType("application/json").content(extendTo.formatted(today.plusDays(10))))
+        .andExpect(status().isConflict()); // ya se devolvió
+
+    // Ingresos: 600 de la reserva extendida + 200 de la del otro cliente.
+    mvc.perform(get("/api/v1/statistics/revenue").header("Authorization", "Bearer " + client)
+        .param("from", today.toString()).param("to", today.toString())).andExpect(status().isForbidden());
+    response = mvc.perform(get("/api/v1/statistics/revenue").header("Authorization", "Bearer " + provider)
+        .param("from", today.toString()).param("to", today.toString()).param("groupBy", "TOOL"))
+        .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+    var row = json.readTree(response).path("rows").get(0);
+    assertEquals(2, row.path("reservations").asInt());
+    assertEquals(800.0, row.path("income").asDouble());
+    assertEquals(100.0, row.path("share").asDouble());
+    mvc.perform(get("/api/v1/statistics/revenue").header("Authorization", "Bearer " + provider)
+        .param("from", today.toString()).param("to", today.toString()).param("groupBy", "MONTH"))
+        .andExpect(jsonPath("rows[0].key").value("2026-10"))
+        .andExpect(jsonPath("rows[0].label").value("Octubre 2026"));
+  }
+
+  @Test void clientsKeepAWishList() throws Exception {
+    String path = "/api/v1/me/favorites/" + tool;
+    mvc.perform(post(path).header("Authorization", "Bearer " + provider)).andExpect(status().isForbidden());
+    mvc.perform(post(path).header("Authorization", "Bearer " + client)).andExpect(status().isNoContent());
+    mvc.perform(post(path).header("Authorization", "Bearer " + client)).andExpect(status().isNoContent());
+    mvc.perform(get("/api/v1/me/favorites").header("Authorization", "Bearer " + client))
+        .andExpect(jsonPath("$.length()").value(1)).andExpect(jsonPath("$[0].id").value(Long.valueOf(tool)));
+    mvc.perform(post("/api/v1/me/favorites/999999").header("Authorization", "Bearer " + client))
+        .andExpect(status().isNotFound());
+    mvc.perform(delete(path).header("Authorization", "Bearer " + client)).andExpect(status().isNoContent());
+    mvc.perform(get("/api/v1/me/favorites").header("Authorization", "Bearer " + client))
+        .andExpect(jsonPath("$.length()").value(0));
+  }
+
+  @Test void reservationsCanBeFilteredByStatus() throws Exception {
+    String id = reserve(today.plusDays(5), today.plusDays(6));
+    mvc.perform(get("/api/v1/reservations").param("status", "ACEPTADA").header("Authorization", "Bearer " + client))
+        .andExpect(jsonPath("totalElements").value(1)).andExpect(jsonPath("content[0].id").value(Long.valueOf(id)));
+    mvc.perform(get("/api/v1/reservations").param("status", "RECHAZADA").header("Authorization", "Bearer " + client))
+        .andExpect(jsonPath("totalElements").value(0));
+    mvc.perform(get("/api/v1/reservations").param("status", "OTRO").header("Authorization", "Bearer " + client))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test void adminListsClientsAndControlsTheirAccess() throws Exception {
+    String admin = TestAccounts.admin(mvc);
+    mvc.perform(get("/api/v1/admin/clients").header("Authorization", "Bearer " + client))
+        .andExpect(status().isForbidden());
+    String response = mvc.perform(get("/api/v1/admin/clients").param("size", "100")
+        .header("Authorization", "Bearer " + admin)).andExpect(status().isOk())
+        .andReturn().getResponse().getContentAsString();
+    String otherId = null;
+    for (var item : json.readTree(response).path("content"))
+      if (item.path("email").asString().startsWith("operations-other-" + SEQ.get())) otherId = item.path("id").asString();
+    assertNotNull(otherId);
+    mvc.perform(put("/api/v1/admin/clients/" + otherId + "/status").header("Authorization", "Bearer " + admin)
+        .contentType("application/json").content("{\"active\":false}"))
+        .andExpect(status().isOk()).andExpect(jsonPath("active").value(false));
+    mvc.perform(get("/api/v1/reservations").header("Authorization", "Bearer " + other))
+        .andExpect(status().isUnauthorized());
+    mvc.perform(put("/api/v1/admin/clients/" + otherId + "/status").header("Authorization", "Bearer " + admin)
+        .contentType("application/json").content("{\"active\":true}")).andExpect(status().isOk());
+    mvc.perform(get("/api/v1/reservations").header("Authorization", "Bearer " + other))
+        .andExpect(status().isOk());
+  }
 }

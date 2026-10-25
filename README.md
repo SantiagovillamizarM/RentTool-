@@ -17,6 +17,7 @@ El proyecto demuestra el flujo completo de la plataforma. **Los pagos son simula
 - [Ejecutar con Java y MySQL](#ejecutar-con-java-y-mysql)
 - [Catálogo de demostración](#catálogo-de-demostración)
 - [Probar un alquiler completo](#probar-un-alquiler-completo)
+- [Probar la API con Postman](#probar-la-api-con-postman)
 - [Configuración](#configuración)
 - [Pruebas y actualización](#pruebas-y-actualización)
 - [Solución de problemas](#solución-de-problemas)
@@ -30,21 +31,26 @@ El frontend y la API se sirven desde una misma aplicación. No necesitas iniciar
 
 | Rol | Funciones |
 | --- | --- |
-| Visitante | Consultar catálogo, imágenes, tarifas, proveedores y disponibilidad; buscar y ordenar herramientas. |
-| Cliente | Registrarse, editar su perfil y teléfono, solicitar y pagar reservas con la pasarela simulada, consultar sus registros y descargar facturas. Puede solicitar convertirse en proveedor. |
-| Proveedor | Publicar y editar herramientas, gestionar unidades e imágenes, responder reservas, registrar entregas y devoluciones, gestionar incidencias y consultar estadísticas propias. |
-| Administrador | Gestionar proveedores y solicitudes, moderar herramientas, consultar todas las reservas, registrar operaciones, resolver incidencias y consultar estadísticas e informes CSV. |
+| Visitante | Consultar catálogo, imágenes, tarifas, depósitos, calificaciones, proveedores y disponibilidad; buscar y ordenar herramientas. |
+| Cliente | Registrarse, editar su perfil y teléfono, solicitar, pagar y extender reservas, calificar herramientas tras devolverlas, guardar favoritos, consultar sus registros y descargar facturas en PDF. Puede solicitar convertirse en proveedor. |
+| Proveedor | Publicar y editar herramientas con su depósito de garantía, gestionar unidades e imágenes, responder reservas, registrar entregas y devoluciones con multas y cobros por daño, gestionar incidencias y consultar estadísticas e ingresos propios. |
+| Administrador | Agregar otros administradores, gestionar proveedores, clientes y solicitudes, moderar herramientas, consultar todas las reservas, registrar operaciones, resolver incidencias y consultar estadísticas, ingresos de la plataforma e informes CSV. |
 
 El registro público crea **clientes**. Para ser proveedor, un cliente envía una solicitud con sus datos comerciales y el administrador la acepta o rechaza con motivo. El administrador también puede darlo de alta directamente con una contraseña temporal, que debe cambiar antes de operar.
 
 El proveedor dispone de un panel propio con inventario, reservas y datos de su empresa. El administrador puede editar datos, desactivar el acceso o gestionar su baja conservando el historial; las operaciones que afecten reservas y pagos están sujetas a las validaciones del sistema.
+
+En la pestaña **Clientes**, el administrador ve los clientes registrados y puede desactivarlos o volver a activarlos. Un cliente inactivo no puede iniciar sesión, pero sus reservas no se cancelan.
+
+En la pestaña **Agregar admin**, un administrador da de alta a otro con nombre, correo y una contraseña temporal de 12 a 64 caracteres. El nuevo tiene los mismos permisos y debe cambiar la contraseña la primera vez que entra.
 
 ### Catálogo e inventario
 
 - Búsqueda por nombre o descripción y filtros por categoría y proveedor.
 - Orden por publicaciones recientes o tarifa diaria, ascendente o descendente.
 - Filtro por fechas de entrega y devolución y cantidad disponible.
-- Detalle con descripción, categoría, tarifa e imágenes.
+- Detalle con descripción, categoría, tarifa, depósito de garantía, imágenes y calificaciones de clientes con su promedio.
+- El cliente guarda herramientas en **Mis favoritos** desde el detalle (botón «♡ Guardar en favoritos»).
 - Cada publicación representa una herramienta; sus unidades representan equipos físicos con código y estado: operativa, mantenimiento o retirada.
 - Imágenes por referencia HTTPS o archivos PNG/JPEG, con validaciones de tamaño y dimensiones.
 
@@ -55,11 +61,13 @@ El proveedor dispone de un panel propio con inventario, reservas y datos de su e
 3. El cliente paga con tarjeta o Nequi de prueba en la pasarela simulada. La aprobación genera automáticamente la factura; el rechazo permite reintentar.
 4. El proveedor llama al cliente y acepta o rechaza. Solo puede aceptar una reserva pagada; al aceptar, se comprueba nuevamente la disponibilidad y se asignan unidades. Si rechaza, el pago se reembolsa y la factura queda anulada.
 5. La entrega se registra automáticamente el día de inicio, a nombre del proveedor. Si una unidad asignada no está lista, se usa otra libre de la misma herramienta; si ninguna lo está, la reserva queda en «Entrega bloqueada» y el proveedor o el administrador pueden cancelarla con reembolso.
-6. Al devolver, revisa todas las unidades e indica buen estado, daño o pérdida.
-7. RentTool actualiza el inventario y registra incidencias. El responsable documenta después su resolución.
-8. Los participantes autorizados consultan historial, registros, pagos y factura.
+6. Mientras no devuelva el equipo, el cliente puede **extender** la reserva: elige una nueva devolución, el sistema comprueba que sus unidades sigan libres en los días nuevos y recalcula el total.
+7. Al devolver, revisa todas las unidades e indica buen estado, daño o pérdida; a una unidad dañada o perdida se le puede fijar un cobro. Si se devuelve tarde, RentTool calcula la multa.
+8. RentTool actualiza el inventario, registra incidencias y liquida los cargos contra el depósito de garantía. El responsable documenta después la resolución de las incidencias.
+9. El cliente califica la herramienta de 1 a 5 estrellas.
+10. Los participantes autorizados consultan historial, registros, pagos y factura.
 
-La factura se descarga como HTML. Para obtener un PDF, abre el archivo en el navegador y utiliza **Imprimir → Guardar como PDF**.
+La factura se descarga como PDF.
 
 ### Reglas del negocio
 
@@ -73,7 +81,13 @@ La factura se descarga como HTML. Para obtener un PDF, abre el archivo en el nav
 - No se permite entregar dos veces ni devolver antes de entregar. La devolución es completa.
 - Una unidad dañada pasa a mantenimiento; una perdida pasa a retirada. Los daños o pérdidas abiertos impiden habilitarla manualmente.
 - Una unidad entregada ocupa las fechas de su alquiler. Si pasa su fecha de devolución sin registrarla, bloquea además las fechas siguientes hasta que se devuelva. Una devolución anticipada libera las unidades aptas.
-- El estado de reserva (`SOLICITADA`, `ACEPTADA`, `RECHAZADA`, `CANCELADA`, `VENCIDA`) se conserva separado del movimiento físico (`PENDIENTE_ENTREGA`, `EN_USO`, `DEVUELTA`).
+- El estado de reserva (`SOLICITADA`, `ACEPTADA`, `RECHAZADA`, `CANCELADA`, `VENCIDA`) se conserva separado del movimiento físico (`PENDIENTE_ENTREGA`, `EN_USO`, `DEVUELTA`). Las listas de reservas se pueden filtrar por estado.
+- **Depósito de garantía:** cada herramienta define un depósito por unidad (0 si no lo pide). La reserva guarda el depósito total al solicitarse; el cliente lo entrega al recibir el equipo y no pasa por la pasarela.
+- **Extensión:** solo para reservas aceptadas, no devueltas y cuya devolución no haya pasado. La diferencia del total con lo pagado queda como saldo y se liquida al devolver.
+- **Multa por retraso:** cada día después de la fecha de devolución se cobra a la tarifa pactada por unidad. Devolver el mismo día de devolución no genera multa.
+- **Cobro por daño o pérdida:** lo fija quien registra la devolución para cada unidad dañada o perdida; una unidad en buen estado no admite cobro.
+- **Liquidación al devolver:** cargos = multa + cobros por daño + saldo de extensión. El depósito los cubre: lo que sobra se devuelve al cliente y lo que falta queda pendiente de pago.
+- **Calificaciones:** solo el cliente de la reserva, una vez y después de registrada la devolución.
 
 ### Estadísticas e informes
 
@@ -82,6 +96,8 @@ Administrador y proveedor pueden consultar reservas por estado, pagos aprobados 
 **El rango selecciona reservas por su fecha de solicitud y muestra su estado actual.** La suma de pagos corresponde a esas reservas; no representa ingresos agrupados por fecha de pago. El proveedor ve únicamente sus herramientas, incluidas las retiradas.
 
 El administrador también descarga informes CSV para Excel de reservas e historial de eventos. Las descargas quedan registradas porque pueden contener datos personales.
+
+**Ingresos y rentabilidad** (panel del proveedor y pestaña Proveedores del administrador): agrupa por herramienta o por mes de solicitud las ventas (reservas aceptadas con pago aprobado). Muestra reservas, días-unidad alquilados, ingreso por alquiler (con extensiones), multas y daños, ingreso total, promedio por reserva, ingreso por día-unidad y porcentaje del total.
 
 ## Tecnologías
 
@@ -130,7 +146,7 @@ Dependencias: **infrastructure → application → domain**.
 - `infrastructure` implementa adaptadores y configuración; genera el JAR ejecutable.
 - Maven copia `frontend/` al JAR, por lo que interfaz y API comparten servidor.
 
-Los contextos incluyen identidad, inventario, reservas, pagos y operaciones; también hay coordinación para disponibilidad, estadísticas, ajuste de unidades y baja de proveedores.
+Los contextos incluyen identidad, inventario, reservas, pagos, operaciones, calificaciones (`review`) y favoritos (`favorite`); también hay coordinación para disponibilidad, estadísticas e ingresos, ajuste de unidades y baja de proveedores.
 
 ### VS Code y Java Projects
 
@@ -509,6 +525,28 @@ docker compose up -d
 
 Los volúmenes `mysql_data` y `uploads` conservan datos e imágenes. **No añadas -v al apagar si deseas conservarlos.** MySQL solo se publica dentro de la red de Compose; RentTool se expone en el puerto local de `APP_PORT`.
 
+### 7. Consultar la base de datos
+
+Como MySQL no publica su puerto, se entra a su consola a través del contenedor, con los servicios en marcha y desde la carpeta del repositorio. La contraseña se toma del propio contenedor, así que no hay que escribirla:
+
+```powershell
+# Windows (PowerShell; no funciona en cmd.exe)
+docker compose exec mysql sh -c 'mysql -urenttool -p"$MYSQL_PASSWORD" renttool'
+```
+
+```bash
+# macOS y Linux
+docker compose exec mysql sh -c 'mysql -urenttool -p"$MYSQL_PASSWORD" renttool'
+```
+
+En Linux, antepón `sudo` si Docker lo requiere. En el prompt `mysql>` termina cada consulta con `;` y sal con `exit`. Por ejemplo:
+
+```sql
+SELECT id, status, start_date, end_date FROM reservations ORDER BY id DESC LIMIT 5;
+```
+
+Las fechas y horas `DATETIME` (como `respond_by`) se guardan en UTC; usa `UTC_TIMESTAMP()` en lugar de `NOW()` al compararlas.
+
 ## Ejecutar con Java y MySQL
 
 Esta alternativa usa Java y MySQL instalados en tu equipo, sin necesidad de Docker.
@@ -687,6 +725,53 @@ La contraseña de Midnight es la definida al crear esa cuenta. El inicializador 
 
 Puedes usar otra ventana privada u otro navegador para mantener sesiones de distintos roles.
 
+Para probar las demás funciones:
+
+| Función | Cómo probarla |
+| --- | --- |
+| Clientes (admin) | Pestaña **Clientes** del panel de administración: desactiva un cliente y comprueba que ya no puede entrar. |
+| Agregar admin | Pestaña **Agregar admin**: crea un administrador, entra con su correo y la contraseña temporal en otra ventana privada y cámbiala; después ve el panel completo. |
+| Filtro por estado | Selector **Filtrar por estado** encima de cualquier lista de reservas. |
+| Depósito | Como proveedor, edita una herramienta y llena **Depósito de garantía por unidad**. El cliente lo ve en el detalle, en la cotización y en su reserva. |
+| Extensión | Como cliente, en una reserva aceptada y no devuelta pulsa **Extender** y elige la nueva devolución. |
+| Multa y daños | Como proveedor, en «Entrega y devolución» marca una unidad como dañada, escribe el cobro y registra la devolución. La sección **Cargos adicionales** muestra multa, daños, saldo de extensión y liquidación del depósito. |
+| Calificaciones | Como cliente, en una reserva devuelta pulsa **★ Calificar**. La calificación aparece en el detalle de la herramienta. |
+| Favoritos | Como cliente, abre una herramienta y pulsa **♡ Guardar en favoritos**; aparece en **Mis favoritos** de tu cuenta. |
+| Ingresos | Desplegable **Ingresos y rentabilidad** del panel del proveedor o del administrador; cambia **Agrupar por** entre herramienta y mes. |
+
+Para forzar casos que dependen del tiempo, cambia las fechas desde la [consola de MySQL](#7-consultar-la-base-de-datos):
+
+```sql
+-- Que una reserva aceptada empiece hoy (la entrega automática se registra en menos de 5 minutos).
+UPDATE reservations SET start_date = CURDATE() WHERE id = 18;
+-- Ya entregada: simular 2 días de retraso antes de registrar la devolución.
+UPDATE reservations SET start_date = CURDATE() - INTERVAL 4 DAY, end_date = CURDATE() - INTERVAL 2 DAY WHERE id = 18;
+-- Vencer una solicitud pendiente (se aplica en menos de 5 minutos o al intentar aceptarla).
+UPDATE reservations SET respond_by = UTC_TIMESTAMP() - INTERVAL 1 MINUTE WHERE id = 15 AND status = 'SOLICITADA';
+```
+
+Mueve las fechas hacia atrás solo **después** de que la reserva se haya entregado: una reserva aceptada que llega a su devolución sin entrega se cancela y se reembolsa sola.
+
+## Probar la API con Postman
+
+El archivo [docs/RentTool.postman_collection.json](docs/RentTool.postman_collection.json) es una **colección de Postman**: 50 peticiones listas, ordenadas por carpetas (autenticación, catálogo, reservas, entrega y devolución, pagos y factura, calificaciones, favoritos, inventario, ingresos y administración).
+
+1. En Postman pulsa **Import** y elige el archivo.
+2. Abre la colección, pestaña **Variables**, y ajusta:
+
+   | Variable | Valor |
+   | --- | --- |
+   | `baseUrl` | `http://localhost:8088` con Docker; `http://localhost:8080` con Java local sin `SERVER_PORT`. |
+   | `adminEmail` / `adminPassword` | Los de `RENTTOOL_ADMIN_EMAIL` y `RENTTOOL_ADMIN_PASSWORD` en `.env`. |
+   | `providerEmail` / `providerPassword` | Un proveedor activo; con el demo, `midnight@renttool.demo` y `DEMO_PASSWORD`. |
+   | `clientEmail` / `clientPassword` | Un cliente existente, o uno nuevo con **Registrar cliente**. |
+   | `toolId` | La herramienta que vas a reservar. |
+
+3. Ejecuta los logins de **0. Autenticación**. Cada uno guarda su token (`clientToken`, `providerToken`, `adminToken`) y las demás peticiones lo usan solas.
+4. Sigue el recorrido: **Crear reserva** (guarda `reservationId` y usa hoy y dentro de 2 días si `startDate` y `endDate` están vacías) → **Pagar con tarjeta de prueba** → **Aceptar reserva** → **Ver entrega y devolución** (guarda `unitId`) → **Registrar devolución** → **Calificar reserva** → **Descargar factura (PDF)**, con **Send and Download**.
+
+El token del administrador dura 10 minutos y el de los demás una hora; si recibes **401**, repite el login. También puedes probar la API desde Swagger UI en `/swagger-ui.html`.
+
 ## Configuración
 
 ### Archivos properties y perfiles
@@ -788,11 +873,11 @@ En Java local, revisa la terminal del JAR: el error final suele identificar la c
 ## Limitaciones y documentación
 
 - Sin pasarela real, reembolsos ni facturación fiscal.
-- Sin devoluciones parciales, transporte integrado, multas o cobros automáticos por daños.
+- Sin devoluciones parciales ni transporte integrado. Las multas, los cobros por daño, el saldo de extensiones y el depósito se registran y liquidan, pero no se cobran por la pasarela ni se agregan a la factura.
 - Algunas listas de gestión cargan hasta 100 herramientas o 50 reservas; el catálogo y determinadas consultas sí ofrecen paginación.
 - Las consultas de estadísticas y disponibilidad están orientadas al tamaño de la demostración; para grandes volúmenes habría que optimizar consultas y agregaciones.
 - Quitar una imagen de una publicación no borra automáticamente su archivo físico.
-- La gestión global de usuarios y otros requisitos de la planeación quedan para siguientes incrementos.
+- La edición de datos de clientes por el administrador y otros requisitos de la planeación quedan para siguientes incrementos.
 
 | Documento | Contenido |
 | --- | --- |
@@ -800,6 +885,7 @@ En Java local, revisa la terminal del JAR: el error final suele identificar la c
 | [Modelo de datos](docs/MODELO_DATOS.md) | Tablas y relaciones. |
 | [API](docs/API_MVP1.md) | Rutas y contratos. |
 | [Pagos demo](docs/PAGOS_DEMO.md) | Pasarela simulada, datos de prueba, reembolsos y factura. |
+| [Colección de Postman](docs/RentTool.postman_collection.json) | Peticiones listas para importar en Postman. |
 | [Entregas y devoluciones](docs/ENTREGAS_DEVOLUCIONES.md) | Operación física, daños y pérdidas. |
 | [Estadísticas y disponibilidad](docs/ESTADISTICAS_DISPONIBILIDAD.md) | Filtros, permisos e interpretación. |
 | [Planeación](docs/PLANEACION_PROYECTO.md) | Incrementos previstos. |

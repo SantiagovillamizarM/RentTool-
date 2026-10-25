@@ -6,6 +6,8 @@ import com.renttool.application.inventory.port.in.BrowseCatalogUseCase;
 import com.renttool.application.reservation.port.in.CheckAvailabilityUseCase;
 import com.renttool.application.insights.port.in.ViewStatisticsUseCase;
 import com.renttool.application.insights.service.StatisticsService;
+import com.renttool.application.insights.port.in.RevenueReportUseCase;
+import com.renttool.application.insights.service.RevenueService;
 import com.renttool.application.insights.port.in.ProviderPerformanceUseCase;
 import com.renttool.application.insights.service.ProviderPerformanceService;
 import com.renttool.application.identity.port.out.AccountRepository;
@@ -31,6 +33,13 @@ public class InsightsConfig {
     var transaction = new TransactionTemplate(manager);
     transaction.setReadOnly(true);
     return (actor, range) -> transaction.execute(status -> service.get(actor, range));
+  }
+  @Bean RevenueReportUseCase revenueReport(ReservationRepository reservations, ToolRepository tools,
+      PaymentStore payments, RentalRecords operations, Clock clock, PlatformTransactionManager manager) {
+    var service = new RevenueService(reservations, tools, payments, operations, clock);
+    var transaction = new TransactionTemplate(manager);
+    transaction.setReadOnly(true);
+    return (actor, range, groupBy) -> transaction.execute(status -> service.get(actor, range, groupBy));
   }
   @Bean ProviderPerformanceUseCase providerPerformance(AccountRepository accounts,
       ProviderProfileRepository profiles, ToolRepository tools, ReservationRepository reservations,

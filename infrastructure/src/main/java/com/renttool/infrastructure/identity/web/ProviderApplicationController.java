@@ -142,7 +142,7 @@ public class ProviderApplicationController {
   @ApiResponse(responseCode = "400", description = "No es una imagen válida o supera 2 MB")
   @ApiResponse(responseCode = "403", description = "La cuenta no es de proveedor")
   public ProviderResponse uploadLogo(
-      @RequestParam("file") MultipartFile file,
+      @RequestParam MultipartFile file,
       @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt)
       throws IOException {
     return ProviderResponse.from(company.setOwnLogo(accountId(jwt), file.getBytes()));

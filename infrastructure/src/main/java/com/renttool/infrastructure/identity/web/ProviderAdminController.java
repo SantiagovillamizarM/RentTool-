@@ -116,7 +116,7 @@ public class ProviderAdminController {
   @ApiResponse(responseCode = "404", description = "No existe o no es proveedor")
   public ProviderResponse uploadLogo(
       @PathVariable Long id,
-      @RequestParam("file") MultipartFile file,
+      @RequestParam MultipartFile file,
       @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt)
       throws IOException {
     return ProviderResponse.from(providers.setLogo(adminId(jwt), id, file.getBytes()));

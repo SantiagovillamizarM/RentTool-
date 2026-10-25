@@ -24,7 +24,7 @@ La tarjeta también se valida como lo haría un banco: dígito de control (Luhn)
 ## Qué se guarda
 Solo el método, un detalle enmascarado (por ejemplo «Visa •••• 4242» o «Nequi •••• 4567»), el resultado y su motivo. **Nunca se guardan el número completo ni el CVV**, que es la práctica que exige la norma de seguridad de tarjetas (PCI DSS). El navegador borra los datos de la tarjeta después de enviarlos.
 
-La factura es HTML descargable, con los datos históricos del alquiler y el medio de pago. Se puede guardar como PDF desde Imprimir → Guardar como PDF. Está marcada como demostración, sin cobro real y sin validez fiscal.
+La factura se descarga en PDF, con los datos históricos del alquiler y el medio de pago. Está marcada como demostración, sin cobro real y sin validez fiscal.
 
 ## Organización del código
 - domain/billing: Payment, Invoice y SimulatedGateway (validación y resultado de la pasarela).

@@ -192,6 +192,10 @@ const money = (v) =>
     currency: "COP",
     maximumFractionDigits: 0,
   }).format(v);
+// Calificaciones de 1 a 5 estrellas que dejan los clientes tras devolver el equipo.
+const stars = (rating) => "★".repeat(rating) + "☆".repeat(5 - rating);
+const reviewMarkup = (r) =>
+  `<article class="incident-card review-card"><h4><span class="review-stars" aria-label="${r.rating} de 5 estrellas">${stars(r.rating)}</span> · ${esc(r.clientName)}</h4><p class="muted">${dateTime(r.createdAt)}</p>${r.comment ? `<p class="preserve-lines">${esc(r.comment)}</p>` : ""}</article>`;
 // Imagen de una herramienta: su imagen principal o, si no tiene, la ilustración predeterminada.
 const toolArt = (id = 0) =>
   `<svg viewBox="0 0 300 200" aria-hidden="true"><defs><linearGradient id="metal${id}" x2="0.7" y2="1"><stop stop-color="#929296"/><stop offset=".4" stop-color="#3e3e43"/><stop offset="1" stop-color="#19191c"/></linearGradient><linearGradient id="gold${id}" x2="0" y2="1"><stop stop-color="#ffdf21"/><stop offset="1" stop-color="#b89a00"/></linearGradient></defs><ellipse cx="147" cy="175" rx="92" ry="9" fill="#000" opacity=".35"/><g transform="rotate(-12 150 100)"><path d="M70 70h103l20 20-5 41H80l-16-15z" fill="url(#gold${id})"/><path d="M82 125l23 3-9 47H64l6-16z" fill="#202024"/><path d="M67 166h39l5 17H60z" fill="url(#gold${id})"/><path d="M156 73h44v52h-44z" fill="url(#metal${id})"/><path d="M200 84h20v30h-20z" fill="#b3b3b7"/><path d="M219 94h49v10h-49z" fill="url(#metal${id})"/><path d="M107 83h36v7h-36z M107 98h36v7h-36z" fill="#2d2b1b"/><path d="M91 127h13v14H91z" fill="#9c9ca2"/><path d="M72 75h25v41H70z" fill="#e8c710"/><circle cx="170" cy="100" r="8" fill="#333339"/></g></svg>`;
@@ -500,6 +504,12 @@ function reservationRow(r) {
   // Mientras tiene el equipo, el cliente puede avisar al proveedor de una falla o daño.
   if (role === "CLIENTE" && r.rentalStatus === "EN_USO")
     actions.push(`<button class="outline-button" data-report="${r.id}">Reportar un problema</button>`);
+  // Mientras no devuelva el equipo ni haya pasado la fecha, el cliente puede ampliar la devolución.
+  if (role === "CLIENTE" && r.status === "ACEPTADA" && r.rentalStatus !== "DEVUELTA" && r.end >= businessToday())
+    actions.push(`<button class="outline-button" data-extend="${r.id}">Extender</button>`);
+  // Devuelto el equipo, el cliente puede calificar la herramienta desde el mismo diálogo.
+  if (role === "CLIENTE" && r.rentalStatus === "DEVUELTA")
+    actions.push(`<button class="outline-button" data-operations="${r.id}">★ Calificar</button>`);
   if (role === "PROVEEDOR" && r.status === "SOLICITADA")
     actions.push(
       r.paid ? `<button class="button compact" data-accept="${r.id}">Aceptar</button>` : "",
@@ -538,13 +548,85 @@ function reservationRow(r) {
       : r.note
         ? `<p class="muted">Motivo: ${esc(r.note)}</p>`
         : "";
-  return `<article class="inventory-row reservation-row"><div><h3><span class="reservation-id">#${r.id}</span> ${esc(r.toolName)} <span class="status-chip status-${r.status.toLowerCase()}">${r.rentalStatus === "EN_USO" ? "Entregada / en uso" : r.rentalStatus === "DEVUELTA" ? "Devuelta" : r.rentalStatus === "ENTREGA_BLOQUEADA" ? "Entrega bloqueada" : reservationStatus[r.status]}</span>${r.paid ? ' <span class="status-chip status-aceptada">Pagada</span>' : ""}</h3><p class="muted">${shortDate(r.start)} → ${shortDate(r.end)} · ${r.days} ${r.days === 1 ? "día" : "días"} · ${r.quantity} ${r.quantity === 1 ? "unidad" : "unidades"} · ${money(r.total)}${who}</p>${contact}${extra}</div>${actions.length ? `<div class="inventory-actions">${actions.filter(Boolean).join("")}</div>` : ""}</article>`;
+  return `<article class="inventory-row reservation-row"><div><h3><span class="reservation-id">#${r.id}</span> ${esc(r.toolName)} <span class="status-chip status-${r.status.toLowerCase()}">${r.rentalStatus === "EN_USO" ? "Entregada / en uso" : r.rentalStatus === "DEVUELTA" ? "Devuelta" : r.rentalStatus === "ENTREGA_BLOQUEADA" ? "Entrega bloqueada" : reservationStatus[r.status]}</span>${r.paid ? ' <span class="status-chip status-aceptada">Pagada</span>' : ""}</h3><p class="muted">${shortDate(r.start)} → ${shortDate(r.end)} · ${r.days} ${r.days === 1 ? "día" : "días"} · ${r.quantity} ${r.quantity === 1 ? "unidad" : "unidades"} · ${money(r.total)}${Number(r.deposit) > 0 ? ` · Depósito ${money(r.deposit)}` : ""}${who}</p>${contact}${extra}</div>${actions.length ? `<div class="inventory-actions">${actions.filter(Boolean).join("")}</div>` : ""}</article>`;
+}
+// Filtro por estado sobre la lista de reservas; se crea una vez en cada página que la muestra.
+function reservationFilter(box) {
+  let select = $("#reservation-status");
+  if (select) return select.value;
+  box.insertAdjacentHTML(
+    "beforebegin",
+    '<label class="reservation-filter">Filtrar por estado<select id="reservation-status">' +
+      '<option value="">Todas</option>' +
+      Object.entries(reservationStatus)
+        .map(([value, label]) => `<option value="${value}">${label}</option>`)
+        .join("") +
+      "</select></label>",
+  );
+  select = $("#reservation-status");
+  select.onchange = () => loadReservations();
+  return select.value;
+}
+// Extensión: el cliente elige una nueva devolución; el servidor revisa que sus unidades sigan libres.
+function openExtension(r) {
+  if (!$("#extension-dialog"))
+    document.body.insertAdjacentHTML(
+      "beforeend",
+      '<dialog id="extension-dialog" aria-labelledby="extension-title"><button class="close" aria-label="Cerrar">×</button>' +
+        '<h2 id="extension-title">Extender reserva</h2><form id="extension-form" novalidate>' +
+        '<p class="muted" data-current></p><label>Nueva fecha de devolución<input type="date" name="end" required></label>' +
+        '<p class="reserve-quote" data-quote aria-live="polite"></p><p class="form-error" role="alert"></p>' +
+        '<button class="button full">Extender reserva</button></form></dialog>',
+    );
+  const dialog = $("#extension-dialog");
+  const form = $("#extension-form");
+  const error = form.querySelector(".form-error");
+  const quote = form.querySelector("[data-quote]");
+  $("#extension-title").textContent = `Extender reserva #${r.id}`;
+  form.querySelector("[data-current]").textContent =
+    `${r.toolName} · devolución actual: ${shortDate(r.end)}. Pagarás la diferencia al devolver el equipo; si tienes depósito, se descuenta de él.`;
+  form.elements.end.min = addDays(r.end, 1);
+  form.elements.end.max = addDays(r.start, 90);
+  form.elements.end.value = addDays(r.end, 1);
+  error.textContent = "";
+  const update = () => {
+    const end = form.elements.end.value;
+    if (!end || end <= r.end) { quote.textContent = "Elige una fecha posterior a la devolución actual."; return; }
+    const [a, b] = [r.start, end].map((d) => Date.parse(d + "T00:00:00Z"));
+    const days = Math.round((b - a) / 86400000);
+    const total = r.dailyRate * days * r.quantity;
+    quote.innerHTML = `${days} días en total · Nuevo total <strong>${money(total)}</strong> · Diferencia <strong>${money(total - r.total)}</strong>`;
+  };
+  form.elements.end.oninput = update;
+  update();
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const button = form.querySelector("button");
+    if (!form.reportValidity()) return;
+    button.disabled = true;
+    error.textContent = "";
+    try {
+      await api(`/reservations/${r.id}/extension`, {
+        method: "POST",
+        body: JSON.stringify({ end: form.elements.end.value }),
+      });
+      dialog.close();
+      notify(`Reserva extendida hasta el ${shortDate(form.elements.end.value)}.`);
+      loadReservations();
+    } catch (failure) {
+      showFormError(form, failure, error);
+    } finally {
+      button.disabled = false;
+    }
+  };
+  dialog.showModal();
 }
 async function loadReservations() {
   const box = $("#reservations");
   if (!state.user) return;
   try {
-    const data = await api("/reservations?size=50");
+    const status = reservationFilter(box);
+    const data = await api("/reservations?size=50" + (status ? "&status=" + status : ""));
     const empty = {
       CLIENTE:
         "Aún no tienes reservas. Abre una herramienta del catálogo y elige tus fechas.",
@@ -553,9 +635,12 @@ async function loadReservations() {
     }[state.user.role];
     box.innerHTML = data.content.length
       ? data.content.map(reservationRow).join("")
-      : `<p class="muted">${empty}</p>`;
+      : `<p class="muted">${status ? "No hay reservas con ese estado." : empty}</p>`;
     // Avisa a la página (por ejemplo, para actualizar contadores) cada vez que la lista cambia.
-    document.dispatchEvent(new CustomEvent("reservations:loaded", { detail: data }));
+    // filtered: la lista no está completa, así que no sirve para contadores.
+    document.dispatchEvent(
+      new CustomEvent("reservations:loaded", { detail: { ...data, filtered: Boolean(status) } }),
+    );
     const act = async (button, request, message) => {
       button.disabled = true;
       try {
@@ -572,6 +657,8 @@ async function loadReservations() {
     box.querySelectorAll("[data-operations]").forEach(b => b.onclick = () => openOperations(b.dataset.operations));
     box.querySelectorAll("[data-report]").forEach(b => b.onclick = () => openOperations(b.dataset.report, true));
     box.querySelectorAll("[data-billing]").forEach(b => b.onclick = () => openBilling(b.dataset.billing));
+    box.querySelectorAll("[data-extend]").forEach(b => b.onclick = () =>
+      openExtension(data.content.find((r) => String(r.id) === b.dataset.extend)));
     box.querySelectorAll("[data-accept]").forEach(
       (b) =>
         (b.onclick = async () => {

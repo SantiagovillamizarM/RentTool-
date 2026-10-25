@@ -247,6 +247,99 @@ $("#provider-form").onsubmit = async (e) => {
 // Cambios que el público ve en el sitio: el aviso ofrece ir a comprobarlos.
 const SEE_CHANGES = { label: "Ver cambios ↗", href: "/#catalogo" };
 /** Lo llama api() ante un 401: la sesión venció en el servidor. */
+// Clientes registrados desde el sitio: el administrador puede cerrarles o devolverles el acceso.
+function clientRow(c) {
+  const chip = c.active
+    ? '<span class="status-chip status-aceptada">Activo</span>'
+    : '<span class="status-chip">Inactivo</span>';
+  return `<article class="inventory-row reservation-row provider-row"><div class="provider-info"><h3>${esc(c.name)} ${chip}</h3><p class="muted">${esc(c.email)}${c.phone ? ` · ${esc(c.phone)}` : ""}</p></div><div class="inventory-actions"><button class="outline-button" data-toggle-client="${c.id}" data-active="${c.active}" data-name="${esc(c.name)}">${c.active ? "Desactivar" : "Activar"}</button></div></article>`;
+}
+async function loadClients(page) {
+  const box = $("#clients");
+  try {
+    const data = await api(`/admin/clients?page=${page}&size=20`);
+    $("#clients-count").textContent = data.totalElements;
+    box.innerHTML = data.content.length
+      ? data.content.map(clientRow).join("")
+      : '<div class="empty"><h3>Aún no hay clientes.</h3><p>Aparecerán cuando alguien se registre en el sitio.</p></div>';
+    $("#clients-page").textContent = data.totalPages ? `Página ${page + 1} de ${data.totalPages}` : "";
+    $("#clients-prev").disabled = page === 0;
+    $("#clients-next").disabled = page + 1 >= data.totalPages;
+    $("#clients-prev").onclick = () => loadClients(page - 1);
+    $("#clients-next").onclick = () => loadClients(page + 1);
+    box.querySelectorAll("[data-toggle-client]").forEach(
+      (b) =>
+        (b.onclick = async () => {
+          const activate = b.dataset.active !== "true";
+          if (!(await confirmAction({
+            title: `¿${activate ? "Activar" : "Desactivar"} a ${b.dataset.name}?`,
+            message: activate
+              ? "El cliente podrá volver a iniciar sesión y reservar."
+              : "El cliente no podrá iniciar sesión y sus peticiones autenticadas serán rechazadas. Sus reservas no se cancelan.",
+            confirmLabel: activate ? "Activar cliente" : "Desactivar cliente", danger: !activate,
+          }))) return;
+          b.disabled = true;
+          try {
+            await api(`/admin/clients/${b.dataset.toggleClient}/status`, {
+              method: "PUT",
+              body: JSON.stringify({ active: activate }),
+            });
+            notify(activate ? "Cliente activado." : "Cliente desactivado.");
+          } catch (e) {
+            notify(e.message);
+          }
+          loadClients(page);
+        }),
+    );
+  } catch (e) {
+    box.innerHTML = `<p class="muted">${esc(e.message)}</p>`;
+  }
+}
+// Agregar admin: alta de otros administradores con contraseña temporal.
+async function loadAdministrators() {
+  const box = $("#administrators");
+  try {
+    const data = await api("/admin/administrators?size=100");
+    box.innerHTML = data.content
+      .map(
+        (a) =>
+          `<article class="inventory-row reservation-row provider-row"><div class="provider-info"><h3>${esc(a.name)} ${a.active ? '<span class="status-chip status-aceptada">Activo</span>' : '<span class="status-chip">Inactivo</span>'}${a.mustChangePassword ? ' <span class="status-chip status-solicitada">Clave temporal</span>' : ""}${a.id === state.user.id ? ' <span class="status-chip">Tú</span>' : ""}</h3><p class="muted">${esc(a.email)}</p></div></article>`,
+      )
+      .join("");
+  } catch (e) {
+    box.innerHTML = `<p class="muted">${esc(e.message)}</p>`;
+  }
+}
+$("#admin-form").onsubmit = async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const error = $("#admin-form-error");
+  clearFieldErrors(form);
+  error.textContent = "";
+  if (!form.reportValidity()) return;
+  const name = form.elements.name.value.trim();
+  const email = form.elements.email.value.trim();
+  if (!(await confirmAction({
+    title: `¿Agregar a ${name} como administrador?`,
+    message: `${email} tendrá acceso completo al panel: proveedores, clientes, catálogo, reservas e informes. Deberá cambiar la contraseña temporal al entrar.`,
+    confirmLabel: "Agregar administrador",
+  }))) return;
+  const button = form.querySelector("button");
+  button.disabled = true;
+  try {
+    await api("/admin/administrators", {
+      method: "POST",
+      body: JSON.stringify({ name, email, temporaryPassword: form.elements.temporaryPassword.value }),
+    });
+    form.reset();
+    notify("Administrador agregado. Entrégale la contraseña temporal.");
+    loadAdministrators();
+  } catch (failure) {
+    showFormError(form, failure, error);
+  } finally {
+    button.disabled = false;
+  }
+};
 function logout() {
   endAdminSession("Tu sesión de administrador venció. Inicia sesión de nuevo.");
 }
@@ -261,6 +354,8 @@ function renderAccount() {
   }
   loadApplications();
   loadPerformance();
+  loadClients(0);
+  loadAdministrators();
   loadProviders().then(() => {
     loadCatalog();
     loadReservations().then(countReservations);
@@ -350,7 +445,8 @@ $("#reject-form").onsubmit = async (e) => {
     button.disabled = false;
   }
 };
-// Pestañas del panel, sincronizadas con la URL (#proveedores, #catalogo, #reservas).
+// Pestañas del panel, sincronizadas con la URL (#proveedores, #clientes, #catalogo, #reservas,
+// #administradores).
 const showTab = setupTabs("proveedores");
 async function countReservations() {
   try {

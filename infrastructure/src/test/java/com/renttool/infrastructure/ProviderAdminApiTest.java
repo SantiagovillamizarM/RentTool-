@@ -311,4 +311,38 @@ class ProviderAdminApiTest {
     mvc.perform(get("/api/v1/me").header("Authorization", "Bearer " + admin))
         .andExpect(jsonPath("name").value("Administrador"));
   }
+
+  @Test
+  @Order(99)
+  void administratorAddsAnotherAdministratorWithTheSamePermissions() throws Exception {
+    String current = TestAccounts.admin(mvc);
+    String client = TestAccounts.client(mvc, "admin-candidate-client@test.example");
+    String body = "{\"name\":\"Ana Ruiz\",\"email\":\"ana-admin@test.example\","
+        + "\"temporaryPassword\":\"temporal-admin-2026\"}";
+    var add = (java.util.function.Function<String, org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder>) token ->
+        post("/api/v1/admin/administrators").header("Authorization", "Bearer " + token)
+            .contentType("application/json");
+    mvc.perform(add.apply(client).content(body)).andExpect(status().isForbidden());
+    mvc.perform(add.apply(current).content(body.replace("temporal-admin-2026", "corta-123")))
+        .andExpect(status().isBadRequest());
+    mvc.perform(add.apply(current).content(body)).andExpect(status().isCreated())
+        .andExpect(jsonPath("mustChangePassword").value(true));
+    mvc.perform(add.apply(current).content(body)).andExpect(status().isConflict());
+
+    // Entra con la clave temporal, la cambia y ya opera como cualquier administrador.
+    String fresh = TestAccounts.login(mvc, "ana-admin@test.example", "temporal-admin-2026");
+    mvc.perform(get("/api/v1/admin/clients").header("Authorization", "Bearer " + fresh))
+        .andExpect(status().isForbidden());
+    mvc.perform(put("/api/v1/me/password").header("Authorization", "Bearer " + fresh)
+            .contentType("application/json")
+            .content("{\"currentPassword\":\"temporal-admin-2026\",\"newPassword\":\"clave-propia-de-ana\"}"))
+        .andExpect(status().is2xxSuccessful());
+    fresh = TestAccounts.login(mvc, "ana-admin@test.example", "clave-propia-de-ana");
+    mvc.perform(get("/api/v1/admin/clients").header("Authorization", "Bearer " + fresh))
+        .andExpect(status().isOk());
+    mvc.perform(get("/api/v1/admin/administrators").header("Authorization", "Bearer " + fresh))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[?(@.email == 'ana-admin@test.example')].mustChangePassword")
+            .value(false));
+  }
 }
